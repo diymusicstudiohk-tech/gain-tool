@@ -11,6 +11,7 @@ import ControlHud from './components/layout/ControlHud';
 import Waveform, { drawMainWaveform } from './components/visualizer/Waveform';
 import Meters, { drawDualMeter, drawGRBar } from './components/visualizer/Meters';
 import { DraggableViewControls, DraggableInfoPanel, DraggableLegend } from './components/ui/Draggables';
+import SignalFlow from './components/ui/SignalFlow';
 
 const App = () => {
     // --- 1. 狀態管理 (State Management) ---
@@ -121,6 +122,7 @@ const App = () => {
     const processingTaskRef = useRef(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const isPlayingRef = useRef(false);
+    const [signalFlowMode, setSignalFlowMode] = useState('comp1');
 
     // --- 2. 初始化與 Effect (Init & Effects) ---
 
@@ -858,6 +860,7 @@ const App = () => {
                     onMouseMove={handleLocalMouseMove}
                     onMouseLeave={handleLocalMouseMove}
                 >
+                    <SignalFlow mode={signalFlowMode} setMode={setSignalFlowMode} />
                     <DraggableLegend />
                     <DraggableViewControls
                         zoomX={zoomX} setZoomX={(z) => {
