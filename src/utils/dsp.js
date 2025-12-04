@@ -1,9 +1,10 @@
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
-    const { 
-        threshold, ratio, attack, release, knee, lookahead, 
-        makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease 
+    const {
+        threshold, ratio, attack, release, knee, lookahead,
+        makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease,
+        isGateBypass, isCompBypass
     } = params;
-    
+
     const length = inputData.length;
     const outputData = new Float32Array(length);
     const grCurve = new Float32Array(length);
@@ -19,7 +20,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const compRelCoeff = 1 - Math.exp(-1 / relTime);
     const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
     const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
-    const lookaheadSamples = Math.floor(((lookahead / 1000) * effectiveSampleRate)); 
+    const lookaheadSamples = Math.floor(((lookahead / 1000) * effectiveSampleRate));
 
     let compEnvelope = 0;
     let gateEnvelope = 0;
@@ -34,10 +35,12 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
 
         let gateGaindB = 0;
-        let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
-        if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
+        if (!isGateBypass) {
+            let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+            if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
+        }
         const gateGainLinear = Math.pow(10, gateGaindB / 20);
-        
+
         // Comp
         const gatedDetectorLevel = inputLevel * gateGainLinear;
         if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
@@ -46,13 +49,15 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
         let compGainReductiondB = 0;
 
-        if (compEnvdB > threshold - knee/2) {
-             if (knee > 0 && compEnvdB < threshold + knee/2) {
-                let slope = 1 - (1/ratio);
-                let over = compEnvdB - (threshold - knee/2);
-                compGainReductiondB = -slope * ((over * over) / (2 * knee)); 
-            } else if (compEnvdB >= threshold + knee/2) {
-                compGainReductiondB = (threshold - compEnvdB) * (1 - 1 / ratio);
+        if (!isCompBypass) {
+            if (compEnvdB > threshold - knee / 2) {
+                if (knee > 0 && compEnvdB < threshold + knee / 2) {
+                    let slope = 1 - (1 / ratio);
+                    let over = compEnvdB - (threshold - knee / 2);
+                    compGainReductiondB = -slope * ((over * over) / (2 * knee));
+                } else if (compEnvdB >= threshold + knee / 2) {
+                    compGainReductiondB = (threshold - compEnvdB) * (1 - 1 / ratio);
+                }
             }
         }
 

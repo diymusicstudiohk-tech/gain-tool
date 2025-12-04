@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    Settings2, Upload, User, Download, Ban,
-    ToggleLeft, ToggleRight, Settings, X, Sliders
+    ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
+    Settings2, Upload, User, Download, Ban
 } from 'lucide-react';
 import { AUDIO_SOURCES } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -25,7 +25,8 @@ const Header = ({
     loadPreset,
     isInfoPanelEnabled,
     setIsInfoPanelEnabled,
-    fileInputRef
+    fileInputRef,
+    resetAllParams
 }) => {
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
     const optionsRef = useRef(null);
@@ -58,6 +59,7 @@ const Header = ({
 
     const confirmChange = () => {
         if (pendingSource) {
+            resetAllParams();
             loadPreset(pendingSource);
             setPendingSource(null);
         }
@@ -132,9 +134,10 @@ const Header = ({
 
                 <button
                     onClick={switchToPractice}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId !== 'upload' ? 'bg-orange-600 text-white border-orange-500' : 'bg-slate-800 text-orange-400 hover:bg-slate-700'}`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId !== 'upload' ? 'bg-orange-600 text-white border-orange-500 animate-pulse' : 'bg-slate-800 text-orange-400 hover:bg-slate-700'}`}
                 >
-                    選取練習音檔
+                    {currentSourceId !== 'upload' && <Play size={16} fill="currentColor" />}
+                    練習音檔
                 </button>
 
                 <div className="relative">

@@ -8,10 +8,11 @@ import { writeWavFile } from './utils/audioHelper';
 
 import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
-import Waveform, { drawMainWaveform } from './components/visualizer/Waveform';
-import Meters, { drawDualMeter, drawGRBar } from './components/visualizer/Meters';
+import Waveform from './components/visualizer/Waveform';
+import Meters from './components/visualizer/Meters';
 import { DraggableViewControls, DraggableInfoPanel, DraggableLegend } from './components/ui/Draggables';
 import SignalFlow from './components/ui/SignalFlow';
+import useVisualizerLoop from './hooks/useVisualizerLoop';
 
 const App = () => {
     // --- 1. 狀態管理 (State Management) ---
@@ -42,10 +43,14 @@ const App = () => {
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
     const [dryGain, setDryGain] = useState(0);
-    const [gateThreshold, setGateThreshold] = useState(-88);
+    const [gateThreshold, setGateThreshold] = useState(-3);
     const [gateRatio, setGateRatio] = useState(4);
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);
+
+    // Bypass State
+    const [isGateBypass, setIsGateBypass] = useState(true);
+    const [isCompBypass, setIsCompBypass] = useState(false);
 
     // Playback & View
     const [playingType, setPlayingType] = useState('none');
@@ -173,8 +178,13 @@ const App = () => {
     const calculateControlFromRatio = (r) => r <= 5 ? (r - 1) / 4 * 50 : (r <= 10 ? 50 + (r - 5) / 5 * 25 : 75 + (r - 10) / 90 * 25);
 
     const currentParams = useMemo(() => ({
-        threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease
-    }), [threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease]);
+        threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease,
+        isGateBypass, isCompBypass
+    }), [threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
+
+    // Ref to hold latest params for real-time processor
+    const paramsRef = useRef(currentParams);
+    useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
 
     // --- 4. 數據處理 (Data Processing) ---
 
@@ -263,27 +273,35 @@ const App = () => {
                 const currentInput = inputData[i];
 
                 // Inline DSP logic for maximum performance in this loop
-                if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
-                else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
+                if (!params.isGateBypass) {
+                    if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
+                    else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
+                }
 
                 let gateGaindB = 0;
-                let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
-                if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
+                if (!params.isGateBypass) {
+                    let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+                    if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
+                }
                 const gateGainLinear = Math.pow(10, gateGaindB / 20);
                 const gatedDetectorLevel = inputLevel * gateGainLinear;
 
-                if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
-                else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
+                if (!params.isCompBypass) {
+                    if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
+                    else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
+                }
 
                 let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
                 let compGainReductiondB = 0;
-                if (compEnvdB > params.threshold - params.knee / 2) {
-                    if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
-                        let slope = 1 - (1 / params.ratio);
-                        let over = compEnvdB - (params.threshold - params.knee / 2);
-                        compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
-                    } else if (compEnvdB >= params.threshold + params.knee / 2) {
-                        compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
+                if (!params.isCompBypass) {
+                    if (compEnvdB > params.threshold - params.knee / 2) {
+                        if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
+                            let slope = 1 - (1 / params.ratio);
+                            let over = compEnvdB - (params.threshold - params.knee / 2);
+                            compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
+                        } else if (compEnvdB >= params.threshold + params.knee / 2) {
+                            compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
+                        }
                     }
                 }
                 const compGainLinear = Math.pow(10, compGainReductiondB / 20);
@@ -313,140 +331,23 @@ const App = () => {
 
     // --- 5. 動畫迴圈 (Animation Loop) ---
 
-    const animate = useCallback(() => {
-        if (!originalBuffer || !audioContext) return;
-        if (!isPlayingRef.current) return;
-        const elapsed = audioContext.currentTime - startTimeRef.current;
-        const currentPosition = elapsed + startOffsetRef.current;
-        const duration = originalBuffer.duration;
+    // Use Custom Hook for Visualization Loop
+    const animate = useVisualizerLoop({
+        audioContext, originalBuffer, playingType, lastPlayedType, isDeltaMode, dryGain,
+        threshold, gateThreshold, loopStart, loopEnd, mousePos, hoverLine,
+        isDraggingLineRef, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
+        isGateBypass, isCompBypass, visualResult, visualSourceCache, fullAudioDataRef,
+        playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
+        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef,
+        meterStateRef, hoverGrRef, canvasDims, zoomX, zoomY, panOffset, panOffsetY
+    });
 
-        // Update Playhead Position
-        if (waveformCanvasRef.current && playheadRef.current) {
-            const width = waveformCanvasRef.current.width;
-            const totalWidth = width * zoomX;
-            const pct = currentPosition / duration;
-            const screenPct = (((pct * totalWidth) + panOffset) / width) * 100;
-            playheadRef.current.style.left = `${screenPct}%`;
-            playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
-        }
-
-        if (visualResult) {
-            // RMS Calculation
-            const step = visualSourceCache.step;
-            const visualIndex = Math.floor((currentPosition * audioContext.sampleRate) / step);
-            const windowSize = Math.max(1, Math.floor(2048 / step));
-            const endIdx = Math.min(visualIndex + windowSize, visualResult.outputData.length);
-
-            let currentGR = 0;
-            if (visualIndex < visualResult.grCurve.length && visualIndex >= 0) currentGR = visualResult.grCurve[visualIndex];
-
-            let maxMix = 0; let maxInput = 0; let sumSqInput = 0; let sumSqMix = 0; let sampleCount = 0;
-            const isProcessed = playingType === 'processed';
-            const dryLinear = Math.pow(10, dryGain / 20);
-
-            for (let i = visualIndex; i < endIdx; i++) {
-                if (i >= visualResult.outputData.length) break;
-                const dry = visualResult.visualInput[i];
-                const dryAbs = Math.abs(dry);
-                if (dryAbs > maxInput) maxInput = dryAbs;
-                sumSqInput += dry * dry;
-
-                let mix = 0;
-                if (isProcessed) {
-                    const wet = visualResult.outputData[i];
-                    if (isDeltaMode) mix = wet - dry; else mix = wet + (dry * dryLinear);
-                } else {
-                    mix = visualResult.visualInput[i];
-                }
-                const abs = Math.abs(mix);
-                if (abs > maxMix) maxMix = abs;
-                sumSqMix += mix * mix;
-                sampleCount++;
-            }
-
-            const currentDryRms = sampleCount > 0 ? Math.sqrt(sumSqInput / sampleCount) : 0;
-            const currentOutRms = sampleCount > 0 ? Math.sqrt(sumSqMix / sampleCount) : 0;
-
-            const smoothingFactor = 0.15;
-            meterStateRef.current.dryRmsLevel = meterStateRef.current.dryRmsLevel * (1 - smoothingFactor) + currentDryRms * smoothingFactor;
-            meterStateRef.current.outRmsLevel = meterStateRef.current.outRmsLevel * (1 - smoothingFactor) + currentOutRms * smoothingFactor;
-
-            // Draw Meters
-            drawGRBar(grBarCanvasRef.current, isProcessed ? currentGR : 0, meterStateRef.current, hoverGrRef.current);
-            if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current);
-            } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current);
-            }
-
-            // Draw Main Waveform
-            drawMainWaveform({
-                canvas: waveformCanvasRef.current,
-                canvasDims,
-                visualResult,
-                originalBuffer,
-                zoomX, zoomY, panOffset, panOffsetY,
-                playingType, lastPlayedType, isDeltaMode, dryGain,
-                threshold, gateThreshold,
-                loopStart, loopEnd,
-                mousePos, hoverLine,
-                isDraggingLine: isDraggingLineRef.current,
-                isCompAdjusting, hasThresholdBeenAdjusted,
-                isGateAdjusting, hasGateBeenAdjusted,
-                hoverGrRef
-            });
-        }
-
-        // Loop & Playback Logic
-        if (loopStart !== null && loopEnd !== null) {
-            if (currentPosition >= loopEnd) {
-                if (playBufferRef.current) {
-                    const targetBuffer = playingType === 'original' ? originalBuffer :
-                        (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
-                    if (targetBuffer) playBufferRef.current(targetBuffer, playingType, loopStart);
-                }
-            }
-        } else if (currentPosition >= duration) {
-            if (playBufferRef.current) {
-                const targetBuffer = playingType === 'original' ? originalBuffer :
-                    (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
-                if (targetBuffer) playBufferRef.current(targetBuffer, playingType, 0);
-            }
-        }
-
-        rafIdRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(rafIdRef.current);
-    }, [originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, dryGain, isDeltaMode, visualSourceCache, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted]);
-
-    // --- Static Draw for Initial State ---
     useEffect(() => {
-        if (playingType !== 'none') return;
-
-        if (waveformCanvasRef.current && originalBuffer && visualResult) {
-            drawMainWaveform({
-                canvas: waveformCanvasRef.current,
-                canvasDims,
-                visualResult,
-                originalBuffer,
-                zoomX, zoomY, panOffset, panOffsetY,
-                playingType, lastPlayedType, isDeltaMode, dryGain,
-                threshold, gateThreshold,
-                loopStart, loopEnd,
-                mousePos, hoverLine,
-                isDraggingLine: isDraggingLineRef.current,
-                isCompAdjusting, hasThresholdBeenAdjusted,
-                isGateAdjusting, hasGateBeenAdjusted,
-                hoverGrRef
-            });
+        if (playingType !== 'none') {
+            rafIdRef.current = requestAnimationFrame(animate);
         }
-
-        if (grBarCanvasRef.current) {
-            drawGRBar(grBarCanvasRef.current, 0, meterStateRef.current, hoverGrRef.current);
-        }
-        if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current);
-        }
-    }, [playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY, lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd, mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted]);
+        return () => cancelAnimationFrame(rafIdRef.current);
+    }, [playingType, animate]);
 
     // --- 6. 播放與操作邏輯 (Handlers) ---
 
@@ -454,18 +355,128 @@ const App = () => {
         if (!audioContext || !buffer) return;
         if (sourceNodeRef.current) { try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch (e) { } }
         if (drySourceNodeRef.current) { try { drySourceNodeRef.current.stop(); drySourceNodeRef.current.disconnect(); } catch (e) { } }
+        // Clean up previous script node if any (though we usually attach it to sourceNodeRef for tracking, we might need a separate ref or just rely on sourceNodeRef being the source)
+        // Actually, for real-time, sourceNodeRef will be the BufferSource, and we need to track the ScriptProcessor too to disconnect it.
+        // Let's attach the script node to a ref or property of sourceNodeRef if possible, or just use a new ref.
+        // For simplicity, let's assume sourceNodeRef tracks the source. We also need to disconnect the script node.
+        // Ideally we should have a scriptNodeRef.
+
         if (audioContext.state === 'suspended') audioContext.resume();
         isPlayingRef.current = true;
         let safeOffset = offset; if (safeOffset >= buffer.duration) safeOffset = 0;
         startTimeRef.current = audioContext.currentTime; startOffsetRef.current = safeOffset;
-        const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(audioContext.destination);
-        sourceNodeRef.current = source; source.start(0, safeOffset);
+
+        // Create Source
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer; // Always play the buffer (original or processed? For real-time we want original and process it live)
+
+        if (type === 'processed') {
+            // Real-time Processing
+            const bufferSize = 4096;
+            const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+            // DSP State for this playback session
+            let compEnvelope = 0;
+            let gateEnvelope = 0;
+            const sampleRate = audioContext.sampleRate;
+
+            scriptNode.onaudioprocess = (audioProcessingEvent) => {
+                const inputBuffer = audioProcessingEvent.inputBuffer;
+                const outputBuffer = audioProcessingEvent.outputBuffer;
+                const inputData = inputBuffer.getChannelData(0);
+                const outputData = outputBuffer.getChannelData(0);
+
+                const params = paramsRef.current; // Get latest params
+
+                // Coefficients
+                const makeUpLinear = Math.pow(10, params.makeupGain / 20);
+                const attTime = (params.attack / 1000) * sampleRate;
+                const relTime = (params.release / 1000) * sampleRate;
+                const gAttTime = (params.gateAttack / 1000) * sampleRate;
+                const gRelTime = (params.gateRelease / 1000) * sampleRate;
+                const compAttCoeff = 1 - Math.exp(-1 / attTime);
+                const compRelCoeff = 1 - Math.exp(-1 / relTime);
+                const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
+                const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
+                const lookaheadSamples = Math.floor(((params.lookahead / 1000) * sampleRate));
+
+                // Note: Lookahead in real-time requires buffering/delay. 
+                // For simple ScriptProcessor without significant latency compensation, lookahead is hard.
+                // We will ignore lookahead for real-time preview or implement a simple delay line if needed.
+                // For now, let's skip lookahead in real-time preview to keep it simple and instant.
+
+                for (let i = 0; i < inputBuffer.length; i++) {
+                    const inputSample = inputData[i];
+                    const inputLevel = Math.abs(inputSample);
+
+                    // Gate
+                    if (!params.isGateBypass) {
+                        if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
+                        else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
+                    }
+
+                    let gateGaindB = 0;
+                    if (!params.isGateBypass) {
+                        let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+                        if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
+                    }
+                    const gateGainLinear = Math.pow(10, gateGaindB / 20);
+                    const gatedDetectorLevel = inputLevel * gateGainLinear;
+
+                    // Compressor
+                    if (!params.isCompBypass) {
+                        if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
+                        else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
+                    }
+
+                    let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
+                    let compGainReductiondB = 0;
+                    if (!params.isCompBypass) {
+                        if (compEnvdB > params.threshold - params.knee / 2) {
+                            if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
+                                let slope = 1 - (1 / params.ratio);
+                                let over = compEnvdB - (params.threshold - params.knee / 2);
+                                compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
+                            } else if (compEnvdB >= params.threshold + params.knee / 2) {
+                                compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
+                            }
+                        }
+                    }
+                    const compGainLinear = Math.pow(10, compGainReductiondB / 20);
+
+                    // Output
+                    outputData[i] = inputSample * gateGainLinear * compGainLinear * makeUpLinear;
+                }
+            };
+
+            source.connect(scriptNode);
+            scriptNode.connect(audioContext.destination);
+
+            // We need to keep track of scriptNode to disconnect it later
+            // Hack: attach it to source node object for cleanup
+            source._scriptNode = scriptNode;
+
+        } else {
+            // Original Mode
+            source.connect(audioContext.destination);
+        }
+
+        sourceNodeRef.current = source;
+        source.start(0, safeOffset);
+
+        // Dry Signal (for Parallel Comp or just reference? The original code had dry signal logic)
+        // If we are in 'processed' mode, we might want dry signal mixed in?
+        // Wait, the previous logic had a separate drySourceNode.
+        // If we are doing real-time processing, we can mix dry signal in the script processor OR run a parallel source.
+        // Running a parallel source is easier for timing if we don't have heavy latency.
+        // Let's keep the parallel dry source logic.
         if (type === 'processed' && originalBuffer && !isDeltaMode) {
             const drySrc = audioContext.createBufferSource(); drySrc.buffer = originalBuffer;
             const dryGn = audioContext.createGain(); dryGn.gain.value = Math.pow(10, dryGain / 20);
             drySrc.connect(dryGn); dryGn.connect(audioContext.destination);
             drySourceNodeRef.current = drySrc; dryGainNodeRef.current = dryGn; drySrc.start(0, safeOffset);
         }
+
         setPlayingType(type); setLastPlayedType(type);
         cancelAnimationFrame(rafIdRef.current); rafIdRef.current = requestAnimationFrame(animate);
     }, [audioContext, animate, originalBuffer, dryGain, isDeltaMode]);
@@ -476,7 +487,16 @@ const App = () => {
         if (!originalBuffer) return;
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current; startOffsetRef.current += elapsed;
-            if (sourceNodeRef.current) { try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch (e) { } sourceNodeRef.current = null; }
+            if (sourceNodeRef.current) {
+                try {
+                    sourceNodeRef.current.stop();
+                    sourceNodeRef.current.disconnect();
+                    if (sourceNodeRef.current._scriptNode) {
+                        sourceNodeRef.current._scriptNode.disconnect();
+                    }
+                } catch (e) { }
+                sourceNodeRef.current = null;
+            }
             if (drySourceNodeRef.current) { try { drySourceNodeRef.current.stop(); drySourceNodeRef.current.disconnect(); } catch (e) { } drySourceNodeRef.current = null; }
             setPlayingType('none'); cancelAnimationFrame(rafIdRef.current);
             isPlayingRef.current = false;
@@ -544,7 +564,8 @@ const App = () => {
         threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, dryGain,
         gateThreshold, gateRatio, gateAttack, gateRelease,
         zoomX, zoomY, panOffset, panOffsetY, cuePoint, loopStart, loopEnd,
-        selectedPresetIdx, isCustomSettings
+        selectedPresetIdx, isCustomSettings,
+        isGateBypass, isCompBypass
     });
 
     const applyStateSnapshot = (snap) => {
@@ -556,6 +577,7 @@ const App = () => {
         setZoomX(snap.zoomX); setZoomY(snap.zoomY); setPanOffset(snap.panOffset); setPanOffsetY(snap.panOffsetY); setCuePoint(snap.cuePoint);
         setLoopStart(snap.loopStart || null); setLoopEnd(snap.loopEnd || null);
         setSelectedPresetIdx(snap.selectedPresetIdx); setIsCustomSettings(snap.isCustomSettings);
+        setIsGateBypass(snap.isGateBypass || false); setIsCompBypass(snap.isCompBypass || false);
 
         if (playingType === 'none') startOffsetRef.current = snap.cuePoint;
         if (lastPlayedType !== 'processed') handleModeChange('processed');
@@ -569,7 +591,8 @@ const App = () => {
             ratioControl: calculateControlFromRatio(def.ratio),
             gateRatio: 4, gateAttack: 2, gateRelease: 100,
             zoomX: 1, zoomY: 0.8, panOffset: 0, panOffsetY: 0, cuePoint: 0, loopStart: null, loopEnd: null,
-            selectedPresetIdx: 0, isCustomSettings: false
+            selectedPresetIdx: 0, isCustomSettings: false,
+            isGateBypass: true, isCompBypass: false
         };
     };
 
@@ -588,6 +611,7 @@ const App = () => {
         setThreshold(p.params.threshold); setRatio(p.params.ratio); setRatioControl(calculateControlFromRatio(p.params.ratio));
         setAttack(p.params.attack); setRelease(p.params.release); setKnee(p.params.knee); setLookahead(p.params.lookahead);
         setMakeupGain(p.params.makeupGain); setDryGain(p.params.dryGain); setGateThreshold(p.params.gateThreshold);
+        setIsGateBypass(false); setIsCompBypass(false);
         if (idx === 0) setGateRatio(4);
         if (lastPlayedType !== 'processed') handleModeChange('processed');
     };
@@ -596,6 +620,7 @@ const App = () => {
         applyPreset(0); setPanOffsetY(0); setZoomY(0.8); setPanOffset(0); setZoomX(1);
         setLoopStart(null); setLoopEnd(null);
         gainAdjustedRef.current = false; setHasThresholdBeenAdjusted(true); setHasGateBeenAdjusted(false); setIsDeltaMode(false);
+        setIsGateBypass(true); setIsCompBypass(false);
     }, []);
     const resetView = useCallback(() => { setPanOffsetY(0); setZoomY(0.8); setPanOffset(0); setZoomX(1); }, []);
 
@@ -751,6 +776,9 @@ const App = () => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
 
         if (hoverLine) {
+            if (hoverLine === 'comp' && isCompBypass) return;
+            if (hoverLine === 'gate' && isGateBypass) return;
+
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'row-resize';
         } else {
@@ -775,9 +803,11 @@ const App = () => {
             if (newDb > 0) newDb = 0;
 
             if (isDraggingLineRef.current === 'comp') {
+                if (isCompBypass) return; // Disable drag if bypassed
                 if (newDb < -60) newDb = -60;
                 setThreshold(Math.round(newDb)); setHasThresholdBeenAdjusted(true); setIsCompAdjusting(true);
             } else if (isDraggingLineRef.current === 'gate') {
+                if (isGateBypass) return; // Disable drag if bypassed
                 if (newDb < -80) newDb = -80;
                 setGateThreshold(Math.round(newDb)); setHasGateBeenAdjusted(true); setIsGateAdjusting(true);
             }
@@ -832,6 +862,36 @@ const App = () => {
                         playheadRef.current.style.left = `${screenPct}%`;
                         playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
                     }
+                }
+            } else if (waveformCanvasRef.current && originalBuffer) {
+                // Drag finished - Auto Zoom Logic
+                const rect = waveformCanvasRef.current.getBoundingClientRect();
+                const totalWidth = rect.width * zoomX;
+                const pixelToTime = (px) => {
+                    const relX = px - panOffset; let pct = relX / totalWidth; if (pct < 0) pct = 0; if (pct > 1) pct = 1; return pct * originalBuffer.duration;
+                };
+                const t1 = pixelToTime(dragStartXRef.current - rect.left);
+                const t2 = pixelToTime(e.clientX - rect.left);
+                const loopDur = Math.abs(t2 - t1);
+
+                if (loopDur > 0.01) {
+                    const totalDur = originalBuffer.duration;
+                    let newZoom = (totalDur * 0.8) / loopDur;
+                    if (newZoom < 1) newZoom = 1;
+                    if (newZoom > 50) newZoom = 50;
+
+                    const width = rect.width;
+                    const newTotalWidth = width * newZoom;
+                    const loopMidTime = (t1 + t2) / 2;
+                    const loopMidPx = (loopMidTime / totalDur) * newTotalWidth;
+
+                    let newPan = (width / 2) - loopMidPx;
+                    const minPan = width - newTotalWidth;
+                    if (newPan > 0) newPan = 0;
+                    if (newPan < minPan) newPan = minPan;
+
+                    setZoomX(newZoom);
+                    setPanOffset(newPan);
                 }
             }
         }
@@ -888,6 +948,7 @@ const App = () => {
                 loadPreset={loadPreset}
                 isInfoPanelEnabled={isInfoPanelEnabled} setIsInfoPanelEnabled={setIsInfoPanelEnabled}
                 fileInputRef={fileInputRef}
+                resetAllParams={resetAllParams}
             />
 
             <div className="flex-1 flex min-h-0 gap-4 relative">
@@ -913,6 +974,10 @@ const App = () => {
                         zoomY={zoomY} setZoomY={setZoomY}
                         onReset={resetView}
                         containerHeight={canvasDims.height}
+                        loopStart={loopStart} loopEnd={loopEnd}
+                        panOffset={panOffset} setPanOffset={setPanOffset}
+                        originalBuffer={originalBuffer}
+                        canvasDims={canvasDims}
                     />
                     {isInfoPanelEnabled && showInfoPanel && activeInfo && (
                         <DraggableInfoPanel title={activeInfo.title} content={activeInfo.content} onClose={() => setIsInfoPanelEnabled(false)} />
@@ -929,6 +994,7 @@ const App = () => {
                 updateParam={updateGateParam}
                 handleGateDragState={(isActive) => { setIsKnobDragging(isActive); setIsGateAdjusting(isActive); }}
                 hasGateBeenAdjusted={hasGateBeenAdjusted}
+                isGateBypass={isGateBypass} setIsGateBypass={(v) => { setIsGateBypass(v); setIsCustomSettings(true); setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed'); }}
                 // Comp
                 threshold={threshold} ratio={ratio} ratioControl={ratioControl} attack={attack} release={release} knee={knee} lookahead={lookahead}
                 handleThresholdChange={(v) => { updateParamGeneric(setThreshold, v); setHasThresholdBeenAdjusted(true); }}
@@ -936,6 +1002,7 @@ const App = () => {
                 handleCompKnobChange={handleCompKnobChange}
                 handleCompDragState={(isActive) => { setIsKnobDragging(isActive); setIsCompAdjusting(isActive); }}
                 hasThresholdBeenAdjusted={hasThresholdBeenAdjusted}
+                isCompBypass={isCompBypass} setIsCompBypass={(v) => { setIsCompBypass(v); setIsCustomSettings(true); setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed'); }}
                 // Output
                 makeupGain={makeupGain} dryGain={dryGain}
                 handleGainChange={handleGainChange}
