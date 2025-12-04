@@ -217,7 +217,6 @@ const Waveform = ({
     canvasRef, 
     containerRef, 
     playheadRef, 
-    cueMarkerRef,
     onMouseDown, 
     onMouseMove, 
     onMouseLeave,
@@ -235,7 +234,6 @@ const Waveform = ({
             
             {/* Playheads */}
             <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] pointer-events-none z-20" style={{left:'0%',opacity:0}}></div>
-            <div ref={cueMarkerRef} className="absolute top-0 bottom-0 w-[2px] bg-green-500 pointer-events-none z-10" style={{left:'0%',opacity:0}}></div>
             
             {/* Draggable Overlays & HUDs passed as children */}
             {children}

@@ -19,16 +19,18 @@ const App = () => {
     const [audioContext, setAudioContext] = useState(null);
     const [originalBuffer, setOriginalBuffer] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
-    const [fileName, setFileName] = useState('');
     const [currentSourceId, setCurrentSourceId] = useState(null);
+    const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Lead-Vocal-03');
+    const [fileName, setFileName] = useState('');
+    const [resolutionPct, setResolutionPct] = useState(100);
 
     // Persistent User Upload
     const userBufferRef = useRef(null);
     const userFileNameRef = useRef("");
 
-    // A/B MEMORY SYSTEM
-    const abMemoryRef = useRef({});
-    const [activeSlot, setActiveSlot] = useState('A');
+    // Dual Mode Session State
+    const practiceSessionRef = useRef(null);
+    const uploadSessionRef = useRef(null);
 
     // Params
     const [threshold, setThreshold] = useState(0);
@@ -40,7 +42,7 @@ const App = () => {
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
     const [dryGain, setDryGain] = useState(0);
-    const [gateThreshold, setGateThreshold] = useState(-60);
+    const [gateThreshold, setGateThreshold] = useState(-88);
     const [gateRatio, setGateRatio] = useState(4);
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);
@@ -57,7 +59,7 @@ const App = () => {
     const [cuePoint, setCuePoint] = useState(0);
 
     // Resolution Control
-    const [resolutionPct, setResolutionPct] = useState(100);
+
 
     // UI
     const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
@@ -99,7 +101,6 @@ const App = () => {
     const grBarCanvasRef = useRef(null);
     const outputMeterCanvasRef = useRef(null);
     const playheadRef = useRef(null);
-    const cueMarkerRef = useRef(null);
     const rafIdRef = useRef(null);
     const fileInputRef = useRef(null);
     const playBufferRef = useRef(null);
@@ -164,17 +165,7 @@ const App = () => {
     }, [dryGain, audioContext]);
 
     // Sync Cue Marker
-    useEffect(() => {
-        if (waveformCanvasRef.current && cueMarkerRef.current && originalBuffer) {
-            const width = waveformCanvasRef.current.width;
-            const cuePct = cuePoint / originalBuffer.duration;
-            const cueScreenPct = (((cuePct * width * zoomX) + panOffset) / width) * 100;
-            cueMarkerRef.current.style.left = `${cueScreenPct}%`;
-            cueMarkerRef.current.style.opacity = (cueScreenPct < 0 || cueScreenPct > 100) ? 0 : 1;
-        } else if (cueMarkerRef.current) {
-            cueMarkerRef.current.style.opacity = 0;
-        }
-    }, [cuePoint, zoomX, panOffset, canvasDims, originalBuffer]);
+    // Removed cue marker logic
 
     // --- 3. 輔助邏輯 (Helpers) ---
 
@@ -424,6 +415,7 @@ const App = () => {
         }
 
         rafIdRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(rafIdRef.current);
     }, [originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, dryGain, isDeltaMode, visualSourceCache, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted]);
 
     // --- Static Draw for Initial State ---
@@ -582,29 +574,11 @@ const App = () => {
     };
 
     const prepareSourceChange = (newId) => {
-        if (currentSourceId && abMemoryRef.current[currentSourceId]) {
-            abMemoryRef.current[currentSourceId][activeSlot] = getCurrentStateSnapshot();
-        }
-        if (!abMemoryRef.current[newId]) {
-            abMemoryRef.current[newId] = { A: getDefaultSnapshot(), B: null, activeSlot: 'A' };
-        }
-        const newMem = abMemoryRef.current[newId];
-        return { slot: newMem.activeSlot, snapshot: newMem[newMem.activeSlot] };
+        // Removed A/B logic
     };
 
     const handleABSwitch = (clickedSlot) => {
-        if (!currentSourceId) return;
-        const mem = abMemoryRef.current[currentSourceId];
-        if (!mem) return;
-        mem[activeSlot] = getCurrentStateSnapshot();
-
-        let targetSlot = clickedSlot;
-        if (clickedSlot === activeSlot) targetSlot = activeSlot === 'A' ? 'B' : 'A';
-        if (!mem[targetSlot]) mem[targetSlot] = getDefaultSnapshot();
-
-        const mixedSnapshot = { ...mem[targetSlot], zoomX, zoomY, panOffset, panOffsetY, cuePoint }; // Keep view
-        applyStateSnapshot(mixedSnapshot);
-        mem.activeSlot = targetSlot; setActiveSlot(targetSlot);
+        // Removed A/B logic
     };
 
     // --- Loading Logic ---
@@ -649,12 +623,12 @@ const App = () => {
 
     const loadPreset = async (preset) => {
         if (!audioContext) return;
-        const { slot, snapshot } = prepareSourceChange(preset.id);
         try {
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
-            setPlayingType('none'); isPlayingRef.current = false; setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0; setCurrentSourceId(preset.id); setFileName(preset.name);
-            applyStateSnapshot(snapshot); setActiveSlot(slot);
+            setPlayingType('none'); isPlayingRef.current = false; setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0;
+            setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id); setFileName(preset.name);
+
             let arrayBuffer; try { const res = await fetch(preset.url); if (!res.ok) throw new Error('Direct fetch failed'); arrayBuffer = await res.arrayBuffer(); } catch (e) { const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`; const res = await fetch(pUrl); if (!res.ok) throw new Error('Failed'); arrayBuffer = await res.arrayBuffer(); }
             const decoded = await audioContext.decodeAudioData(arrayBuffer); handleDecodedBuffer(decoded); setIsLoading(false);
         } catch (err) { console.error(err); setErrorMsg(`載入失敗: ${err.message}`); setIsLoading(false); }
@@ -662,26 +636,91 @@ const App = () => {
 
     const handleFileUpload = async (e) => {
         const file = e.target.files[0]; if (!file || !audioContext) return;
-        const { slot, snapshot } = prepareSourceChange('upload');
         try {
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setPlayingType('none'); isPlayingRef.current = false; setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0; setCurrentSourceId('upload'); setFileName(file.name); setOriginalBuffer(null);
-            applyStateSnapshot(snapshot); setActiveSlot(slot);
             const ab = await file.arrayBuffer(); const decoded = await audioContext.decodeAudioData(ab);
             userBufferRef.current = decoded; userFileNameRef.current = file.name;
             handleDecodedBuffer(decoded); setIsLoading(false);
         } catch (err) { setErrorMsg(`Failed: ${err.message}`); setIsLoading(false); }
     };
 
+    const saveSessionState = (mode) => {
+        const snapshot = getCurrentStateSnapshot();
+        if (mode === 'practice') practiceSessionRef.current = { ...snapshot, sourceId: currentSourceId, fileName };
+        else if (mode === 'upload') uploadSessionRef.current = { ...snapshot, fileName: userFileNameRef.current };
+    };
+
+    const switchToPractice = () => {
+        if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
+        setPlayingType('none'); isPlayingRef.current = false;
+
+        if (currentSourceId === 'upload') saveSessionState('upload');
+
+        if (practiceSessionRef.current) {
+            const snap = practiceSessionRef.current;
+            applyStateSnapshot(snap);
+            setCurrentSourceId(snap.sourceId);
+            setFileName(snap.fileName);
+            // Re-load the buffer for the practice file if needed (or just let loadPreset handle it if we want to be safe, but loadPreset resets params)
+            // Actually, we need to load the audio without resetting params if we are restoring session.
+            // But wait, the requirement says "switching modes preserves them".
+            // So we need a way to load audio without resetting.
+            // Let's check if the buffer is already loaded? No, we switch buffers.
+            // We need to fetch the audio again.
+            const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
+            if (source) loadAudioOnly(source);
+        } else {
+            // No previous practice session, load default
+            const defaultSource = AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0];
+            loadPreset(defaultSource);
+        }
+    };
+
+    const switchToUpload = () => {
+        if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
+        setPlayingType('none'); isPlayingRef.current = false;
+
+        if (currentSourceId !== 'upload') saveSessionState('practice');
+
+        if (uploadSessionRef.current) {
+            const snap = uploadSessionRef.current;
+            applyStateSnapshot(snap);
+            setCurrentSourceId('upload');
+            setFileName(snap.fileName);
+            if (userBufferRef.current) handleDecodedBuffer(userBufferRef.current);
+        } else {
+            restoreUserUpload();
+        }
+    };
+
+    const loadAudioOnly = async (preset) => {
+        if (!audioContext) return;
+        try {
+            setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
+            setPlayingType('none'); isPlayingRef.current = false; setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0;
+            setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id); setFileName(preset.name);
+            let arrayBuffer; try { const res = await fetch(preset.url); if (!res.ok) throw new Error('Direct fetch failed'); arrayBuffer = await res.arrayBuffer(); } catch (e) { const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`; const res = await fetch(pUrl); if (!res.ok) throw new Error('Failed'); arrayBuffer = await res.arrayBuffer(); }
+            const decoded = await audioContext.decodeAudioData(arrayBuffer); handleDecodedBuffer(decoded); setIsLoading(false);
+        } catch (err) { console.error(err); setErrorMsg(`載入失敗: ${err.message}`); setIsLoading(false); }
+    };
+
     const restoreUserUpload = () => {
         if (!userBufferRef.current || !audioContext) return;
-        const { slot, snapshot } = prepareSourceChange('upload');
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch (e) { }
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); sourceNodeRef.current.disconnect(); } catch (e) { }
         setPlayingType('none'); isPlayingRef.current = false; setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0; setCurrentSourceId('upload'); setFileName(userFileNameRef.current);
-        applyStateSnapshot(snapshot); setActiveSlot(slot);
         handleDecodedBuffer(userBufferRef.current);
+    };
+
+    const clearUserUpload = () => {
+        userBufferRef.current = null;
+        userFileNameRef.current = "";
+        uploadSessionRef.current = null;
+        if (currentSourceId === 'upload') {
+            switchToPractice();
+        }
     };
 
     const handleDownload = () => {
@@ -704,7 +743,7 @@ const App = () => {
         }, 50);
     };
 
-    useEffect(() => { if (audioContext && !originalBuffer && !currentSourceId && !isLoading) loadPreset(AUDIO_SOURCES[0]); }, [audioContext]);
+    useEffect(() => { if (audioContext && !originalBuffer && !currentSourceId && !isLoading) loadPreset(AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0]); }, [audioContext]);
 
     // --- 7. 滑鼠互動 (Mouse Interactions for Waveform) ---
 
@@ -841,8 +880,9 @@ const App = () => {
             <Header
                 fileName={fileName}
                 resolutionPct={resolutionPct} setResolutionPct={setResolutionPct}
-                currentSourceId={currentSourceId}
-                handleFileUpload={handleFileUpload} restoreUserUpload={restoreUserUpload}
+                currentSourceId={currentSourceId} lastPracticeSourceId={lastPracticeSourceId}
+                handleFileUpload={handleFileUpload} restoreUserUpload={switchToUpload} switchToPractice={switchToPractice}
+                clearUserUpload={clearUserUpload}
                 userBufferRef={userBufferRef} userFileNameRef={userFileNameRef}
                 handleDownload={handleDownload} isLoading={isLoading}
                 loadPreset={loadPreset}
@@ -855,7 +895,6 @@ const App = () => {
                     canvasRef={waveformCanvasRef}
                     containerRef={containerRef}
                     playheadRef={playheadRef}
-                    cueMarkerRef={cueMarkerRef}
                     onMouseDown={handleWaveformMouseDown}
                     onMouseMove={handleLocalMouseMove}
                     onMouseLeave={handleLocalMouseMove}
@@ -904,7 +943,6 @@ const App = () => {
                 playingType={playingType} lastPlayedType={lastPlayedType} isDryMode={isDryMode} isDeltaMode={isDeltaMode}
                 handleModeChange={handleModeChange} toggleDeltaMode={toggleDeltaMode} togglePlayback={togglePlayback}
                 // A/B & Presets
-                activeSlot={activeSlot} handleABSwitch={handleABSwitch}
                 selectedPresetIdx={selectedPresetIdx} isCustomSettings={isCustomSettings} applyPreset={applyPreset}
                 // Interactions
                 isDraggingKnobRef={isDraggingKnobRef} handleNormalDragState={setIsKnobDragging} handleKnobEnter={(k) => { setHoveredKnob(k); setShowInfoPanel(true); }} handleKnobLeave={() => setHoveredKnob(null)}
