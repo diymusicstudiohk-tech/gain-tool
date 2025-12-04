@@ -68,9 +68,9 @@ const ControlHud = ({
                             <span className="text-sm font-bold text-slate-400 tracking-widest group-hover/label:text-slate-200 transition-colors">GATE</span>
                         </div>
                         <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="orange" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="yellow" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleNormalDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="yellow" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
 
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="yellow" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleNormalDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="yellow" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                     </div>
 
                     <div className="flex-1"></div>

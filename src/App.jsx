@@ -43,7 +43,7 @@ const App = () => {
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
     const [dryGain, setDryGain] = useState(0);
-    const [gateThreshold, setGateThreshold] = useState(-3);
+    const [gateThreshold, setGateThreshold] = useState(-25);
     const [gateRatio, setGateRatio] = useState(4);
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);

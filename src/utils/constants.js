@@ -4,7 +4,7 @@ export const PRESETS_DATA = [
     {
         name: "Default (初始設定)",
         explanation: "這是壓縮器的初始狀態。Threshold 為 0dB，Ratio 為 4:1，不會對聲音產生任何壓縮。適合用來聆聽原始訊號，或作為從零開始調整的起點。",
-        params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -3, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+        params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -25, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Subtle Vocal Control (輕微人聲控制)",

@@ -116,7 +116,7 @@ export const drawMainWaveform = ({
         // Draw Polygons
         if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#facc15', width, centerY); }
         else {
-            const redOpacity = (isCompAdjusting || isDeltaMode) ? 1.0 : 0.5;
+            const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
             drawPolygon(ctx, inPoints, '#ef4444', width, centerY, redOpacity);
             drawPolygon(ctx, mixPoints, '#facc15', width, centerY);
             drawPolygon(ctx, outPoints, '#38bdf8', width, centerY);
@@ -148,7 +148,7 @@ export const drawMainWaveform = ({
                 drawLabel(`Comp: ${threshold}dB`, width, tTop - 4, isCompBypass ? '#475569' : '#22d3ee', 'right');
             }
         }
-        if (hasGateBeenAdjusted || isGateAdjusting || hoverLine === 'gate' || isGateBypass) {
+        if (hoverLine === 'gate' || !isGateBypass) {
             const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
             if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
                 const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
