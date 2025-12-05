@@ -130,10 +130,18 @@ const useVisualizerLoop = ({
 
         // Loop & Playback Logic
         if (loopStart !== null && loopEnd !== null) {
-            if (currentPosition >= loopEnd) {
+            // Only enforce loop if we are theoretically "in" the loop or just passed it.
+            // If the user started playback WAY past the loop (e.g. seeking to outro), allowing them to play freely.
+            // Logic: If currentPosition > loopEnd, AND startOffset < loopEnd (meaning we played INTO the boundary), then loop.
+            if (currentPosition >= loopEnd && startOffsetRef.current < loopEnd) {
                 if (playBufferRef.current) {
-                    const targetBuffer = playingType === 'original' ? originalBuffer :
-                        (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
+                    // Always use originalBuffer for Real-Time Engine (or whatever current mode requires)
+                    // Note: playingTypeRef not used here but could be passed if needed,
+                    // but we generally just restart with current params.
+                    // We need to use the CORRECT buffer type logic here too if we want to be safe,
+                    // but usually originalBuffer + 'processed' type works.
+                    const targetBuffer = originalBuffer;
+
                     if (targetBuffer) playBufferRef.current(targetBuffer, playingType, loopStart);
                 }
             }

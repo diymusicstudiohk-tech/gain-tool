@@ -55,6 +55,13 @@ const App = () => {
     // Playback & View
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('original');
+
+    // Refs for Event Listeners (Prevent Stale Closures)
+    const playingTypeRef = useRef(playingType);
+    const lastPlayedTypeRef = useRef(lastPlayedType);
+    useEffect(() => { playingTypeRef.current = playingType; }, [playingType]);
+    useEffect(() => { lastPlayedTypeRef.current = lastPlayedType; }, [lastPlayedType]);
+
     const isDryMode = lastPlayedType === 'original';
     const [isDeltaMode, setIsDeltaMode] = useState(false);
     const [zoomX, setZoomX] = useState(1);
@@ -160,7 +167,7 @@ const App = () => {
             const currentPos = startOffsetRef.current + elapsed;
             playBufferRef.current(targetBuffer, 'processed', currentPos);
         }
-    }, [isDeltaMode]);
+    }, [isDeltaMode, playingType, lastPlayedType, fullAudioDataRef, audioContext]);
 
     // Sync Dry Gain
     useEffect(() => {
@@ -179,8 +186,9 @@ const App = () => {
 
     const currentParams = useMemo(() => ({
         threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease,
-        isGateBypass, isCompBypass
-    }), [threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
+        isGateBypass, isCompBypass, dryGain, isDeltaMode
+    }), [threshold, ratio, attack, release, knee, lookahead, makeupGain, gateThreshold,
+        gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass, dryGain, isDeltaMode]);
 
     // Ref to hold latest params for real-time processor
     const paramsRef = useRef(currentParams);
@@ -327,7 +335,7 @@ const App = () => {
             }
         };
         processingTaskRef.current = setTimeout(processChunk, 150);
-    }, [originalBuffer, audioContext, currentParams]);
+    }, [originalBuffer, audioContext, currentParams, playingType, isDeltaMode]);
 
     // --- 5. 動畫迴圈 (Animation Loop) ---
 
@@ -361,125 +369,167 @@ const App = () => {
         // For simplicity, let's assume sourceNodeRef tracks the source. We also need to disconnect the script node.
         // Ideally we should have a scriptNodeRef.
 
-        if (audioContext.state === 'suspended') audioContext.resume();
-        isPlayingRef.current = true;
-        let safeOffset = offset; if (safeOffset >= buffer.duration) safeOffset = 0;
-        startTimeRef.current = audioContext.currentTime; startOffsetRef.current = safeOffset;
+        const runPlayback = async () => {
+            try {
+                if (audioContext.state !== 'running') {
+                    await audioContext.resume();
+                    console.log("AudioContext resumed.");
+                }
+                startSource();
+            } catch (err) {
+                console.error("Playback failed:", err);
+                setErrorMsg("Playback Error: " + err.message);
+                isPlayingRef.current = false;
+                setPlayingType('none');
+            }
+        };
 
-        // Create Source
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer; // Always play the buffer (original or processed? For real-time we want original and process it live)
+        runPlayback();
 
-        if (type === 'processed') {
-            // Real-time Processing
-            const bufferSize = 4096;
-            const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+        function startSource() {
+            try {
+                isPlayingRef.current = true;
+                let safeOffset = offset; if (safeOffset >= buffer.duration) safeOffset = 0;
+                startTimeRef.current = audioContext.currentTime; startOffsetRef.current = safeOffset;
+                console.log(`Starting playback of type '${type}' at offset ${safeOffset.toFixed(2)}s`);
 
-            // DSP State for this playback session
-            let compEnvelope = 0;
-            let gateEnvelope = 0;
-            const sampleRate = audioContext.sampleRate;
+                // Create Source
+                const source = audioContext.createBufferSource();
 
-            scriptNode.onaudioprocess = (audioProcessingEvent) => {
-                const inputBuffer = audioProcessingEvent.inputBuffer;
-                const outputBuffer = audioProcessingEvent.outputBuffer;
-                const inputData = inputBuffer.getChannelData(0);
-                const outputData = outputBuffer.getChannelData(0);
+                // Determine which buffer to use
+                let targetBuffer = buffer;
+                if (type === 'processed') {
+                    // Real-time Processing: Always use original buffer to avoid double-compression
+                    targetBuffer = originalBuffer;
+                }
+                source.buffer = targetBuffer;
 
-                const params = paramsRef.current; // Get latest params
+                if (type === 'processed') {
 
-                // Coefficients
-                const makeUpLinear = Math.pow(10, params.makeupGain / 20);
-                const attTime = (params.attack / 1000) * sampleRate;
-                const relTime = (params.release / 1000) * sampleRate;
-                const gAttTime = (params.gateAttack / 1000) * sampleRate;
-                const gRelTime = (params.gateRelease / 1000) * sampleRate;
-                const compAttCoeff = 1 - Math.exp(-1 / attTime);
-                const compRelCoeff = 1 - Math.exp(-1 / relTime);
-                const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
-                const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
-                const lookaheadSamples = Math.floor(((params.lookahead / 1000) * sampleRate));
 
-                // Note: Lookahead in real-time requires buffering/delay. 
-                // For simple ScriptProcessor without significant latency compensation, lookahead is hard.
-                // We will ignore lookahead for real-time preview or implement a simple delay line if needed.
-                // For now, let's skip lookahead in real-time preview to keep it simple and instant.
 
-                for (let i = 0; i < inputBuffer.length; i++) {
-                    const inputSample = inputData[i];
-                    const inputLevel = Math.abs(inputSample);
+                    const bufferSize = 4096;
+                    const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
-                    // Gate
-                    if (!params.isGateBypass) {
-                        if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
-                        else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
-                    }
+                    // DSP State for this playback session
+                    let compEnvelope = 0;
+                    let gateEnvelope = 0;
+                    const sampleRate = audioContext.sampleRate;
 
-                    let gateGaindB = 0;
-                    if (!params.isGateBypass) {
-                        let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
-                        if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
-                    }
-                    const gateGainLinear = Math.pow(10, gateGaindB / 20);
-                    const gatedDetectorLevel = inputLevel * gateGainLinear;
+                    scriptNode.onaudioprocess = (audioProcessingEvent) => {
+                        const inputBuffer = audioProcessingEvent.inputBuffer;
+                        const outputBuffer = audioProcessingEvent.outputBuffer;
+                        const inputData = inputBuffer.getChannelData(0);
+                        const outputData = outputBuffer.getChannelData(0);
 
-                    // Compressor
-                    if (!params.isCompBypass) {
-                        if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
-                        else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
-                    }
+                        const params = paramsRef.current; // Get latest params
 
-                    let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
-                    let compGainReductiondB = 0;
-                    if (!params.isCompBypass) {
-                        if (compEnvdB > params.threshold - params.knee / 2) {
-                            if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
-                                let slope = 1 - (1 / params.ratio);
-                                let over = compEnvdB - (params.threshold - params.knee / 2);
-                                compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
-                            } else if (compEnvdB >= params.threshold + params.knee / 2) {
-                                compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
+                        // Coefficients
+                        const makeUpLinear = Math.pow(10, params.makeupGain / 20);
+                        const attTime = (params.attack / 1000) * sampleRate;
+                        const relTime = (params.release / 1000) * sampleRate;
+                        const gAttTime = (params.gateAttack / 1000) * sampleRate;
+                        const gRelTime = (params.gateRelease / 1000) * sampleRate;
+                        const compAttCoeff = 1 - Math.exp(-1 / attTime);
+                        const compRelCoeff = 1 - Math.exp(-1 / relTime);
+                        const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
+                        const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
+                        const lookaheadSamples = Math.floor(((params.lookahead / 1000) * sampleRate));
+
+                        // Note: Lookahead in real-time requires buffering/delay.
+                        // For simple ScriptProcessor without significant latency compensation, lookahead is hard.
+                        // We will ignore lookahead for real-time preview or implement a simple delay line if needed.
+                        // For now, let's skip lookahead in real-time preview to keep it simple and instant.
+
+                        for (let i = 0; i < inputBuffer.length; i++) {
+                            const inputSample = inputData[i];
+                            const inputLevel = Math.abs(inputSample);
+
+                            // Gate
+                            if (!params.isGateBypass) {
+                                if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
+                                else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
+                            }
+
+                            let gateGaindB = 0;
+                            if (!params.isGateBypass) {
+                                let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+                                if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
+                            }
+                            const gateGainLinear = Math.pow(10, gateGaindB / 20);
+                            const gatedDetectorLevel = inputLevel * gateGainLinear;
+
+                            // Compressor
+                            if (!params.isCompBypass) {
+                                if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
+                                else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
+                            }
+
+                            let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
+                            let compGainReductiondB = 0;
+                            if (!params.isCompBypass) {
+                                if (compEnvdB > params.threshold - params.knee / 2) {
+                                    if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
+                                        let slope = 1 - (1 / params.ratio);
+                                        let over = compEnvdB - (params.threshold - params.knee / 2);
+                                        compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
+                                    } else if (compEnvdB >= params.threshold + params.knee / 2) {
+                                        compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
+                                    }
+                                }
+                            }
+                            const compGainLinear = Math.pow(10, compGainReductiondB / 20);
+
+
+                            const wet = inputSample * gateGainLinear * compGainLinear * makeUpLinear;
+
+                            // Output Mixing (Syncs Dry/Wet perfectly)
+                            if (params.isDeltaMode) {
+                                outputData[i] = wet - inputSample;
+                            } else {
+                                const dryLinear = Math.pow(10, params.dryGain / 20);
+                                outputData[i] = wet + (inputSample * dryLinear);
                             }
                         }
-                    }
-                    const compGainLinear = Math.pow(10, compGainReductiondB / 20);
+                    };
 
-                    // Output
-                    outputData[i] = inputSample * gateGainLinear * compGainLinear * makeUpLinear;
+                    source.connect(scriptNode);
+                    scriptNode.connect(audioContext.destination);
+
+                    // We need to keep track of scriptNode to disconnect it later
+                    // Hack: attach it to source node object for cleanup
+                    source._scriptNode = scriptNode;
+
+                } else {
+                    // Original Mode
+                    source.connect(audioContext.destination);
                 }
-            };
 
-            source.connect(scriptNode);
-            scriptNode.connect(audioContext.destination);
+                sourceNodeRef.current = source;
+                source.start(0, safeOffset);
 
-            // We need to keep track of scriptNode to disconnect it later
-            // Hack: attach it to source node object for cleanup
-            source._scriptNode = scriptNode;
+                // Dry Signal (for Parallel Comp or just reference? The original code had dry signal logic)
+                // If we are in 'processed' mode, we might want dry signal mixed in?
+                // Wait, the previous logic had a separate drySourceNode.
+                // If we are doing real-time processing, we can mix dry signal in the script processor OR run a parallel source.
+                // Running a parallel source is easier for timing if we don't have heavy latency.
+                // Let's keep the parallel dry source logic.
+                // Dry Signal Handling:
+                // Now handled inside ScriptProcessor for perfect sync.
+                // Parallel Dry Source removed to prevent "flamming" and async issues.
 
-        } else {
-            // Original Mode
-            source.connect(audioContext.destination);
+                setPlayingType(type); setLastPlayedType(type);
+                cancelAnimationFrame(rafIdRef.current); rafIdRef.current = requestAnimationFrame(animate);
+
+            } catch (e) {
+                console.error("BS/Script creation error", e);
+                setPlayingType('none');
+                isPlayingRef.current = false;
+                setErrorMsg("Audio processing setup failed: " + e.message);
+            }
         }
 
-        sourceNodeRef.current = source;
-        source.start(0, safeOffset);
-
-        // Dry Signal (for Parallel Comp or just reference? The original code had dry signal logic)
-        // If we are in 'processed' mode, we might want dry signal mixed in?
-        // Wait, the previous logic had a separate drySourceNode.
-        // If we are doing real-time processing, we can mix dry signal in the script processor OR run a parallel source.
-        // Running a parallel source is easier for timing if we don't have heavy latency.
-        // Let's keep the parallel dry source logic.
-        if (type === 'processed' && originalBuffer && !isDeltaMode) {
-            const drySrc = audioContext.createBufferSource(); drySrc.buffer = originalBuffer;
-            const dryGn = audioContext.createGain(); dryGn.gain.value = Math.pow(10, dryGain / 20);
-            drySrc.connect(dryGn); dryGn.connect(audioContext.destination);
-            drySourceNodeRef.current = drySrc; dryGainNodeRef.current = dryGn; drySrc.start(0, safeOffset);
-        }
-
-        setPlayingType(type); setLastPlayedType(type);
-        cancelAnimationFrame(rafIdRef.current); rafIdRef.current = requestAnimationFrame(animate);
-    }, [audioContext, animate, originalBuffer, dryGain, isDeltaMode]);
+    }, [audioContext, animate, originalBuffer, dryGain, isDeltaMode, setErrorMsg]);
 
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer]);
 
@@ -501,13 +551,15 @@ const App = () => {
             setPlayingType('none'); cancelAnimationFrame(rafIdRef.current);
             isPlayingRef.current = false;
         } else {
-            const targetBuffer = lastPlayedType === 'original' ? originalBuffer : (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
+            // Always use originalBuffer. 'processed' mode creates its own DSP chain on the fly.
+            const targetBuffer = originalBuffer;
 
-            // Auto-jump to loop start if outside loop region
+
+            // Auto-jump to loop start if loop exists
+            // But if user manually seeked differently?
+            // User request: "When green loop exists, Play/Space should jump to loop start"
             if (loopStart !== null && loopEnd !== null) {
-                if (startOffsetRef.current < loopStart || startOffsetRef.current > loopEnd) {
-                    startOffsetRef.current = loopStart;
-                }
+                startOffsetRef.current = loopStart;
             }
 
             if (targetBuffer) {
@@ -521,9 +573,9 @@ const App = () => {
         setLastPlayedType(type);
         if (!gainAdjustedRef.current) { if (type === 'original') setDryGain(0); else setDryGain(-60); }
         if (playingType !== 'none') {
-            const targetBuffer = type === 'original' ? originalBuffer : (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
-            const elapsed = audioContext.currentTime - startTimeRef.current; const currentPos = startOffsetRef.current + elapsed;
-            if (targetBuffer) playBuffer(targetBuffer, type, currentPos);
+            const elapsed = audioContext.currentTime - startTimeRef.current;
+            const currentPos = startOffsetRef.current + elapsed;
+            playBuffer(originalBuffer, type, currentPos);
         }
     };
 
@@ -769,7 +821,7 @@ const App = () => {
         }, 50);
     };
 
-    useEffect(() => { if (audioContext && !originalBuffer && !currentSourceId && !isLoading) loadPreset(AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0]); }, [audioContext]);
+    useEffect(() => { if (audioContext && !originalBuffer && !currentSourceId && !isLoading) loadPreset(AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0]); }, [audioContext, originalBuffer, currentSourceId, isLoading]);
 
     // --- 7. 滑鼠互動 (Mouse Interactions for Waveform) ---
 
@@ -859,11 +911,19 @@ const App = () => {
                 const relX = clickX - panOffset;
                 let pct = relX / totalWidth; if (pct < 0) pct = 0; if (pct > 1) pct = 1;
                 const seekTime = pct * originalBuffer.duration;
-                setLoopStart(null); setLoopEnd(null);
+                // Removed loop clearing to allow seeking within/outside loop
                 startOffsetRef.current = seekTime;
-                if (playingType !== 'none') {
-                    const targetBuffer = playingType === 'original' ? originalBuffer : (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
-                    if (targetBuffer) playBufferRef.current(targetBuffer, playingType, seekTime);
+
+                // Use Refs to get latest state inside event listener
+                const currentPlayingType = playingTypeRef.current;
+                const currentLastPlayedType = lastPlayedTypeRef.current;
+
+                console.log(`[MouseUp] Seek: ${seekTime.toFixed(3)}s, Mode: ${currentPlayingType}, Last: ${currentLastPlayedType}`);
+
+                if (currentPlayingType !== 'none') {
+                    // Always use originalBuffer for Real-Time Engine
+                    const targetBuffer = originalBuffer;
+                    if (targetBuffer) playBufferRef.current(targetBuffer, currentPlayingType, seekTime);
                 } else {
                     // Manual update for stopped state
                     if (playheadRef.current && waveformCanvasRef.current) {
@@ -905,13 +965,35 @@ const App = () => {
                     setZoomX(newZoom);
                     setPanOffset(newPan);
 
-                    // Auto-restart playback from loop start
+                    // Auto-jump to loop start
                     const loopStartTime = Math.min(t1, t2);
                     startOffsetRef.current = loopStartTime;
-                    const targetBuffer = lastPlayedType === 'original' ? originalBuffer : (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
+
+                    // Always use originalBuffer for Real-Time Engine
+                    const targetBuffer = originalBuffer;
+
+                    // Use Ref for latest lastPlayedType to ensure we don't revert to wrong mode
+                    const typeToPlay = lastPlayedTypeRef.current;
 
                     if (targetBuffer) {
-                        playBufferRef.current(targetBuffer, lastPlayedType, loopStartTime);
+                        // Auto-restart if we were playing, or just set offset?
+                        // If user was dragging, likely paused? No, drags usually happen while playing.
+                        // If we want to restart playback from loop start:
+                        // Check if we assume 'processed' if created from drag?
+                        // Generally, preserve previous mode.
+                        console.log(`[MouseUp] Loop Auto-Play: ${loopStartTime.toFixed(3)}s, Type: ${typeToPlay}`);
+                        playBufferRef.current(targetBuffer, typeToPlay, loopStartTime);
+                    } else {
+                        // Just update visual if stopped
+                        if (playheadRef.current && waveformCanvasRef.current) {
+                            const pct = loopStartTime / originalBuffer.duration;
+                            // Use newZoom and newPan (panOffset) which were just set, but React state might not update immediately for this render cycle?
+                            // Actually state updates are bad here. We used 'newPan' variable.
+                            // Re-calculate screen position based on the calculated zoom/pan
+                            const screenPct = (((pct * newTotalWidth) + newPan) / width) * 100;
+                            playheadRef.current.style.left = `${screenPct}%`;
+                            playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
+                        }
                     }
                 }
             }
@@ -1000,6 +1082,29 @@ const App = () => {
                         originalBuffer={originalBuffer}
                         canvasDims={canvasDims}
                     />
+
+                    {/* Loop Delete Button */}
+                    {loopStart !== null && loopEnd !== null && originalBuffer && (
+                        <div
+                            className="absolute top-0 flex items-center justify-center bg-green-500/90 text-white hover:bg-green-400 cursor-pointer shadow-lg z-30 transition-colors"
+                            style={{
+                                left: `calc(${((loopEnd / originalBuffer.duration) * zoomX * 100) + ((panOffset / canvasDims.width) * 100)}% - 24px)`,
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '0 0 0 6px',
+                                fontSize: '14px',
+                                fontWeight: 'bold'
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent seeking
+                                setLoopStart(null);
+                                setLoopEnd(null);
+                            }}
+                            title="Clear Loop"
+                        >
+                            ×
+                        </div>
+                    )}
                     {isInfoPanelEnabled && showInfoPanel && activeInfo && (
                         <DraggableInfoPanel title={activeInfo.title} content={activeInfo.content} onClose={() => setIsInfoPanelEnabled(false)} />
                     )}
