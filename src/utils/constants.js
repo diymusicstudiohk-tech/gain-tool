@@ -4,7 +4,7 @@ export const PRESETS_DATA = [
     {
         name: "Default (初始設定)",
         explanation: "這是壓縮器的初始狀態。Threshold 為 0dB，Ratio 為 4:1，不會對聲音產生任何壓縮。適合用來聆聽原始訊號，或作為從零開始調整的起點。",
-        params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -25, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+        params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -80, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Subtle Vocal Control (輕微人聲控制)",
@@ -127,4 +127,5 @@ export const TOOLTIPS = {
     gateThreshold: { title: "Gate Thresh", desc: "噪音門檻。", setting: "低於此音量靜音。", visual: "紅色底部。", common: "-60dB" },
     gateRatio: { title: "Gate Ratio", desc: "衰減強度。", setting: "越大越乾淨。", visual: "切除深度。", common: "4:1" },
     gateAttack: { title: "Gate Attack", desc: "開啟速度。", setting: "通常極快。", visual: "開頭完整度。", common: "<1ms" },
+    gateRelease: { title: "Gate Release", desc: "關閉速度。", setting: "往右慢(自然)。", visual: "尾音長度。", common: "100ms+" },
 };

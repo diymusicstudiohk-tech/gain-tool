@@ -43,7 +43,7 @@ const App = () => {
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
     const [dryGain, setDryGain] = useState(0);
-    const [gateThreshold, setGateThreshold] = useState(-25);
+    const [gateThreshold, setGateThreshold] = useState(-80);
     const [gateRatio, setGateRatio] = useState(4);
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);
@@ -550,6 +550,7 @@ const App = () => {
         switch (key) {
             case 'gateRatio': updateParamGeneric(setGateRatio, value); break;
             case 'gateAttack': updateParamGeneric(setGateAttack, value); break;
+            case 'gateRelease': updateParamGeneric(setGateRelease, value); break;
         }
     };
 
@@ -776,8 +777,17 @@ const App = () => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
 
         if (hoverLine) {
-            if (hoverLine === 'comp' && isCompBypass) return;
-            if (hoverLine === 'gate' && isGateBypass) return;
+            // Auto-enable modules on drag start
+            if (hoverLine === 'comp' && isCompBypass) {
+                setIsCompBypass(false);
+                setIsCustomSettings(true);
+                if (lastPlayedType !== 'processed') handleModeChange('processed');
+            }
+            if (hoverLine === 'gate' && isGateBypass) {
+                setIsGateBypass(false);
+                setIsCustomSettings(true);
+                if (lastPlayedType !== 'processed') handleModeChange('processed');
+            }
 
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'row-resize';
@@ -803,11 +813,13 @@ const App = () => {
             if (newDb > 0) newDb = 0;
 
             if (isDraggingLineRef.current === 'comp') {
-                if (isCompBypass) return; // Disable drag if bypassed
+                // Allow dragging even if bypassed (we auto-enabled on mousedown)
+
                 if (newDb < -60) newDb = -60;
                 setThreshold(Math.round(newDb)); setHasThresholdBeenAdjusted(true); setIsCompAdjusting(true);
             } else if (isDraggingLineRef.current === 'gate') {
-                if (isGateBypass) return; // Disable drag if bypassed
+                // Allow dragging gate even if bypassed
+
                 if (newDb < -80) newDb = -80;
                 setGateThreshold(Math.round(newDb)); setHasGateBeenAdjusted(true); setIsGateAdjusting(true);
             }
@@ -892,6 +904,15 @@ const App = () => {
 
                     setZoomX(newZoom);
                     setPanOffset(newPan);
+
+                    // Auto-restart playback from loop start
+                    const loopStartTime = Math.min(t1, t2);
+                    startOffsetRef.current = loopStartTime;
+                    const targetBuffer = lastPlayedType === 'original' ? originalBuffer : (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
+
+                    if (targetBuffer) {
+                        playBufferRef.current(targetBuffer, lastPlayedType, loopStartTime);
+                    }
                 }
             }
         }
@@ -932,7 +953,7 @@ const App = () => {
     const activeInfo = getInfoPanelContent();
 
     useEffect(() => { const h = (e) => { if (e.code === 'Space') { e.preventDefault(); togglePlayback(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [togglePlayback]);
-    useEffect(() => { if (playingType !== 'none') { cancelAnimationFrame(rafIdRef.current); animate(); } }, [playingType, animate]);
+
 
     // --- 8. Render ---
     return (

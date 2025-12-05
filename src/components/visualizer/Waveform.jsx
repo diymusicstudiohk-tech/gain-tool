@@ -148,15 +148,14 @@ export const drawMainWaveform = ({
                 drawLabel(`Comp: ${threshold}dB`, width, tTop - 4, isCompBypass ? '#475569' : '#22d3ee', 'right');
             }
         }
-        if (hoverLine === 'gate' || !isGateBypass) {
-            const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
-            if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
-                const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-                ctx.strokeStyle = isGateBypass ? '#475569' : '#f97316'; ctx.setLineDash([3, 3]);
-                ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
-                ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
-                drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, isGateBypass ? '#475569' : '#f97316', 'left');
-            }
+        // Gate Threshold Line (Always Visible)
+        const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
+        if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
+            const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
+            ctx.strokeStyle = isGateBypass ? '#475569' : '#f97316'; ctx.setLineDash([3, 3]);
+            ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
+            ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
+            drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, isGateBypass ? '#475569' : '#f97316', 'left');
         }
 
         // GR Scale Labels

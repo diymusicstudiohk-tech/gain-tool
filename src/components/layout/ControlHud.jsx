@@ -69,8 +69,8 @@ const ControlHud = ({
                         </div>
                         <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="orange" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                         <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="yellow" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="yellow" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="cyan" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={gateRelease} min={10} max={500} step={1} unit="ms" color="pink" onChange={(v) => updateParam('gateRelease', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRelease" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                     </div>
 
                     <div className="flex-1"></div>
