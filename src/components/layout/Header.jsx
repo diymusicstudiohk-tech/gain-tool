@@ -166,10 +166,6 @@ const Header = ({
                     </div>
                 </div>
                 <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                <button onClick={() => setIsInfoPanelEnabled(!isInfoPanelEnabled)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-all shadow-lg ${isInfoPanelEnabled ? 'bg-green-500 text-white border border-green-400 shadow-green-500/30 hover:bg-green-400 animate-pulse' : 'bg-slate-800 text-slate-500 border border-transparent hover:bg-slate-700'}`} title={isInfoPanelEnabled ? "關閉說明視窗" : "開啟說明視窗"}>
-                    {isInfoPanelEnabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />} 彈出說明視窗
-                </button>
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
 
                 {/* OPTIONS BUTTON */}
                 <div className="relative" ref={optionsRef}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Gauge } from 'lucide-react';
+import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
 
 // --- Imports from Refactored Structure ---
 import { PRESETS_DATA, AUDIO_SOURCES, TOOLTIPS } from './utils/constants';
@@ -78,7 +78,8 @@ const App = () => {
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [hoveredKnob, setHoveredKnob] = useState(null);
     const [showInfoPanel, setShowInfoPanel] = useState(true);
-    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(true);
+    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(false);
+    const [hoveredKnobPos, setHoveredKnobPos] = useState({ x: 0, y: 0 });
 
     // Interaction State
     const [isKnobDragging, setIsKnobDragging] = useState(false);
@@ -1064,7 +1065,32 @@ const App = () => {
                     onMouseLeave={handleLocalMouseMove}
                 >
                     <SignalFlow mode={signalFlowMode} setMode={setSignalFlowMode} />
+
+                    {/* Logic: Hover shows InfoPanel (Knob Info) ABOVE HUD. */}
+                    {hoveredKnob && activeInfo && isInfoPanelEnabled ? (
+                        <div
+                            className="absolute bottom-44 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
+                            style={{
+                                left: Math.max(10, Math.min(canvasDims.width - 270, hoveredKnobPos.x - containerRef.current?.getBoundingClientRect().left - 128))
+                            }}
+                        >
+                            <div className="flex items-center gap-2 text-cyan-400 font-bold mb-2 text-lg"><Info size={20} /> {activeInfo.title}</div>
+                            <div className="text-sm text-slate-200 leading-relaxed font-medium">{activeInfo.content}</div>
+                        </div>
+                    ) : null}
+
+                    {/* COLOR LEGEND (Always Visible) */}
                     <DraggableLegend />
+
+                    {/* NEW INFO BUTTON (Raised to avoid HUD) */}
+                    <div className="absolute bottom-44 right-4 z-40 flex flex-col gap-2 items-end">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setIsInfoPanelEnabled(!isInfoPanelEnabled); }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold transition-all shadow-lg border backdrop-blur-md ${isInfoPanelEnabled ? 'bg-green-500 text-white border-green-400 shadow-green-500/30 hover:bg-green-400' : 'bg-slate-800/80 text-slate-400 border-white/10 hover:bg-slate-700 hover:text-white'}`}
+                        >
+                            {isInfoPanelEnabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />} 彈出說明視窗
+                        </button>
+                    </div>
                     <DraggableViewControls
                         zoomX={zoomX} setZoomX={(z) => {
                             setZoomX(z);
@@ -1105,9 +1131,7 @@ const App = () => {
                             ×
                         </div>
                     )}
-                    {isInfoPanelEnabled && showInfoPanel && activeInfo && (
-                        <DraggableInfoPanel title={activeInfo.title} content={activeInfo.content} onClose={() => setIsInfoPanelEnabled(false)} />
-                    )}
+                    {/* Loop Delete Button */}
                 </Waveform>
 
                 <Meters grCanvasRef={grBarCanvasRef} outputCanvasRef={outputMeterCanvasRef} height={canvasDims.height} />
@@ -1138,7 +1162,13 @@ const App = () => {
                 // A/B & Presets
                 selectedPresetIdx={selectedPresetIdx} isCustomSettings={isCustomSettings} applyPreset={applyPreset}
                 // Interactions
-                isDraggingKnobRef={isDraggingKnobRef} handleNormalDragState={setIsKnobDragging} handleKnobEnter={(k) => { setHoveredKnob(k); setShowInfoPanel(true); }} handleKnobLeave={() => setHoveredKnob(null)}
+                isDraggingKnobRef={isDraggingKnobRef} handleNormalDragState={setIsKnobDragging}
+                handleKnobEnter={(k, e) => {
+                    setHoveredKnob(k);
+                    if (e) setHoveredKnobPos({ x: e.clientX, y: e.clientY });
+                    setShowInfoPanel(true);
+                }}
+                handleKnobLeave={() => setHoveredKnob(null)}
                 resetAllParams={resetAllParams}
             />
 
