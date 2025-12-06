@@ -138,24 +138,29 @@ export const drawMainWaveform = ({
         };
 
         // Threshold Lines
+        const isDry = lastPlayedType === 'original';
+        const inactiveColor = '#475569';
+
         if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
             const threshY = Math.pow(10, threshold / 20) * ampScale;
             if (centerY - threshY > -20 && centerY - threshY < height + 20) {
                 const tTop = centerY - threshY;
-                ctx.strokeStyle = isCompBypass ? '#475569' : '#22d3ee'; ctx.setLineDash([6, 4]);
+                const compColor = isDry || isCompBypass ? inactiveColor : '#22d3ee';
+                ctx.strokeStyle = compColor; ctx.setLineDash([6, 4]);
                 ctx.lineWidth = (hoverLine === 'comp' || isDraggingLine === 'comp') ? 3 : 2;
                 ctx.beginPath(); ctx.moveTo(0, tTop); ctx.lineTo(width, tTop); ctx.moveTo(0, centerY + threshY); ctx.lineTo(width, centerY + threshY); ctx.stroke();
-                drawLabel(`Comp: ${threshold}dB`, width, tTop - 4, isCompBypass ? '#475569' : '#22d3ee', 'right');
+                drawLabel(`Comp: ${threshold}dB`, width, tTop - 4, compColor, 'right');
             }
         }
         // Gate Threshold Line (Always Visible)
         const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
         if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-            ctx.strokeStyle = isGateBypass ? '#475569' : '#f97316'; ctx.setLineDash([3, 3]);
+            const gateColor = isDry || isGateBypass ? inactiveColor : '#f97316';
+            ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
             ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
             ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
-            drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, isGateBypass ? '#475569' : '#f97316', 'left');
+            drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, gateColor, 'left');
         }
 
         // GR Scale Labels
