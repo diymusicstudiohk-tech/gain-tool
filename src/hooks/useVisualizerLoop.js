@@ -47,7 +47,18 @@ const useVisualizerLoop = ({
         if (!originalBuffer || !audioContext) return;
         if (!isPlayingRef.current) return;
         const elapsed = audioContext.currentTime - startTimeRef.current;
-        const currentPosition = elapsed + startOffsetRef.current;
+        let currentPosition = elapsed + startOffsetRef.current;
+
+        // Visual Loop Correction
+        if (loopStart !== null && loopEnd !== null && isPlayingRef.current) {
+            if (currentPosition >= loopEnd) {
+                // Calculate relative position within the loop
+                const loopDuration = loopEnd - loopStart;
+                const timeSinceLoopStart = currentPosition - loopStart;
+                // Wrap around
+                currentPosition = loopStart + (timeSinceLoopStart % loopDuration);
+            }
+        }
         const duration = originalBuffer.duration;
 
         // Update Playhead Position
@@ -133,18 +144,8 @@ const useVisualizerLoop = ({
             // Only enforce loop if we are theoretically "in" the loop or just passed it.
             // If the user started playback WAY past the loop (e.g. seeking to outro), allowing them to play freely.
             // Logic: If currentPosition > loopEnd, AND startOffset < loopEnd (meaning we played INTO the boundary), then loop.
-            if (currentPosition >= loopEnd && startOffsetRef.current < loopEnd) {
-                if (playBufferRef.current) {
-                    // Always use originalBuffer for Real-Time Engine (or whatever current mode requires)
-                    // Note: playingTypeRef not used here but could be passed if needed,
-                    // but we generally just restart with current params.
-                    // We need to use the CORRECT buffer type logic here too if we want to be safe,
-                    // but usually originalBuffer + 'processed' type works.
-                    const targetBuffer = originalBuffer;
-
-                    if (targetBuffer) playBufferRef.current(targetBuffer, playingType, loopStart);
-                }
-            }
+            // Native looping handles the audio. We just need to ensure the visual playhead wraps correctly.
+            // No manual restart needed here.
         } else if (currentPosition >= duration) {
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :

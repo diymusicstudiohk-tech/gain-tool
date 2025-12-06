@@ -409,7 +409,7 @@ const App = () => {
 
 
 
-                    const bufferSize = 4096;
+                    const bufferSize = 512;
                     const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
                     // DSP State for this playback session
@@ -504,6 +504,12 @@ const App = () => {
                 } else {
                     // Original Mode
                     source.connect(audioContext.destination);
+                }
+
+                if (loopStart !== null && loopEnd !== null) {
+                    source.loop = true;
+                    source.loopStart = loopStart;
+                    source.loopEnd = loopEnd;
                 }
 
                 sourceNodeRef.current = source;
@@ -822,7 +828,12 @@ const App = () => {
         }, 50);
     };
 
-    useEffect(() => { if (audioContext && !originalBuffer && !currentSourceId && !isLoading) loadPreset(AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0]); }, [audioContext, originalBuffer, currentSourceId, isLoading]);
+    useEffect(() => {
+        if (audioContext && !originalBuffer && !currentSourceId && !isLoading) {
+            const randomSource = AUDIO_SOURCES[Math.floor(Math.random() * AUDIO_SOURCES.length)];
+            loadPreset(randomSource);
+        }
+    }, [audioContext, originalBuffer, currentSourceId, isLoading]);
 
     // --- 7. 滑鼠互動 (Mouse Interactions for Waveform) ---
 
