@@ -194,3 +194,5 @@ export const TOOLTIPS = {
         common: "目的：保留衝擊力同時增加厚度。常用：通常設在比濕訊號小一點的位置，用於鼓組或人聲增厚。"
     },
 };
+
+export const APP_VERSION = 'v0.8.1';

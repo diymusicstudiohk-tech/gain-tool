@@ -5,6 +5,12 @@ import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
 import { PRESETS_DATA, AUDIO_SOURCES, TOOLTIPS } from './utils/constants';
 import { processCompressor } from './utils/dsp';
 import { writeWavFile } from './utils/audioHelper';
+import {
+    saveParamsToStorage, loadParamsFromStorage,
+    saveAppStateToStorage, loadAppStateFromStorage,
+    saveAudioFileToDB, loadAudioFileFromDB,
+    factoryReset, softReset
+} from './utils/storage';
 
 import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
@@ -144,6 +150,49 @@ const App = () => {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         setAudioContext(ctx);
         setRatioControl(calculateControlFromRatio(4));
+
+        // --- Persistence: Load Settings ---
+        const savedParams = loadParamsFromStorage();
+        if (savedParams) {
+            setThreshold(savedParams.threshold); setRatio(savedParams.ratio); setRatioControl(calculateControlFromRatio(savedParams.ratio));
+            setAttack(savedParams.attack); setRelease(savedParams.release); setKnee(savedParams.knee); setLookahead(savedParams.lookahead);
+            setMakeupGain(savedParams.makeupGain); setDryGain(savedParams.dryGain);
+            setGateThreshold(savedParams.gateThreshold); setGateRatio(savedParams.gateRatio);
+            setGateAttack(savedParams.gateAttack); setGateRelease(savedParams.gateRelease);
+            setIsGateBypass(savedParams.isGateBypass); setIsCompBypass(savedParams.isCompBypass);
+        }
+
+        // --- Persistence: Load App State (Source, Resolution, View, Mode) ---
+        const savedState = loadAppStateFromStorage();
+        if (savedState) {
+            setResolutionPct(savedState.resolutionPct);
+            if (savedState.zoomX) setZoomX(savedState.zoomX);
+            if (savedState.zoomY) setZoomY(savedState.zoomY);
+            if (savedState.panOffset) setPanOffset(savedState.panOffset);
+            if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
+            if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
+            if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
+            if (savedState.lastPlayedType) setLastPlayedType(savedState.lastPlayedType);
+
+            if (savedState.currentSourceId) {
+                // If it was 'upload', we need to check IndexedDB
+                if (savedState.currentSourceId === 'upload') {
+                    // We will handle the async DB load in a separate effect or here below
+                    // For simplicity, let's trigger it here
+                    setCurrentSourceId('upload');
+                } else {
+                    const source = AUDIO_SOURCES.find(s => s.id === savedState.currentSourceId);
+                    if (source) {
+                        setCurrentSourceId(source.id);
+                        setFileName(source.name);
+                        // We need to fetch this source... but loadPreset resets everything.
+                        // We need a way to load audio WITHOUT resetting params.
+                        // Implementation detail: we will use a dedicated effect to load audio when audioContext is ready & sourceID changes initially.
+                    }
+                }
+            }
+        }
+
         return () => { ctx.close(); cancelAnimationFrame(rafIdRef.current); if (processingTaskRef.current) clearTimeout(processingTaskRef.current); }
     }, []);
 
@@ -194,6 +243,97 @@ const App = () => {
     // Ref to hold latest params for real-time processor
     const paramsRef = useRef(currentParams);
     useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
+
+    // --- Persistence: Auto-Save Params ---
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            saveParamsToStorage({
+                threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
+                gateThreshold, gateRatio, gateAttack, gateRelease,
+                isGateBypass, isCompBypass
+            });
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
+        gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
+
+    // --- Persistence: Auto-Save App State ---
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            saveAppStateToStorage({
+                resolutionPct,
+                currentSourceId,
+                zoomX, zoomY, panOffset, panOffsetY,
+                loopStart, loopEnd,
+                lastPlayedType
+            });
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [resolutionPct, currentSourceId, zoomX, zoomY, panOffset, panOffsetY, loopStart, loopEnd, lastPlayedType]);
+
+    // --- Persistence: Audio Restoration on Mount ---
+    // We need a ref to track if we have already attempted initial load to prevent loop
+    const hasInitialLoadRun = useRef(false);
+
+    useEffect(() => {
+        if (!audioContext || hasInitialLoadRun.current) return;
+
+        const loadInitialAudio = async () => {
+            const savedState = loadAppStateFromStorage();
+            // If currentSourceId was set by hydration above
+            if (currentSourceId === 'upload') {
+                // Try load from DB
+                try {
+                    const record = await loadAudioFileFromDB();
+                    if (record && record.file) {
+                        const ab = await record.file.arrayBuffer();
+                        const decoded = await audioContext.decodeAudioData(ab);
+                        userBufferRef.current = decoded;
+                        userFileNameRef.current = record.name;
+                        setFileName(record.name);
+                        handleDecodedBuffer(decoded);
+                        // Re-apply loop for upload just in case
+                        if (savedState) {
+                            if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
+                            if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
+                        }
+                    } else {
+                        // Fallback if DB empty
+                        setCurrentSourceId(null);
+                    }
+                } catch (e) {
+                    console.error("Failed to restore upload", e);
+                }
+            } else if (currentSourceId) {
+                // Load from network
+                const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
+                if (source) {
+                    await loadAudioOnly(source);
+                    // Re-apply settings that loadAudioOnly resets
+                    if (savedState) {
+                        if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
+                        if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
+                        if (savedState.zoomX) setZoomX(savedState.zoomX);
+                        if (savedState.zoomY) setZoomY(savedState.zoomY);
+                        if (savedState.panOffset) setPanOffset(savedState.panOffset);
+                        if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
+                    }
+                }
+            }
+            hasInitialLoadRun.current = true;
+        };
+
+        // If we have a sourceId from storage, run load
+        if (currentSourceId) {
+            loadInitialAudio();
+        } else {
+            // No stored source, leave empty or load default? User didn't ask for default load unless previously set.
+            // Actually, the original app requires user to click or load. 
+            // But if we want to restore "exact state", we should.
+            hasInitialLoadRun.current = true;
+        }
+
+    }, [audioContext, currentSourceId]);
 
     // --- 4. 數據處理 (Data Processing) ---
 
@@ -328,11 +468,15 @@ const App = () => {
                 deltaBuf.copyToChannel(deltaData, 0);
                 fullAudioDataRef.current = { outputBuffer: outBuf, deltaBuffer: deltaBuf };
                 setIsProcessing(false);
-                if (playingType === 'processed' && sourceNodeRef.current && playBufferRef.current) {
-                    const elapsed = audioContext.currentTime - startTimeRef.current;
-                    const currentPos = startOffsetRef.current + elapsed;
-                    playBufferRef.current(isDeltaMode ? deltaBuf : outBuf, 'processed', currentPos);
-                }
+                // Fix: Do NOT restart playback if we are already in 'processed' mode.
+                // The ScriptProcessorNode uses paramsRef.current to update in real-time.
+                // Restarting causes playhead jumps and loop desync.
+                // Only if we switch modes or load new audio should we restart.
+                // if (playingType === 'processed' && sourceNodeRef.current && playBufferRef.current) {
+                //      const elapsed = audioContext.currentTime - startTimeRef.current;
+                //      const currentPos = startOffsetRef.current + elapsed;
+                //      playBufferRef.current(isDeltaMode ? deltaBuf : outBuf, 'processed', currentPos);
+                // }
             }
         };
         processingTaskRef.current = setTimeout(processChunk, 150);
@@ -581,7 +725,19 @@ const App = () => {
         if (!gainAdjustedRef.current) { if (type === 'original') setDryGain(0); else setDryGain(-60); }
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current;
-            const currentPos = startOffsetRef.current + elapsed;
+            let currentPos = startOffsetRef.current + elapsed;
+
+            // Fix: Calculate correct position if looping
+            if (loopStart !== null && loopEnd !== null && loopEnd > loopStart) {
+                if (currentPos >= loopEnd) {
+                    const loopDur = loopEnd - loopStart;
+                    const offsetInLoop = (currentPos - loopStart) % loopDur;
+                    currentPos = loopStart + offsetInLoop;
+                } else if (currentPos < loopStart && currentPos >= loopEnd) {
+                    // Start position sanity check (unlikely but safe)
+                    currentPos = loopStart;
+                }
+            }
             playBuffer(originalBuffer, type, currentPos);
         }
     };
@@ -725,6 +881,10 @@ const App = () => {
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setPlayingType('none'); isPlayingRef.current = false; setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0; setCurrentSourceId('upload'); setFileName(file.name); setOriginalBuffer(null);
+
+            // Persistence: Save to IndexedDB
+            await saveAudioFileToDB(file, file.name);
+
             const ab = await file.arrayBuffer(); const decoded = await audioContext.decodeAudioData(ab);
             userBufferRef.current = decoded; userFileNameRef.current = file.name;
             handleDecodedBuffer(decoded); setIsLoading(false);
@@ -786,9 +946,21 @@ const App = () => {
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setPlayingType('none'); isPlayingRef.current = false; setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0;
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id); setFileName(preset.name);
+
             let arrayBuffer; try { const res = await fetch(preset.url); if (!res.ok) throw new Error('Direct fetch failed'); arrayBuffer = await res.arrayBuffer(); } catch (e) { const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`; const res = await fetch(pUrl); if (!res.ok) throw new Error('Failed'); arrayBuffer = await res.arrayBuffer(); }
             const decoded = await audioContext.decodeAudioData(arrayBuffer); handleDecodedBuffer(decoded); setIsLoading(false);
         } catch (err) { console.error(err); setErrorMsg(`載入失敗: ${err.message}`); setIsLoading(false); }
+    };
+
+    const stopAudio = () => {
+        if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
+        if (audioContext && audioContext.state === 'running') audioContext.suspend();
+        setPlayingType('none'); isPlayingRef.current = false;
+        // Resume context in case we need it later? suspend is drastic but effective for "pause".
+        // Actually, just stopping node is enough usually. User said "pause".
+        // But factory reset will reload page anyway.
+        // Let's just stop the node.
+        if (audioContext && audioContext.state === 'suspended') audioContext.resume();
     };
 
     const restoreUserUpload = () => {
@@ -1048,6 +1220,39 @@ const App = () => {
 
     useEffect(() => { const h = (e) => { if (e.code === 'Space') { e.preventDefault(); togglePlayback(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [togglePlayback]);
 
+    // --- Debug Helper ---
+    const handleCopyDebug = async () => {
+        const snapshot = getCurrentStateSnapshot();
+        const debugInfo = {
+            timestamp: new Date().toISOString(),
+            snapshot,
+            audioState: {
+                fileName,
+                currentSourceId,
+                playingType,
+                lastPlayedType,
+                isDeltaMode,
+                isPlaying: isPlayingRef.current,
+                bufferDuration: originalBuffer ? originalBuffer.duration : null,
+                sampleRate: audioContext ? audioContext.sampleRate : null,
+                state: audioContext ? audioContext.state : 'unknown'
+            },
+            viewState: {
+                resolutionPct,
+                canvasWidth: canvasDims.width,
+                canvasHeight: canvasDims.height
+            }
+        };
+
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+            alert("All program settings copied to clipboard! \n全部設定已複製到剪貼簿！");
+        } catch (err) {
+            console.error('Failed to copy', err);
+            alert("Failed to copy settings (Browser permission denied?). Check console.");
+        }
+    };
+
 
     // --- 8. Render ---
     return (
@@ -1056,8 +1261,25 @@ const App = () => {
                 fileName={fileName}
                 resolutionPct={resolutionPct} setResolutionPct={setResolutionPct}
                 currentSourceId={currentSourceId} lastPracticeSourceId={lastPracticeSourceId}
-                handleFileUpload={handleFileUpload} restoreUserUpload={switchToUpload} switchToPractice={switchToPractice}
-                clearUserUpload={clearUserUpload}
+                handleFileUpload={handleFileUpload} restoreUserUpload={restoreUserUpload}
+                clearUserUpload={() => {
+                    // Clear from memory and DB
+                    userBufferRef.current = null;
+                    userFileNameRef.current = "";
+                    setOriginalBuffer(null);
+                    setCurrentSourceId(null);
+                    // Clear DB
+                    saveAudioFileToDB(null, ""); // Or a dedicated clear function if we had one exposed, but we can just use the reset logic or make a specific clearer.
+                    // Actually, let's use a clear function or just not save it?
+                    // We should add a specific clear function to storage if needed, or just overwrite.
+                    // For now, let's skip DB clear on just "X" unless user reset.
+                    // Wait, user specific request: "Clear Settings" does EVERYTHING.
+                    // The small X just clears current upload from view?
+                    // Let's keep it simple.
+                }}
+                switchToPractice={switchToPractice}
+                handleFactoryReset={softReset} // [MODIFIED] Use softReset to preserve audio
+                stopAudio={stopAudio}
                 userBufferRef={userBufferRef} userFileNameRef={userFileNameRef}
                 handleDownload={handleDownload} isLoading={isLoading}
                 loadPreset={loadPreset}
@@ -1185,6 +1407,15 @@ const App = () => {
 
             {isLoading && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-slate-800 p-4 rounded text-white flex items-center gap-2"><Gauge className="animate-spin" /> Loading...</div></div>}
             {errorMsg && <div className="fixed top-4 right-4 bg-red-900/90 text-white p-4 rounded shadow-xl border border-red-500 max-w-sm z-50">{errorMsg}</div>}
+            {/* DEBUG FOOTER */}
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-900 border-t border-white/10 flex items-center justify-center z-50">
+                <button
+                    onClick={handleCopyDebug}
+                    className="text-[10px] text-slate-500 hover:text-cyan-400 font-mono tracking-widest uppercase transition-colors px-4 py-1 hover:bg-white/5 rounded"
+                >
+                    [ copy all program setting ]
+                </button>
+            </div>
         </div>
     );
 };

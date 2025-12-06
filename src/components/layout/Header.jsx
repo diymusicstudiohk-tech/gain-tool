@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
     ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
-    Settings2, Upload, User, Download, Ban
+    Settings2, Upload, User, Download, Ban, RotateCcw
 } from 'lucide-react';
-import { AUDIO_SOURCES } from '../../utils/constants';
+import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
 const Header = ({
@@ -26,7 +26,10 @@ const Header = ({
     isInfoPanelEnabled,
     setIsInfoPanelEnabled,
     fileInputRef,
-    resetAllParams
+    resetAllParams,
+
+    handleFactoryReset,
+    stopAudio // [NEW]
 }) => {
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
     const optionsRef = useRef(null);
@@ -34,6 +37,7 @@ const Header = ({
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingSource, setPendingSource] = useState(null);
+    const [pendingAction, setPendingAction] = useState(null); // 'sourceChange' | 'factoryReset'
 
     // Click Outside to Close Options
     useEffect(() => {
@@ -53,45 +57,44 @@ const Header = ({
         const selected = AUDIO_SOURCES.find(s => s.id === newId);
         if (selected) {
             setPendingSource(selected);
+            setPendingAction('sourceChange');
             setShowConfirmModal(true);
         }
     };
 
     const confirmChange = () => {
-        if (pendingSource) {
+        if (pendingAction === 'sourceChange' && pendingSource) {
             resetAllParams();
             loadPreset(pendingSource);
             setPendingSource(null);
+        } else if (pendingAction === 'factoryReset') {
+            handleFactoryReset();
         }
+        setPendingAction(null);
         setShowConfirmModal(false);
     };
 
     const cancelChange = () => {
         setPendingSource(null);
+        setPendingAction(null);
         setShowConfirmModal(false);
     };
 
     return (
         <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4">
+
             <ConfirmationModal
                 isOpen={showConfirmModal}
-                title="確定轉換音檔？"
-                message="之前音檔的所有設定將會失去。"
+                title={pendingAction === 'factoryReset' ? "確定還原所有設定？" : "確定轉換音檔？"}
+                message={pendingAction === 'factoryReset' ? "這將會重置所有參數與畫面設定，但保留您目前的音檔選擇。" : "之前音檔的所有設定將會失去。"}
                 onConfirm={confirmChange}
                 onCancel={cancelChange}
             />
             <div>
                 <h1 className="text-2xl font-bold flex items-center gap-2 text-white">
-                    <Settings2 className="w-8 h-8 text-cyan-400" /> 壓縮器波形顯示器 Compressor Visualizer v2.2.1
+                    看得見的壓縮器 {APP_VERSION}
                 </h1>
-                <p className="text-xs text-slate-400 mt-1 font-mono">
-                    {fileName || 'NO FILE'}
-                    {resolutionPct < 100 && (
-                        <span className="text-yellow-500 ml-2 font-bold text-[10px] tracking-wide border border-yellow-500/30 px-1.5 py-0.5 rounded bg-yellow-950/30">
-                            (Reduced Resolution Mode: {resolutionPct}%)
-                        </span>
-                    )}
-                </p>
+
             </div>
             <div className="flex flex-wrap items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 relative">
                 {/* Clear Upload Button */}
@@ -199,14 +202,31 @@ const Header = ({
                                 />
                                 <div className="text-center text-xs font-mono mt-1 text-cyan-400 font-bold">{resolutionPct}% Resolution</div>
                             </div>
-                            <p className="text-[10px] text-slate-500 leading-tight">
+                            <p className="text-[10px] text-slate-500 leading-tight mb-4">
                                 調低解析度可提升操作流暢度，但可能丟失極短暫的峰值細節。預設為 100% 以確保準確性。
                             </p>
+
                         </div>
                     )}
                 </div>
+
+
+                <div className="w-px h-6 bg-slate-700 mx-1"></div>
+
+                <button
+                    onClick={() => {
+                        stopAudio();
+                        setPendingAction('factoryReset');
+                        setShowConfirmModal(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-green-500 bg-green-600 text-white hover:bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                    title="還原所有設定"
+                >
+                    <RotateCcw size={16} />
+                    還原所有設定
+                </button>
             </div>
-        </div>
+        </div >
     );
 };
 

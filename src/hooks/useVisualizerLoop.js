@@ -82,8 +82,11 @@ const useVisualizerLoop = ({
             if (visualIndex < visualResult.grCurve.length && visualIndex >= 0) currentGR = visualResult.grCurve[visualIndex];
 
             let maxMix = 0; let maxInput = 0; let sumSqInput = 0; let sumSqMix = 0; let sampleCount = 0;
-            const isProcessed = playingType === 'processed';
-            const dryLinear = Math.pow(10, dryGain / 20);
+            // Determine if we should show processed signal
+            // If playing, use current type. If paused or ambiguous, fallback to lastPlayedType intent.
+            const isProcessed = playingType === 'processed' || (playingType !== 'original' && lastPlayedType === 'processed');
+
+            const dryLinear = dryGain <= -60 ? 0 : Math.pow(10, dryGain / 20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;
@@ -95,7 +98,13 @@ const useVisualizerLoop = ({
                 let mix = 0;
                 if (isProcessed) {
                     const wet = visualResult.outputData[i];
-                    if (isDeltaMode) mix = wet - dry; else mix = wet + (dry * dryLinear);
+                    if (isDeltaMode) {
+                        mix = wet - dry;
+                    } else {
+                        // Logic: mix = wet + (dry * dryLinear)
+                        // Note: If dryLinear is 0, mix == wet.
+                        mix = wet + (dry * dryLinear);
+                    }
                 } else {
                     mix = visualResult.visualInput[i];
                 }
