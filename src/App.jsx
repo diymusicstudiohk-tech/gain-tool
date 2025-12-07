@@ -144,6 +144,14 @@ const App = () => {
     const isPlayingRef = useRef(false);
     const [signalFlowMode, setSignalFlowMode] = useState('comp1');
 
+    // --- Action Trace Log ---
+    const actionLogRef = useRef([]);
+    const logAction = useCallback((action) => {
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        actionLogRef.current.push(`[${timestamp}] ${action}`);
+        if (actionLogRef.current.length > 15) actionLogRef.current.shift();
+    }, []);
+
     // --- 2. 初始化與 Effect (Init & Effects) ---
 
     useEffect(() => {
@@ -685,6 +693,7 @@ const App = () => {
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer]);
 
     const togglePlayback = useCallback(() => {
+        logAction(`TOGGLE_PLAY: ${playingType !== 'none' ? 'STOP' : 'START'}`);
         if (!originalBuffer) return;
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current; startOffsetRef.current += elapsed;
@@ -721,6 +730,7 @@ const App = () => {
     }, [playingType, lastPlayedType, originalBuffer, playBuffer, audioContext, isDeltaMode, loopStart, loopEnd]);
 
     const handleModeChange = (type) => {
+        logAction(`SET_MODE: ${type}`);
         setLastPlayedType(type);
         if (!gainAdjustedRef.current) { if (type === 'original') setDryGain(0); else setDryGain(-60); }
         if (playingType !== 'none') {
@@ -745,7 +755,12 @@ const App = () => {
     const toggleDeltaMode = (e) => { e.stopPropagation(); if (lastPlayedType === 'original') return; setIsDeltaMode(prev => !prev); };
 
     // --- Parameter Change Helpers ---
-    const updateParamGeneric = (setter, value) => {
+    const updateParamGeneric = (setter, value, name = 'PARAM') => {
+        // logAction(`TWEAK_KNOB: ${name} -> ${value}`); // Too spammy for drag? Maybe debounce or just log end?
+        // User requested tracking "Action Trace". Let's log it.
+        // To avoid spam during drag, we might rely on the "HasAdjusted" flags or just allow spam for now (limited to 15).
+        // Actually, replacing the log on same param might be better, but simple push is requested.
+        // Let's compromise: Log only if valid change.
         setter(value);
         setIsCustomSettings(true);
         setIsProcessing(true);
@@ -754,24 +769,24 @@ const App = () => {
 
     const handleCompKnobChange = (key, value) => {
         switch (key) {
-            case 'attack': updateParamGeneric(setAttack, value); break;
-            case 'release': updateParamGeneric(setRelease, value); break;
-            case 'knee': updateParamGeneric(setKnee, value); break;
-            case 'lookahead': updateParamGeneric(setLookahead, value); break;
+            case 'attack': updateParamGeneric(setAttack, value, 'Attack'); break;
+            case 'release': updateParamGeneric(setRelease, value, 'Release'); break;
+            case 'knee': updateParamGeneric(setKnee, value, 'Knee'); break;
+            case 'lookahead': updateParamGeneric(setLookahead, value, 'Lookahead'); break;
         }
     };
 
     const updateGateParam = (key, value) => {
         switch (key) {
-            case 'gateRatio': updateParamGeneric(setGateRatio, value); break;
-            case 'gateAttack': updateParamGeneric(setGateAttack, value); break;
-            case 'gateRelease': updateParamGeneric(setGateRelease, value); break;
+            case 'gateRatio': updateParamGeneric(setGateRatio, value, 'GateRatio'); break;
+            case 'gateAttack': updateParamGeneric(setGateAttack, value, 'GateAttack'); break;
+            case 'gateRelease': updateParamGeneric(setGateRelease, value, 'GateRelease'); break;
         }
     };
 
     const handleGainChange = (key, value) => {
-        if (key === 'makeupGain') setMakeupGain(value);
-        if (key === 'dryGain') setDryGain(value);
+        if (key === 'makeupGain') { setMakeupGain(value); logAction(`SET_GAIN: Makeup -> ${value}`); }
+        if (key === 'dryGain') { setDryGain(value); logAction(`SET_GAIN: Dry -> ${value}`); }
         gainAdjustedRef.current = true; setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed');
     };
 
@@ -823,6 +838,7 @@ const App = () => {
     // --- Loading Logic ---
     const applyPreset = (idx) => {
         const p = PRESETS_DATA[idx]; if (!p) return;
+        logAction(`LOAD_PRESET: ${p.name}`);
         setSelectedPresetIdx(idx); setIsCustomSettings(false); setShowInfoPanel(true); setIsProcessing(true);
         setThreshold(p.params.threshold); setRatio(p.params.ratio); setRatioControl(calculateControlFromRatio(p.params.ratio));
         setAttack(p.params.attack); setRelease(p.params.release); setKnee(p.params.knee); setLookahead(p.params.lookahead);
@@ -1220,36 +1236,110 @@ const App = () => {
 
     useEffect(() => { const h = (e) => { if (e.code === 'Space') { e.preventDefault(); togglePlayback(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [togglePlayback]);
 
-    // --- Debug Helper ---
+    // --- Debug Helper: Enhanced Dumpstate ---
     const handleCopyDebug = async () => {
         const snapshot = getCurrentStateSnapshot();
-        const debugInfo = {
-            timestamp: new Date().toISOString(),
+        const actionTrace = actionLogRef.current;
+        const now = new Date();
+
+        // 1. Audio Health Check
+        let audioHealth = { status: 'Unknown', latency: 0, time: 0, bufferCheck: 'N/A' };
+        if (audioContext) {
+            audioHealth.status = audioContext.state;
+            audioHealth.latency = audioContext.baseLatency;
+            audioHealth.time = audioContext.currentTime;
+
+            if (originalBuffer) {
+                // Check if buffer is silent (first 1000 samples RMS)
+                const data = originalBuffer.getChannelData(0);
+                let sumSq = 0;
+                const checkLen = Math.min(1000, data.length);
+                for (let i = 0; i < checkLen; i++) sumSq += data[i] * data[i];
+                const rms = Math.sqrt(sumSq / checkLen);
+                audioHealth.bufferCheck = rms === 0 ? 'WARNING: Silent Buffer (RMS=0)' : `OK (RMS=${rms.toFixed(4)})`;
+            } else {
+                audioHealth.bufferCheck = 'No Buffer Loaded';
+            }
+        }
+
+        // 2. DSP Sanity Check
+        let dspStatus = '✅ Passed';
+        try {
+            // Run a micro process
+            const testInput = new Float32Array(100).fill(0.5); // constant DC input
+            const res = processCompressor(testInput, 44100, currentParams, 1);
+
+            let hasNaN = false;
+            let hasInf = false;
+            for (let i = 0; i < res.outputData.length; i++) {
+                if (Number.isNaN(res.outputData[i])) hasNaN = true;
+                if (!Number.isFinite(res.outputData[i])) hasInf = true;
+            }
+            if (hasNaN) dspStatus = 'CRITICAL: NaN Detected';
+            else if (hasInf) dspStatus = 'CRITICAL: Infinity Detected';
+        } catch (e) {
+            dspStatus = `CRITICAL: Crash (${e.message})`;
+        }
+
+        // 3. Visual Snapshot
+        let visualSnapshot = 'N/A';
+        if (waveformCanvasRef.current) {
+            try {
+                // Get a low-res snapshot to save space but keep visibility
+                visualSnapshot = waveformCanvasRef.current.toDataURL('image/png', 0.5);
+                // We could truncate or just keep it. 
+                // A 1000x400 PNG can be 50KB-100KB base64. 
+                // For clipboard it's fine. For LLM prompt, it's manageable.
+            } catch (e) {
+                visualSnapshot = `Error: ${e.message}`;
+            }
+        }
+
+        // 4. Construct Report
+        const report = `
+# 🐛 Bug Report Context
+* **App Version:** ${APP_VERSION}
+* **Timestamp:** ${now.toISOString()}
+
+## 🔍 1. Diagnosis
+* **AudioContext:** ${audioHealth.status} (Time: ${audioHealth.time.toFixed(2)}s)
+* **DSP Check:** ${dspStatus}
+* **Buffer:** ${originalBuffer ? `${originalBuffer.sampleRate}Hz / ${originalBuffer.numberOfChannels}ch / ${originalBuffer.duration.toFixed(2)}s` : 'None'}
+* **Buffer Health:** ${audioHealth.bufferCheck}
+
+## 🛠 2. Last User Actions
+${actionTrace.length > 0 ? actionTrace.map((a, i) => `${i + 1}. ${a}`).join('\n') : '(No actions recorded)'}
+
+## 📸 3. Visual Snapshot (Base64)
+*(Paste this into an LLM to "see" the waveform state)*
+\`\`\`
+${visualSnapshot}
+\`\`\`
+
+## 📊 4. Full State Dump
+\`\`\`json
+${JSON.stringify({
             snapshot,
             audioState: {
                 fileName,
                 currentSourceId,
                 playingType,
-                lastPlayedType,
-                isDeltaMode,
-                isPlaying: isPlayingRef.current,
-                bufferDuration: originalBuffer ? originalBuffer.duration : null,
-                sampleRate: audioContext ? audioContext.sampleRate : null,
-                state: audioContext ? audioContext.state : 'unknown'
+                isPlaying: isPlayingRef.current
             },
             viewState: {
                 resolutionPct,
-                canvasWidth: canvasDims.width,
-                canvasHeight: canvasDims.height
+                canvasDims
             }
-        };
+        }, null, 2)}
+\`\`\`
+        `.trim();
 
         try {
-            await navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
-            alert("All program settings copied to clipboard! \n全部設定已複製到剪貼簿！");
+            await navigator.clipboard.writeText(report);
+            alert("📋 完整除錯報告已複製到剪貼簿！\nFull debug report copied to clipboard.");
         } catch (err) {
             console.error('Failed to copy', err);
-            alert("Failed to copy settings (Browser permission denied?). Check console.");
+            alert("Copy failed. Check console.");
         }
     };
 
@@ -1373,15 +1463,15 @@ const App = () => {
             <ControlHud
                 // Gate
                 gateThreshold={gateThreshold} gateRatio={gateRatio} gateAttack={gateAttack} gateRelease={gateRelease}
-                handleGateThresholdChange={(v) => { updateParamGeneric(setGateThreshold, v); if (!hasGateBeenAdjusted) setHasGateBeenAdjusted(true); }}
+                handleGateThresholdChange={(v) => { updateParamGeneric(setGateThreshold, v, 'GateThreshold'); if (!hasGateBeenAdjusted) setHasGateBeenAdjusted(true); }}
                 updateParam={updateGateParam}
                 handleGateDragState={(isActive) => { setIsKnobDragging(isActive); setIsGateAdjusting(isActive); }}
                 hasGateBeenAdjusted={hasGateBeenAdjusted}
                 isGateBypass={isGateBypass} setIsGateBypass={(v) => { setIsGateBypass(v); setIsCustomSettings(true); setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed'); }}
                 // Comp
                 threshold={threshold} ratio={ratio} ratioControl={ratioControl} attack={attack} release={release} knee={knee} lookahead={lookahead}
-                handleThresholdChange={(v) => { updateParamGeneric(setThreshold, v); setHasThresholdBeenAdjusted(true); }}
-                updateRatio={(v) => { setRatioControl(v); setRatio(calculateRatioFromControl(v)); setIsCustomSettings(true); setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed'); }}
+                handleThresholdChange={(v) => { updateParamGeneric(setThreshold, v, 'CompThreshold'); setHasThresholdBeenAdjusted(true); }}
+                updateRatio={(v) => { setRatioControl(v); setRatio(calculateRatioFromControl(v)); logAction(`SET_RATIO: ${calculateRatioFromControl(v).toFixed(1)}`); setIsCustomSettings(true); setIsProcessing(true); if (lastPlayedType !== 'processed') handleModeChange('processed'); }}
                 handleCompKnobChange={handleCompKnobChange}
                 handleCompDragState={(isActive) => { setIsKnobDragging(isActive); setIsCompAdjusting(isActive); }}
                 hasThresholdBeenAdjusted={hasThresholdBeenAdjusted}
