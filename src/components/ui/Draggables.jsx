@@ -11,7 +11,7 @@ export const DraggableViewControls = ({
     const dragStartRef = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
-        setPos({ x: 20, y: containerHeight - 280 });
+        setPos({ x: 20, y: containerHeight - 340 });
     }, [containerHeight]);
 
     const handleMouseDown = (e) => {
@@ -28,7 +28,7 @@ export const DraggableViewControls = ({
 
         if (newX < 0) newX = 0;
         if (newY < 0) newY = 0;
-        const hudTopLimit = containerHeight - 260;
+        const hudTopLimit = containerHeight - 330;
         if (newY > hudTopLimit) newY = hudTopLimit;
 
         setPos({ x: newX, y: newY });

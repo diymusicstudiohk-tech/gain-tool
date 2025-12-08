@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
 
 // --- Imports from Refactored Structure ---
-import { PRESETS_DATA, AUDIO_SOURCES, TOOLTIPS } from './utils/constants';
+import { PRESETS_DATA, AUDIO_SOURCES, TOOLTIPS, APP_VERSION } from './utils/constants';
 import { processCompressor } from './utils/dsp';
 import { writeWavFile } from './utils/audioHelper';
 import {
@@ -26,6 +26,7 @@ const App = () => {
     const [audioContext, setAudioContext] = useState(null);
     const [originalBuffer, setOriginalBuffer] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
+    const [copyStatus, setCopyStatus] = useState('idle'); // idle, copying, success, error
     const [currentSourceId, setCurrentSourceId] = useState(null);
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Lead-Vocal-03');
     const [fileName, setFileName] = useState('');
@@ -500,7 +501,8 @@ const App = () => {
         isGateBypass, isCompBypass, visualResult, visualSourceCache, fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
         waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef,
-        meterStateRef, hoverGrRef, canvasDims, zoomX, zoomY, panOffset, panOffsetY
+        meterStateRef, hoverGrRef, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
+        playingTypeRef, lastPlayedTypeRef
     });
 
     useEffect(() => {
@@ -688,7 +690,7 @@ const App = () => {
             }
         }
 
-    }, [audioContext, animate, originalBuffer, dryGain, isDeltaMode, setErrorMsg]);
+    }, [audioContext, animate, originalBuffer, dryGain, isDeltaMode, setErrorMsg, loopStart, loopEnd]);
 
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer]);
 
@@ -1238,65 +1240,59 @@ const App = () => {
 
     // --- Debug Helper: Enhanced Dumpstate ---
     const handleCopyDebug = async () => {
-        const snapshot = getCurrentStateSnapshot();
-        const actionTrace = actionLogRef.current;
-        const now = new Date();
-
-        // 1. Audio Health Check
-        let audioHealth = { status: 'Unknown', latency: 0, time: 0, bufferCheck: 'N/A' };
-        if (audioContext) {
-            audioHealth.status = audioContext.state;
-            audioHealth.latency = audioContext.baseLatency;
-            audioHealth.time = audioContext.currentTime;
-
-            if (originalBuffer) {
-                // Check if buffer is silent (first 1000 samples RMS)
-                const data = originalBuffer.getChannelData(0);
-                let sumSq = 0;
-                const checkLen = Math.min(1000, data.length);
-                for (let i = 0; i < checkLen; i++) sumSq += data[i] * data[i];
-                const rms = Math.sqrt(sumSq / checkLen);
-                audioHealth.bufferCheck = rms === 0 ? 'WARNING: Silent Buffer (RMS=0)' : `OK (RMS=${rms.toFixed(4)})`;
-            } else {
-                audioHealth.bufferCheck = 'No Buffer Loaded';
-            }
-        }
-
-        // 2. DSP Sanity Check
-        let dspStatus = '✅ Passed';
+        setCopyStatus('copying');
         try {
-            // Run a micro process
-            const testInput = new Float32Array(100).fill(0.5); // constant DC input
-            const res = processCompressor(testInput, 44100, currentParams, 1);
+            const snapshot = getCurrentStateSnapshot();
+            const actionTrace = actionLogRef.current || [];
+            const now = new Date();
 
-            let hasNaN = false;
-            let hasInf = false;
-            for (let i = 0; i < res.outputData.length; i++) {
-                if (Number.isNaN(res.outputData[i])) hasNaN = true;
-                if (!Number.isFinite(res.outputData[i])) hasInf = true;
+            // 1. Audio Health Check
+            let audioHealth = { status: 'Unknown', latency: 0, time: 0, bufferCheck: 'N/A' };
+            if (audioContext) {
+                audioHealth.status = audioContext.state;
+                audioHealth.latency = audioContext.baseLatency;
+                audioHealth.time = audioContext.currentTime;
+
+                if (originalBuffer) {
+                    const data = originalBuffer.getChannelData(0);
+                    let sumSq = 0;
+                    const checkLen = Math.min(1000, data.length);
+                    for (let i = 0; i < checkLen; i++) sumSq += data[i] * data[i];
+                    const rms = Math.sqrt(sumSq / checkLen);
+                    audioHealth.bufferCheck = rms === 0 ? 'WARNING: Silent Buffer (RMS=0)' : `OK (RMS=${rms.toFixed(4)})`;
+                } else {
+                    audioHealth.bufferCheck = 'No Buffer Loaded';
+                }
             }
-            if (hasNaN) dspStatus = 'CRITICAL: NaN Detected';
-            else if (hasInf) dspStatus = 'CRITICAL: Infinity Detected';
-        } catch (e) {
-            dspStatus = `CRITICAL: Crash (${e.message})`;
-        }
 
-        // 3. Visual Snapshot
-        let visualSnapshot = 'N/A';
-        if (waveformCanvasRef.current) {
+            // 2. DSP Sanity Check
+            let dspStatus = '✅ Passed';
             try {
-                // Get a low-res snapshot to save space but keep visibility
-                visualSnapshot = waveformCanvasRef.current.toDataURL('image/png', 0.5);
-                // We could truncate or just keep it. 
-                // A 1000x400 PNG can be 50KB-100KB base64. 
-                // For clipboard it's fine. For LLM prompt, it's manageable.
+                const testInput = new Float32Array(100).fill(0.5);
+                const res = processCompressor(testInput, 44100, currentParams, 1);
+                let hasNaN = false, hasInf = false;
+                for (let i = 0; i < res.outputData.length; i++) {
+                    if (Number.isNaN(res.outputData[i])) hasNaN = true;
+                    if (!Number.isFinite(res.outputData[i])) hasInf = true;
+                }
+                if (hasNaN) dspStatus = 'CRITICAL: NaN Detected';
+                else if (hasInf) dspStatus = 'CRITICAL: Infinity Detected';
             } catch (e) {
-                visualSnapshot = `Error: ${e.message}`;
+                dspStatus = `CRITICAL: Crash (${e.message})`;
             }
-        }
 
-        // 4. Construct Report
-        const report = `
+            // 3. Visual Snapshot
+            let visualSnapshot = 'N/A';
+            if (waveformCanvasRef.current) {
+                try {
+                    visualSnapshot = waveformCanvasRef.current.toDataURL('image/png', 0.5);
+                } catch (e) {
+                    visualSnapshot = `Error: ${e.message}`;
+                }
+            }
+
+            // 4. Construct Report
+            const report = `
 # 🐛 Bug Report Context
 * **App Version:** ${APP_VERSION}
 * **Timestamp:** ${now.toISOString()}
@@ -1319,27 +1315,52 @@ ${visualSnapshot}
 ## 📊 4. Full State Dump
 \`\`\`json
 ${JSON.stringify({
-            snapshot,
-            audioState: {
-                fileName,
-                currentSourceId,
-                playingType,
-                isPlaying: isPlayingRef.current
-            },
-            viewState: {
-                resolutionPct,
-                canvasDims
-            }
-        }, null, 2)}
+                snapshot,
+                audioState: {
+                    fileName,
+                    currentSourceId,
+                    playingType,
+                    isPlaying: isPlayingRef.current
+                },
+                viewState: {
+                    resolutionPct,
+                    canvasDims
+                }
+            }, null, 2)}
 \`\`\`
-        `.trim();
+            `.trim();
 
-        try {
-            await navigator.clipboard.writeText(report);
-            alert("📋 完整除錯報告已複製到剪貼簿！\nFull debug report copied to clipboard.");
-        } catch (err) {
-            console.error('Failed to copy', err);
-            alert("Copy failed. Check console.");
+            const copyToClipboard = async (text) => {
+                if (navigator.clipboard && window.isSecureContext) {
+                    try { await navigator.clipboard.writeText(text); return true; }
+                    catch (err) { console.error('Navigator clipboard failed', err); }
+                }
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed"; textArea.style.left = "-9999px"; textArea.style.top = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus(); textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return successful;
+                } catch (err) {
+                    console.error('Fallback copy failed', err);
+                    return false;
+                }
+            };
+
+            const success = await copyToClipboard(report);
+            if (success) {
+                setCopyStatus('success');
+                setTimeout(() => setCopyStatus('idle'), 2000);
+            } else {
+                throw new Error("Copy failed");
+            }
+        } catch (e) {
+            console.error('Dump State Failed:', e);
+            setCopyStatus('error');
+            setTimeout(() => setCopyStatus('idle'), 3000);
         }
     };
 
@@ -1503,7 +1524,10 @@ ${JSON.stringify({
                     onClick={handleCopyDebug}
                     className="text-[10px] text-slate-500 hover:text-cyan-400 font-mono tracking-widest uppercase transition-colors px-4 py-1 hover:bg-white/5 rounded"
                 >
-                    [ copy all program setting ]
+                    {copyStatus === 'idle' && '[ copy all program setting ]'}
+                    {copyStatus === 'copying' && '[ generating... ]'}
+                    {copyStatus === 'success' && '[ ✅ copied to clipboard ]'}
+                    {copyStatus === 'error' && '[ ❌ copy failed ]'}
                 </button>
             </div>
         </div>

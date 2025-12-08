@@ -40,7 +40,9 @@ const useVisualizerLoop = ({
     zoomX,
     zoomY,
     panOffset,
-    panOffsetY
+    panOffsetY,
+    playingTypeRef,
+    lastPlayedTypeRef
 }) => {
 
     const animate = useCallback(() => {
@@ -74,7 +76,8 @@ const useVisualizerLoop = ({
         if (visualResult) {
             // RMS Calculation
             const step = visualSourceCache.step;
-            const visualIndex = Math.floor((currentPosition * audioContext.sampleRate) / step);
+            // Prevent negative index access which causes NaNs
+            const visualIndex = Math.max(0, Math.floor((currentPosition * audioContext.sampleRate) / step));
             const windowSize = Math.max(1, Math.floor(2048 / step));
             const endIdx = Math.min(visualIndex + windowSize, visualResult.outputData.length);
 
@@ -82,22 +85,26 @@ const useVisualizerLoop = ({
             if (visualIndex < visualResult.grCurve.length && visualIndex >= 0) currentGR = visualResult.grCurve[visualIndex];
 
             let maxMix = 0; let maxInput = 0; let sumSqInput = 0; let sumSqMix = 0; let sampleCount = 0;
+
             // Determine if we should show processed signal
-            // If playing, use current type. If paused or ambiguous, fallback to lastPlayedType intent.
-            const isProcessed = playingType === 'processed' || (playingType !== 'original' && lastPlayedType === 'processed');
+            // Use Refs to ensure we get the latest state even if the animation closure is stale
+            const currentType = playingTypeRef ? playingTypeRef.current : playingType;
+            const lastType = lastPlayedTypeRef ? lastPlayedTypeRef.current : lastPlayedType;
+
+            const isProcessed = currentType === 'processed' || (currentType !== 'original' && lastType === 'processed');
 
             const dryLinear = dryGain <= -60 ? 0 : Math.pow(10, dryGain / 20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;
-                const dry = visualResult.visualInput[i];
+                const dry = visualResult.visualInput[i] || 0; // Guard undefined
                 const dryAbs = Math.abs(dry);
                 if (dryAbs > maxInput) maxInput = dryAbs;
                 sumSqInput += dry * dry;
 
                 let mix = 0;
                 if (isProcessed) {
-                    const wet = visualResult.outputData[i];
+                    const wet = visualResult.outputData[i] || 0; // Guard undefined
                     if (isDeltaMode) {
                         mix = wet - dry;
                     } else {
@@ -106,20 +113,44 @@ const useVisualizerLoop = ({
                         mix = wet + (dry * dryLinear);
                     }
                 } else {
-                    mix = visualResult.visualInput[i];
+                    mix = visualResult.visualInput[i] || 0; // Guard undefined
                 }
+
+                // Debug Trigger
+                if (i === visualIndex && Math.random() < 0.005) {
+                    console.log('[VizDebug]', {
+                        isProcessed,
+                        isDeltaMode,
+                        dryLinear,
+                        mix,
+                        currentInput: visualResult.visualInput[i],
+                        currentOutput: visualResult.outputData ? visualResult.outputData[i] : 'no-out',
+                        currentType,
+                        lastType,
+                        playingType
+                    });
+                }
+
                 const abs = Math.abs(mix);
                 if (abs > maxMix) maxMix = abs;
                 sumSqMix += mix * mix;
                 sampleCount++;
             }
 
-            const currentDryRms = sampleCount > 0 ? Math.sqrt(sumSqInput / sampleCount) : 0;
-            const currentOutRms = sampleCount > 0 ? Math.sqrt(sumSqMix / sampleCount) : 0;
+            let currentDryRms = sampleCount > 0 ? Math.sqrt(sumSqInput / sampleCount) : 0;
+            let currentOutRms = sampleCount > 0 ? Math.sqrt(sumSqMix / sampleCount) : 0;
+
+            // NaN Guard: If sampleCount 0 or data corrupt, prevent pollution of meterState
+            if (!Number.isFinite(currentDryRms)) currentDryRms = 0;
+            if (!Number.isFinite(currentOutRms)) currentOutRms = 0;
 
             const smoothingFactor = 0.15;
             meterStateRef.current.dryRmsLevel = meterStateRef.current.dryRmsLevel * (1 - smoothingFactor) + currentDryRms * smoothingFactor;
             meterStateRef.current.outRmsLevel = meterStateRef.current.outRmsLevel * (1 - smoothingFactor) + currentOutRms * smoothingFactor;
+
+            // Final NaN check for state (recovery from bad state)
+            if (!Number.isFinite(meterStateRef.current.dryRmsLevel)) meterStateRef.current.dryRmsLevel = 0;
+            if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
             // Draw Meters
             drawGRBar(grBarCanvasRef.current, isProcessed ? currentGR : 0, meterStateRef.current, hoverGrRef.current);
@@ -159,7 +190,15 @@ const useVisualizerLoop = ({
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
-                if (targetBuffer) playBufferRef.current(targetBuffer, playingType, 0);
+
+                if (targetBuffer) {
+                    // Fix: If loop is active, jump to loop start instead of 0
+                    if (loopStart !== null && loopEnd !== null) {
+                        playBufferRef.current(targetBuffer, playingType, loopStart);
+                    } else {
+                        playBufferRef.current(targetBuffer, playingType, 0);
+                    }
+                }
             }
         }
 
