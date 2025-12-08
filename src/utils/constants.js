@@ -3,62 +3,62 @@ import { MicVocal, Zap, Disc, AudioWaveform } from 'lucide-react';
 export const PRESETS_DATA = [
     {
         name: "Default (初始設定)",
-        explanation: "這是壓縮器的初始狀態。Threshold 為 0dB，Ratio 為 4:1，不會對聲音產生任何壓縮。適合用來聆聽原始訊號，或作為從零開始調整的起點。",
+        explanation: "【特色】\n這是壓縮器的初始狀態。Threshold 為 0dB，Ratio 為 4:1。目前不會對聲音產生任何壓縮，適合用來聆聽原始訊號，或作為從零開始調整的起點。\n\n【建議調整】\n試著慢慢逆時針旋轉 Threshold 旋鈕，直到 Gain Reduction (GR) 表頭開始跳動，觀察壓縮器如何介入。\n\n【微調技巧】\n若覺得壓縮效果不明顯，可試著增加 Ratio；若覺得聲音變小，可增加 Makeup Gain。",
         params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -80, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Subtle Vocal Control (輕微人聲控制)",
-        explanation: "溫和的壓縮設定。低 Ratio (2.5:1) 配合較慢的 Attack，旨在輕輕撫平人聲的動態，保留自然的呼吸感，不會讓聽眾察覺到明顯的壓縮痕跡。",
+        explanation: "【特色】\n溫和的設定 (Ratio 2.5:1, 軟膝)，旨在輕輕撫平人聲動態，保留自然的呼吸感，聽眾幾乎不會察覺壓縮的存在。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 在人聲最大聲時大約達到 -2dB 至 -3dB 即可。\n\n【微調技巧】\n若覺得人聲還是忽大忽小，可稍微調快 Release (向左)；若覺得聲音不夠自然，可調慢 Attack (向右)。",
         params: { threshold: -20, ratio: 2.5, attack: 10, release: 200, knee: 5, lookahead: 2, makeupGain: 3, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Aggressive Rap Vocal (激進饒舌人聲)",
-        explanation: "為了讓饒舌人聲在擁擠的混音中突圍，使用了高 Ratio (8:1) 和極快的 Attack。這會壓平所有動態，讓每一個字都像子彈一樣清晰有力。",
+        explanation: "【特色】\n高 Ratio (8:1) 配合極快 Attack。這會將動態像磚牆一樣壓平，讓每一個字都像子彈一樣清晰有力，適合穿透力強的混音。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 大約在 -6dB 至 -10dB，確保每一句歌詞都被緊緊抓住。\n\n【微調技巧】\n若覺得咬字不清 (Transient 被吃掉)，可稍微調慢 Attack (向右 10-20ms)；若覺得尾音太短，可調慢 Release (向右)。",
         params: { threshold: -28, ratio: 8, attack: 2, release: 80, knee: 2, lookahead: 5, makeupGain: 8, dryGain: -60, gateThreshold: -45, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Vocal Bus Glue (人聲總線黏合)",
-        explanation: "當多軌人聲混合時，使用中等 Attack (30ms) 讓瞬態通過，然後用 Release 將尾韻拉起。這能讓合聲與主唱聽起來像是在同一個空間演唱，產生「黏合」感。",
+        explanation: "【特色】\n中等 Attack (30ms) 讓瞬態通過，配合中等 Release 讓尾韻拉起。這能讓合聲與主唱聽起來像是在同一個空間演唱，產生完美的「黏合感」。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 輕微地在 -2dB 至 -4dB 之間擺動。\n\n【微調技巧】\n若覺得合聲聽起來太分開，可增加 Ratio；若覺得總體音量被壓得太死，可嘗試調慢 Release。",
         params: { threshold: -24, ratio: 3, attack: 30, release: 100, knee: 10, lookahead: 0, makeupGain: 4, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Acoustic Guitar Leveler (木吉他平整化)",
-        explanation: "木吉他掃弦時動態差異很大。這裡使用軟膝 (Soft Knee) 和較慢的 Release，讓壓縮動作非常平滑，避免吉他聲音出現「抽吸感」(Pumping)，保持穩定的延音。",
+        explanation: "【特色】\n使用軟膝 (Soft Knee) 和較慢的 Release，讓壓縮動作非常平滑，避免吉他刷扣時出現忽大忽小的「抽吸感」(Pumping)。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 維持在 -3dB 至 -5dB，讓吉他鋪底更穩定。\n\n【微調技巧】\n若覺得吉他聽起來這悶，可調慢 Attack 讓刷弦聲出來；若覺得延音太短，可向右增加 Release。",
         params: { threshold: -25, ratio: 4, attack: 20, release: 250, knee: 15, lookahead: 0, makeupGain: 5, dryGain: -60, gateThreshold: -55, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Snare Snap (小鼓衝擊感)",
-        explanation: "慢 Attack (35ms) 是關鍵！它允許小鼓敲擊瞬間的「啪」聲通過，然後壓縮器才介入壓低後續聲音。這會人為地放大敲擊感 (Transient)，讓小鼓更兇猛。",
+        explanation: "【特色】\n關鍵在於慢 Attack (35ms)！它允許小鼓敲擊瞬間的「啪」聲通過，隨後才介入壓低。這會人為地放大敲擊感 (Transient)，讓小鼓更兇猛。\n\n【建議調整】\n調整 Threshold，讓只有小鼓敲擊時才會觸發壓縮 (GR -3dB 到 -6dB)。\n\n【微調技巧】\n若覺得小鼓太刺耳，將 Attack 向左調快；若覺得小鼓不夠有力，試著將 Ratio 加大。",
         params: { threshold: -18, ratio: 5, attack: 35, release: 80, knee: 0, lookahead: 0, makeupGain: 4, dryGain: -60, gateThreshold: -40, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Kick Drum Tight (大鼓緊實化)",
-        explanation: "針對大鼓，我們需要控制其低頻尾音。較短的 Release (60ms) 讓壓縮器隨著節奏快速復位，防止大鼓的低頻糊成一團，讓節奏聽起來更緊湊。",
+        explanation: "【特色】\n針對大鼓低頻。較短的 Release (60ms) 讓壓縮器隨著節奏快速復位，防止大鼓的低頻糊成一團，讓節奏聽起來更緊湊乾淨。\n\n【建議調整】\n調整 Threshold，讓每一次大鼓踩下去都有 -3dB 至 -6dB 的壓縮量。\n\n【微調技巧】\n若覺得大鼓太短促 (Clicky)，可稍微調慢 Release；若覺得低頻混濁，可調快 Release。",
         params: { threshold: -20, ratio: 6, attack: 40, release: 60, knee: 2, lookahead: 0, makeupGain: 3, dryGain: -60, gateThreshold: -30, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Drum Bus Smash (鼓組極限壓縮)",
-        explanation: "極端設定 (20:1 Ratio)。這通常用於 Parallel Compression。它將鼓組壓得粉碎，產生巨大的能量感與空間殘響，然後你可以稍微混合一點進去增加厚度。",
+        explanation: "【特色】\n極端設定 (20:1 Ratio)！這將鼓組壓得粉碎，產生巨大的能量感與空間殘響。通常配合 Dry Gain 做平行壓縮使用。\n\n【建議調整】\n大膽調整 Threshold，讓 GR 超過 -10dB 甚至更多！\n\n【微調技巧】\n覺得太吵？慢慢增加 Dry Gain (原音混合) 把乾淨的鼓聲找回來，保留 Smash 的能量作為襯底。",
         params: { threshold: -30, ratio: 20, attack: 5, release: 120, knee: 5, lookahead: 0, makeupGain: 12, dryGain: -10, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Parallel Compression (平行壓縮)",
-        explanation: "注意看 Dry Gain！這個 Preset 混合了未壓縮的乾訊號 (0dB) 與被重度壓縮的濕訊號。這能在保留原始動態衝擊力的同時，大幅提升細節音量。",
+        explanation: "【特色】\n注意 Dry Gain！這個 Preset 混合了未壓縮的乾訊號 (0dB) 與被重度壓縮的濕訊號。這能在保留原始動態衝擊力的同時，大幅提升細節音量。\n\n【建議調整】\n主要調整 Threshold 來決定濕訊號的壓縮質感 (GR -10dB+)。\n\n【微調技巧】\n若想要更多衝擊力，增加 Dry Gain；若想要更多厚度與細節，增加 Makeup Gain (濕訊號)。",
         params: { threshold: -35, ratio: 12, attack: 0.5, release: 200, knee: 10, lookahead: 0, makeupGain: 0, dryGain: 0, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Mastering Glue (母帶黏合)",
-        explanation: "母帶處理的經典設定。低 Ratio (2:1) 和長 Attack/Release。目的不是改變音色，而是讓整首歌的所有樂器在動態上微幅「擁抱」在一起，增加整體感。",
+        explanation: "【特色】\n母帶處理經典設定。低 Ratio (2:1) 和長 Attack/Release。目的不是改變音色，而是讓整首歌的所有樂器在動態上微幅「擁抱」在一起。\n\n【建議調整】\n非常微妙！調整 Threshold，讓指針只在最大聲時稍微動一點點 (-1dB 至 -2dB)。\n\n【微調技巧】\n若覺得音樂變平了，調慢 Attack；若覺得有些突兀的峰值，稍微調快 Attack。",
         params: { threshold: -10, ratio: 2, attack: 50, release: 300, knee: 12, lookahead: 0, makeupGain: 2, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Brickwall Limiter (磚牆限制器)",
-        explanation: "無限大的 Ratio (100:1) 加上 Lookahead。這是一道牆，保證聲音絕對不會超過 Threshold。通常放在訊號鏈的最後，用來最大化音量並防止破音。",
+        explanation: "【特色】\n無限大的 Ratio (100:1) 加上 Lookahead。這是一道牆，保證聲音絕對不會超過 Threshold。通常放在訊號鏈最後防止破音。\n\n【建議調整】\n設定 Threshold 為你允許的最大音量 (Ceiling)。\n\n【微調技巧】\n若聽見破音 (Distortion)，表示壓太多了，請降低 Input 或提高 Threshold；Lookahead 可增加安全性但會增加延遲。",
         params: { threshold: -12, ratio: 100, attack: 0.1, release: 50, knee: 0, lookahead: 5, makeupGain: 12, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
     {
         name: "Bass Sustain (貝斯延音增強)",
-        explanation: "貝斯需要穩定的低頻地基。長 Release (400ms) 確保壓縮器在貝斯撥奏後持續壓制，當壓縮釋放時，會自然地帶起尾音，讓貝斯線條連綿不斷。",
+        explanation: "【特色】\n長 Release (400ms) 是重點。它確保壓縮器在貝斯撥奏後持續壓制，當壓縮釋放時，會自然地帶起尾音，讓貝斯線條連綿不斷。\n\n【建議調整】\n調整 Threshold，讓 GR 保持穩定 (-3dB 至 -6dB)，不要讓指針歸零太快。\n\n【微調技巧】\n若貝斯變糊，調快 Release；若想要更有顆粒感，將 Attack 調慢。",
         params: { threshold: -25, ratio: 4, attack: 15, release: 400, knee: 6, lookahead: 0, makeupGain: 6, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
     },
 ];

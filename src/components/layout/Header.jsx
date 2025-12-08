@@ -3,7 +3,7 @@ import {
     ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
     Settings2, Upload, User, Download, Ban, RotateCcw
 } from 'lucide-react';
-import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
+import { AUDIO_SOURCES, APP_VERSION, PRESETS_DATA } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
 const Header = ({
@@ -29,7 +29,12 @@ const Header = ({
     resetAllParams,
 
     handleFactoryReset,
-    stopAudio // [NEW]
+    stopAudio, // [NEW]
+
+    // Presets
+    selectedPresetIdx,
+    isCustomSettings,
+    applyPreset
 }) => {
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
     const optionsRef = useRef(null);
@@ -162,6 +167,24 @@ const Header = ({
                                     </option>
                                 ))}
                             </optgroup>
+                        ))}
+                    </select>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </div>
+                </div>
+                <div className="w-px h-6 bg-slate-700 mx-1"></div>
+
+                {/* PRESET SELECTOR [NEW] */}
+                <div className="relative">
+                    <select
+                        value={isCustomSettings ? "custom" : selectedPresetIdx}
+                        onChange={(e) => applyPreset(parseInt(e.target.value))}
+                        className={`appearance-none bg-slate-800 text-slate-200 text-sm font-bold px-3 py-2 pr-8 rounded-md border border-slate-700 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all cursor-pointer ${isCustomSettings ? 'text-cyan-400 border-cyan-500/50' : ''}`}
+                    >
+                        {isCustomSettings && <option value="custom" disabled>Custom Settings (自訂參數)</option>}
+                        {PRESETS_DATA.map((p, idx) => (
+                            <option key={idx} value={idx}>{p.name}</option>
                         ))}
                     </select>
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">

@@ -85,7 +85,7 @@ const App = () => {
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [hoveredKnob, setHoveredKnob] = useState(null);
     const [showInfoPanel, setShowInfoPanel] = useState(true);
-    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(false);
+    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(true); // Default ON
     const [hoveredKnobPos, setHoveredKnobPos] = useState({ x: 0, y: 0 });
 
     // Interaction State
@@ -735,6 +735,7 @@ const App = () => {
         logAction(`SET_MODE: ${type}`);
         setLastPlayedType(type);
         if (!gainAdjustedRef.current) { if (type === 'original') setDryGain(0); else setDryGain(-60); }
+
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current;
             let currentPos = startOffsetRef.current + elapsed;
@@ -750,7 +751,22 @@ const App = () => {
                     currentPos = loopStart;
                 }
             }
-            playBuffer(originalBuffer, type, currentPos);
+
+            // Hard Stop before switching
+            if (sourceNodeRef.current) {
+                try {
+                    sourceNodeRef.current.stop();
+                    sourceNodeRef.current.disconnect();
+                    if (sourceNodeRef.current._scriptNode) sourceNodeRef.current._scriptNode.disconnect();
+                } catch (e) { }
+            }
+            setPlayingType('none');
+            isPlayingRef.current = false;
+
+            // Restart after short delay to clear buffers
+            setTimeout(() => {
+                playBuffer(originalBuffer, type, currentPos);
+            }, 50);
         }
     };
 
@@ -1397,6 +1413,11 @@ ${JSON.stringify({
                 isInfoPanelEnabled={isInfoPanelEnabled} setIsInfoPanelEnabled={setIsInfoPanelEnabled}
                 fileInputRef={fileInputRef}
                 resetAllParams={resetAllParams}
+
+                // Preset Props
+                selectedPresetIdx={selectedPresetIdx}
+                isCustomSettings={isCustomSettings}
+                applyPreset={applyPreset}
             />
 
             <div className="flex-1 flex min-h-0 gap-4 relative">
@@ -1411,6 +1432,7 @@ ${JSON.stringify({
                     <SignalFlow mode={signalFlowMode} setMode={setSignalFlowMode} />
 
                     {/* Logic: Hover shows InfoPanel (Knob Info) ABOVE HUD. */}
+                    {/* Logic: Hover shows InfoPanel (Knob Info) ABOVE HUD. */}
                     {hoveredKnob && activeInfo && isInfoPanelEnabled ? (
                         <div
                             className="absolute bottom-44 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
@@ -1421,6 +1443,19 @@ ${JSON.stringify({
                             <div className="flex items-center gap-2 text-cyan-400 font-bold mb-2 text-lg"><Info size={20} /> {activeInfo.title}</div>
                             <div className="text-sm text-slate-200 leading-relaxed font-medium">{activeInfo.content}</div>
                         </div>
+                    ) : (isInfoPanelEnabled && PRESETS_DATA[selectedPresetIdx]) ? (
+                        // FIXED PRESET INFO (Top Right)
+                        <div
+                            className="absolute top-4 right-4 z-30 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-72 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
+                        >
+                            <div className="flex items-center gap-2 text-green-400 font-bold mb-2 text-base border-b border-white/10 pb-2">
+                                <Info size={18} />
+                                {PRESETS_DATA[selectedPresetIdx].name.split(' (')[0]}
+                            </div>
+                            <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-medium">
+                                {PRESETS_DATA[selectedPresetIdx].explanation}
+                            </div>
+                        </div>
                     ) : null}
 
                     {/* COLOR LEGEND (Always Visible) */}
@@ -1429,6 +1464,7 @@ ${JSON.stringify({
                     {/* NEW INFO BUTTON (Raised to avoid HUD) */}
                     <div className="absolute bottom-44 right-4 z-40 flex flex-col gap-2 items-end">
                         <button
+                            onMouseDown={(e) => e.stopPropagation()} // Fix: Stop playhead jump
                             onClick={(e) => { e.stopPropagation(); setIsInfoPanelEnabled(!isInfoPanelEnabled); }}
                             className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold transition-all shadow-lg border backdrop-blur-md ${isInfoPanelEnabled ? 'bg-green-500 text-white border-green-400 shadow-green-500/30 hover:bg-green-400' : 'bg-slate-800/80 text-slate-400 border-white/10 hover:bg-slate-700 hover:text-white'}`}
                         >

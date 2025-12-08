@@ -1,9 +1,8 @@
 import React from 'react';
-import { Triangle, ChevronDown } from 'lucide-react';
+import { Triangle } from 'lucide-react';
 import RotaryKnob from '../ui/RotaryKnob';
 import PlayBtn from '../ui/PlayBtn';
 import PowerButton from '../ui/PowerButton';
-import { PRESETS_DATA } from '../../utils/constants';
 
 const ControlHud = ({
     // Gate Params
@@ -26,7 +25,6 @@ const ControlHud = ({
 
     // A/B & Presets
     activeSlot, handleABSwitch,
-    selectedPresetIdx, isCustomSettings, applyPreset,
 
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
@@ -35,23 +33,7 @@ const ControlHud = ({
     return (
         <>
             {/* PRESET SELECTOR: Positioned above HUD */}
-            <div className="absolute bottom-[160px] left-1/2 -translate-x-1/2 z-30">
-                <div className="relative group">
-                    <button className="flex items-center gap-2 bg-slate-900/60 backdrop-blur-xl hover:bg-slate-800/80 text-white font-bold px-6 py-2.5 rounded-t-lg shadow-[0_-4px_16px_rgba(0,0,0,0.2)] border-t border-x border-white/10 transition-all w-80 justify-between group-hover:border-cyan-500/50 group-hover:text-cyan-400">
-                        <span className="truncate">{isCustomSettings ? "Custom Setting (自訂參數)" : PRESETS_DATA[selectedPresetIdx].name}</span>
-                        <ChevronDown size={16} />
-                    </button>
-                    <div className="absolute bottom-full left-0 w-80 z-50 pb-2 hidden group-hover:block">
-                        <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
-                            {PRESETS_DATA.map((p, idx) => (
-                                <div key={idx} onClick={(e) => { e.stopPropagation(); applyPreset(idx); }} className={`px-4 py-3 text-sm border-b border-white/5 last:border-0 cursor-pointer transition-colors ${idx === selectedPresetIdx && !isCustomSettings ? 'text-cyan-400 font-bold bg-white/5' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-                                    {p.name}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* PRESET SELECTOR: REMOVED (Moved to Header) */}
 
             {/* MAIN HUD */}
             <div className="absolute bottom-8 left-0 right-0 bg-black/40 backdrop-blur-md border-t border-white/10 z-30 transition-all select-none flex h-[160px]" onMouseDown={e => e.stopPropagation()}>
