@@ -124,7 +124,7 @@ export const drawMainWaveform = ({
             const coreColor = isDeltaMode ? '#94a3b8' : '#ffffff';
             drawPolygon(ctx, corePoints, coreColor, width, centerY);
         }
-        if (grPoints.length > 0 && signalFlowMode !== 'clip') drawGRLine(ctx, grPoints, '#ef4444');
+        if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#ef4444');
 
         // Helper Label
         const drawLabel = (text, x, y, color, align) => {
@@ -165,7 +165,7 @@ export const drawMainWaveform = ({
         }
 
         // GR Scale Labels
-        if (lastPlayedType === 'processed' && signalFlowMode !== 'clip') {
+        if (lastPlayedType === 'processed') {
             ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.font = 'bold 10px monospace';
             [-3, -6, -12, -20].forEach(db => {
                 const yVal = (1.0 - Math.pow(10, db / 20)) * grMaxHeight;
@@ -185,7 +185,7 @@ export const drawMainWaveform = ({
         }
 
         // Mouse GR Inspection
-        if (mousePos.x >= 0 && lastPlayedType === 'processed') {
+        if (mousePos.x >= 0 && lastPlayedType === 'processed' && signalFlowMode !== 'clip') {
             const vX = mousePos.x - panOffset;
             const start = Math.floor(vX * step);
             const end = Math.floor((vX + 1) * step);
