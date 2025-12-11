@@ -18,6 +18,7 @@ import Waveform from './components/visualizer/Waveform';
 import Meters from './components/visualizer/Meters';
 import { DraggableViewControls, DraggableInfoPanel, DraggableLegend } from './components/ui/Draggables';
 import SignalFlow from './components/ui/SignalFlow';
+import ClipGainOverlay from './components/visualizer/ClipGainOverlay';
 import useVisualizerLoop from './hooks/useVisualizerLoop';
 
 const App = () => {
@@ -54,6 +55,9 @@ const App = () => {
     const [gateRatio, setGateRatio] = useState(4);
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);
+
+    // Clip Gain
+    const [clipGain, setClipGain] = useState(0);
 
     // Bypass State
     const [isGateBypass, setIsGateBypass] = useState(true);
@@ -1469,6 +1473,17 @@ ${JSON.stringify({
                     {/* COLOR LEGEND (Always Visible) */}
                     {/* COLOR LEGEND (Always Visible) */}
                     {signalFlowMode !== 'clip' && <DraggableLegend />}
+
+                    {/* Clip Gain Overlay */}
+                    {signalFlowMode === 'clip' && (
+                        <ClipGainOverlay
+                            gainDB={clipGain}
+                            setGainDB={setClipGain}
+                            containerHeight={canvasDims.height}
+                            panOffsetY={panOffsetY}
+                            zoomY={zoomY}
+                        />
+                    )}
 
                     {/* NEW INFO BUTTON (Raised to avoid HUD) */}
                     <div className="absolute bottom-44 right-4 z-40 flex flex-col gap-2 items-end">
