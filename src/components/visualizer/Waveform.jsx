@@ -27,7 +27,8 @@ export const drawMainWaveform = ({
     loopStart, loopEnd,
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
-    isGateBypass, isCompBypass
+    isGateBypass, isCompBypass,
+    signalFlowMode // [NEW]
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -123,7 +124,7 @@ export const drawMainWaveform = ({
             const coreColor = isDeltaMode ? '#94a3b8' : '#ffffff';
             drawPolygon(ctx, corePoints, coreColor, width, centerY);
         }
-        if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#ef4444');
+        if (grPoints.length > 0 && signalFlowMode !== 'clip') drawGRLine(ctx, grPoints, '#ef4444');
 
         // Helper Label
         const drawLabel = (text, x, y, color, align) => {
@@ -141,7 +142,7 @@ export const drawMainWaveform = ({
         const isDry = lastPlayedType === 'original';
         const inactiveColor = '#475569';
 
-        if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
+        if ((hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) && signalFlowMode !== 'clip') {
             const threshY = Math.pow(10, threshold / 20) * ampScale;
             if (centerY - threshY > -20 && centerY - threshY < height + 20) {
                 const tTop = centerY - threshY;
@@ -154,7 +155,7 @@ export const drawMainWaveform = ({
         }
         // Gate Threshold Line (Always Visible)
         const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
-        if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
+        if ((centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) && signalFlowMode !== 'clip') {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
             const gateColor = isDry || isGateBypass ? inactiveColor : '#f97316';
             ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
@@ -164,7 +165,7 @@ export const drawMainWaveform = ({
         }
 
         // GR Scale Labels
-        if (lastPlayedType === 'processed') {
+        if (lastPlayedType === 'processed' && signalFlowMode !== 'clip') {
             ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.font = 'bold 10px monospace';
             [-3, -6, -12, -20].forEach(db => {
                 const yVal = (1.0 - Math.pow(10, db / 20)) * grMaxHeight;

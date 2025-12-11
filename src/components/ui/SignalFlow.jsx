@@ -28,9 +28,7 @@ const SignalFlow = ({ mode, setMode }) => {
         <div className="absolute bottom-56 left-4 z-50 flex items-center gap-3">
             <Button label="Clip Gain" id="clip" />
             <Arrow />
-            <Button label="Comp 1" id="comp1" />
-            <Arrow />
-            <Button label="Comp 2" id="comp2" />
+            <Button label="Comp" id="comp1" />
         </div>
     );
 };

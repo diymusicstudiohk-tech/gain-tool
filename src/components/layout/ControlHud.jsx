@@ -28,8 +28,11 @@ const ControlHud = ({
 
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
-    resetAllParams
+    resetAllParams,
+    signalFlowMode // [NEW] Received from App.jsx
 }) => {
+    const isClipMode = signalFlowMode === 'clip';
+
     return (
         <>
             {/* PRESET SELECTOR: Positioned above HUD */}
@@ -57,13 +60,18 @@ const ControlHud = ({
 
                     <div className="flex-1"></div>
 
-                    {/* PLAYBACK CONTROLS */}
-                    <div className="flex gap-2 pb-2 flex-none items-center px-4">
-                        <PlayBtn label="Dry" selected={lastPlayedType === 'original'} onClick={() => handleModeChange(lastPlayedType === 'original' ? 'processed' : 'original')} color="yellow" />
-                        <PlayBtn label="Wet" selected={lastPlayedType === 'processed'} onClick={() => handleModeChange(lastPlayedType === 'processed' ? 'original' : 'processed')} color="red" />
-                        <button onMouseDown={(e) => e.stopPropagation()} onClick={toggleDeltaMode} disabled={isDryMode} className={`h-8 w-8 flex items-center justify-center rounded border transition-all ${isDryMode ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed' : isDeltaMode ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)] animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700'} ${isDryMode ? 'cursor-not-allowed opacity-50' : ''}`} title="Delta Monitoring">
-                            <Triangle size={14} fill={isDeltaMode ? "currentColor" : "none"} />
-                        </button>
+                    {/* GATE & COMP WRAPPER - Dimmed in Clip Mode */}
+                    {isClipMode && <div className="absolute inset-0 z-40 bg-slate-900/60 pointer-events-none backdrop-blur-[1px]"></div>}
+
+                    {/* PLAYBACK CONTROLS - Z-Index raised to stay above overlay */}
+                    <div className="flex gap-2 pb-2 flex-none items-center px-4 relative z-50">
+                        <div className={`flex gap-2 items-center ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                            <PlayBtn label="Dry" selected={lastPlayedType === 'original'} onClick={() => handleModeChange(lastPlayedType === 'original' ? 'processed' : 'original')} color="yellow" />
+                            <PlayBtn label="Wet" selected={lastPlayedType === 'processed'} onClick={() => handleModeChange(lastPlayedType === 'processed' ? 'original' : 'processed')} color="red" />
+                            <button onMouseDown={(e) => e.stopPropagation()} onClick={toggleDeltaMode} disabled={isDryMode} className={`h-8 w-8 flex items-center justify-center rounded border transition-all ${isDryMode ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed' : isDeltaMode ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)] animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700'} ${isDryMode ? 'cursor-not-allowed opacity-50' : ''}`} title="Delta Monitoring">
+                                <Triangle size={14} fill={isDeltaMode ? "currentColor" : "none"} />
+                            </button>
+                        </div>
                         <div className="w-px h-8 bg-white/10 mx-2"></div>
                         <PlayBtn label={playingType !== 'none' ? "PAUSE" : "PLAY"} active={playingType !== 'none'} onClick={togglePlayback} color="green" isPlayButton />
                     </div>

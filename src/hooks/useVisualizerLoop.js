@@ -42,7 +42,8 @@ const useVisualizerLoop = ({
     panOffset,
     panOffsetY,
     playingTypeRef,
-    lastPlayedTypeRef
+    lastPlayedTypeRef,
+    signalFlowMode
 }) => {
 
     const animate = useCallback(() => {
@@ -175,7 +176,8 @@ const useVisualizerLoop = ({
                 isCompAdjusting, hasThresholdBeenAdjusted,
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
-                isGateBypass, isCompBypass
+                isGateBypass, isCompBypass,
+                signalFlowMode
             });
         }
 
@@ -209,7 +211,8 @@ const useVisualizerLoop = ({
         visualSourceCache, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef
+        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        signalFlowMode // [NEW] Dep
     ]);
 
     // --- Static Draw for Initial State ---
@@ -231,7 +234,8 @@ const useVisualizerLoop = ({
                 isCompAdjusting, hasThresholdBeenAdjusted,
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
-                isGateBypass, isCompBypass
+                isGateBypass, isCompBypass,
+                signalFlowMode
             });
         }
 
@@ -245,7 +249,9 @@ const useVisualizerLoop = ({
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef
+        mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
+        isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        signalFlowMode // [NEW] Dep
     ]);
 
     return animate;

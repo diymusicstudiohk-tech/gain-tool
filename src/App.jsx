@@ -84,8 +84,8 @@ const App = () => {
     const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [hoveredKnob, setHoveredKnob] = useState(null);
-    const [showInfoPanel, setShowInfoPanel] = useState(true);
-    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(true); // Default ON
+    const [showInfoPanel, setShowInfoPanel] = useState(false);
+    const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(false); // Default OFF
     const [hoveredKnobPos, setHoveredKnobPos] = useState({ x: 0, y: 0 });
 
     // Interaction State
@@ -182,6 +182,8 @@ const App = () => {
             if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
             if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
             if (savedState.lastPlayedType) setLastPlayedType(savedState.lastPlayedType);
+            if (savedState.isInfoPanelEnabled !== undefined) setIsInfoPanelEnabled(savedState.isInfoPanelEnabled);
+            if (savedState.signalFlowMode) setSignalFlowMode(savedState.signalFlowMode);
 
             if (savedState.currentSourceId) {
                 // If it was 'upload', we need to check IndexedDB
@@ -274,11 +276,14 @@ const App = () => {
                 currentSourceId,
                 zoomX, zoomY, panOffset, panOffsetY,
                 loopStart, loopEnd,
-                lastPlayedType
+                loopStart, loopEnd,
+                lastPlayedType,
+                isInfoPanelEnabled,
+                signalFlowMode
             });
         }, 1000);
         return () => clearTimeout(timer);
-    }, [resolutionPct, currentSourceId, zoomX, zoomY, panOffset, panOffsetY, loopStart, loopEnd, lastPlayedType]);
+    }, [resolutionPct, currentSourceId, zoomX, zoomY, panOffset, panOffsetY, loopStart, loopEnd, lastPlayedType, isInfoPanelEnabled, signalFlowMode]);
 
     // --- Persistence: Audio Restoration on Mount ---
     // We need a ref to track if we have already attempted initial load to prevent loop
@@ -502,7 +507,8 @@ const App = () => {
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
         waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef,
         meterStateRef, hoverGrRef, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
-        playingTypeRef, lastPlayedTypeRef
+        playingTypeRef, lastPlayedTypeRef,
+        signalFlowMode // [NEW] Pass mode to visualizer
     });
 
     useEffect(() => {
@@ -1459,7 +1465,8 @@ ${JSON.stringify({
                     ) : null}
 
                     {/* COLOR LEGEND (Always Visible) */}
-                    <DraggableLegend />
+                    {/* COLOR LEGEND (Always Visible) */}
+                    {signalFlowMode !== 'clip' && <DraggableLegend />}
 
                     {/* NEW INFO BUTTON (Raised to avoid HUD) */}
                     <div className="absolute bottom-44 right-4 z-40 flex flex-col gap-2 items-end">
@@ -1518,6 +1525,8 @@ ${JSON.stringify({
             </div>
 
             <ControlHud
+                // Clip Gain Mode
+                signalFlowMode={signalFlowMode}
                 // Gate
                 gateThreshold={gateThreshold} gateRatio={gateRatio} gateAttack={gateAttack} gateRelease={gateRelease}
                 handleGateThresholdChange={(v) => { updateParamGeneric(setGateThreshold, v, 'GateThreshold'); if (!hasGateBeenAdjusted) setHasGateBeenAdjusted(true); }}
