@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
-import { drawDualMeter, drawGRBar } from '../components/visualizer/Meters';
+import { drawDualMeter, drawGRBar, drawCrestFactorMeter } from '../components/visualizer/Meters';
 
 const useVisualizerLoop = ({
     audioContext,
@@ -33,6 +33,7 @@ const useVisualizerLoop = ({
     waveformCanvasRef,
     grBarCanvasRef,
     outputMeterCanvasRef,
+    cfMeterCanvasRef, // [NEW]
     playheadRef,
     meterStateRef,
     hoverGrRef,
@@ -153,8 +154,27 @@ const useVisualizerLoop = ({
             if (!Number.isFinite(meterStateRef.current.dryRmsLevel)) meterStateRef.current.dryRmsLevel = 0;
             if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
+            // --- Crest Factor Calculation ---
+            let currentInstantCF = 0;
+            // Only calculate if we have signal to avoid infinity
+            if (currentOutRms > 0.0001 && maxMix > 0.0001) {
+                const peakDb = 20 * Math.log10(maxMix);
+                const rmsDb = 20 * Math.log10(currentOutRms);
+                currentInstantCF = peakDb - rmsDb;
+            } else {
+                currentInstantCF = 0; // Fallback to 0 if silent
+            }
+
+            // Smoothing for CF (EMA) - User requested 0.9 / 0.1
+            // But let's check if meterStateRef.current.crestFactor exists (it should, initialized in App)
+            if (meterStateRef.current.crestFactor === undefined) meterStateRef.current.crestFactor = 0;
+
+            meterStateRef.current.crestFactor = meterStateRef.current.crestFactor * 0.9 + currentInstantCF * 0.1;
+
             // Draw Meters
             drawGRBar(grBarCanvasRef.current, isProcessed ? currentGR : 0, meterStateRef.current, hoverGrRef.current);
+            drawCrestFactorMeter(cfMeterCanvasRef.current, meterStateRef.current.crestFactor); // [NEW]
+
             if (isProcessed) {
                 drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current);
             } else {
@@ -211,7 +231,7 @@ const useVisualizerLoop = ({
         visualSourceCache, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
         signalFlowMode // [NEW] Dep
     ]);
 
@@ -245,12 +265,15 @@ const useVisualizerLoop = ({
         if (outputMeterCanvasRef.current) {
             drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current);
         }
+        if (cfMeterCanvasRef.current) {
+            drawCrestFactorMeter(cfMeterCanvasRef.current, 0);
+        }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
         signalFlowMode // [NEW] Dep
     ]);
 

@@ -124,6 +124,7 @@ const App = () => {
     const waveformCanvasRef = useRef(null);
     const grBarCanvasRef = useRef(null);
     const outputMeterCanvasRef = useRef(null);
+    const cfMeterCanvasRef = useRef(null); // [NEW] Crest Factor Ref
     const playheadRef = useRef(null);
     const rafIdRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -134,7 +135,8 @@ const App = () => {
         peakLevel: 0, holdPeakLevel: 0, holdTimer: 0,
         dryPeakLevel: 0, dryHoldPeakLevel: 0, dryHoldTimer: 0,
         grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
-        dryRmsLevel: 0, outRmsLevel: 0
+        dryRmsLevel: 0, outRmsLevel: 0,
+        crestFactor: 0 // [NEW] State
     });
 
     // Viewport Dragging Refs
@@ -509,7 +511,8 @@ const App = () => {
         isDraggingLineRef, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         isGateBypass, isCompBypass, visualResult, visualSourceCache, fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
-        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, playheadRef,
+        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, // [NEW]
+        playheadRef,
         meterStateRef, hoverGrRef, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         playingTypeRef, lastPlayedTypeRef,
         signalFlowMode // [NEW] Pass mode to visualizer
@@ -1538,7 +1541,12 @@ ${JSON.stringify({
                     {/* Loop Delete Button */}
                 </Waveform>
 
-                <Meters grCanvasRef={grBarCanvasRef} outputCanvasRef={outputMeterCanvasRef} height={canvasDims.height} />
+                <Meters
+                    grCanvasRef={grBarCanvasRef}
+                    outputCanvasRef={outputMeterCanvasRef}
+                    cfMeterCanvasRef={cfMeterCanvasRef}
+                    height={canvasDims.height}
+                />
             </div>
 
             <ControlHud
