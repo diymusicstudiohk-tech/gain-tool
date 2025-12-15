@@ -175,17 +175,49 @@ const Header = ({
                 </div>
                 <div className="w-px h-6 bg-slate-700 mx-1"></div>
 
-                {/* PRESET SELECTOR [NEW] */}
+                {/* PRESET SELECTOR [FILTERED, STICKY & CATEGORIZED] */}
                 <div className="relative">
                     <select
-                        value={isCustomSettings ? "custom" : selectedPresetIdx}
+                        value={selectedPresetIdx}
                         onChange={(e) => applyPreset(parseInt(e.target.value))}
                         className={`appearance-none bg-slate-800 text-slate-200 text-sm font-bold px-3 py-2 pr-8 rounded-md border border-slate-700 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all cursor-pointer ${isCustomSettings ? 'text-cyan-400 border-cyan-500/50' : ''}`}
                     >
-                        {isCustomSettings && <option value="custom" disabled>Custom Settings (自訂參數)</option>}
-                        {PRESETS_DATA.map((p, idx) => (
-                            <option key={idx} value={idx}>{p.name}</option>
-                        ))}
+                        {/* Group Presets by Category */}
+                        {Object.entries(PRESETS_DATA.reduce((acc, p, idx) => {
+                            if (!acc[p.category]) acc[p.category] = [];
+                            acc[p.category].push({ ...p, originalIdx: idx });
+                            return acc;
+                        }, {})).map(([category, presets]) => {
+                            // Filter logic for this group
+                            const visiblePresets = presets.filter(p => {
+                                // Always show active
+                                if (p.originalIdx === selectedPresetIdx) return true;
+
+                                // Source filter
+                                if (currentSourceId && currentSourceId !== 'upload') {
+                                    const activeSource = AUDIO_SOURCES.find(s => s.id === currentSourceId);
+                                    if (activeSource) {
+                                        if (!activeSource.category.startsWith(p.category)) {
+                                            if (p.category === 'Other' && activeSource.category.includes('Other Drums')) return false;
+                                            if (!activeSource.category.includes(p.category)) return false;
+                                        }
+                                    }
+                                }
+                                return true;
+                            });
+
+                            if (visiblePresets.length === 0) return null;
+
+                            return (
+                                <optgroup key={category} label={category} className="bg-slate-900 text-slate-400 font-bold">
+                                    {visiblePresets.map(p => (
+                                        <option key={p.originalIdx} value={p.originalIdx} className="text-white font-normal">
+                                            {p.name} {p.originalIdx === selectedPresetIdx && isCustomSettings ? '*' : ''}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            );
+                        })}
                     </select>
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>

@@ -103,6 +103,42 @@ export const loadAudioFileFromDB = async () => {
     }
 };
 
+// [NEW] Generic File Storage for Caching
+export const saveFileToDB = async (key, fileBlob) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.put(fileBlob, key);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error("IndexedDB Cache Save Error:", e);
+        return false;
+    }
+};
+
+export const loadFileFromDB = async (key) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get(key);
+            request.onsuccess = () => {
+                if (request.result) resolve(request.result);
+                else resolve(null);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error("IndexedDB Cache Load Error:", e);
+        return null;
+    }
+};
+
 export const clearAudioDB = async () => {
     try {
         const db = await openDB();

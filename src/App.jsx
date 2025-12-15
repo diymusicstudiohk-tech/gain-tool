@@ -8,7 +8,7 @@ import { writeWavFile } from './utils/audioHelper';
 import {
     saveParamsToStorage, loadParamsFromStorage,
     saveAppStateToStorage, loadAppStateFromStorage,
-    saveAudioFileToDB, loadAudioFileFromDB,
+    saveAudioFileToDB, loadAudioFileFromDB, saveFileToDB, loadFileFromDB,
     factoryReset, softReset
 } from './utils/storage';
 
@@ -913,12 +913,64 @@ const App = () => {
         if (!audioContext) return;
         try {
             setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
-            setIsLoading(true); setErrorMsg(''); if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
             setPlayingType('none'); isPlayingRef.current = false; setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null); startOffsetRef.current = 0;
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id); setFileName(preset.name);
 
-            let arrayBuffer; try { const res = await fetch(preset.url); if (!res.ok) throw new Error('Direct fetch failed'); arrayBuffer = await res.arrayBuffer(); } catch (e) { const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`; const res = await fetch(pUrl); if (!res.ok) throw new Error('Failed'); arrayBuffer = await res.arrayBuffer(); }
+            let arrayBuffer;
+            // [NEW] Check Cache First
+            try {
+                const cachedBlob = await loadFileFromDB(preset.url);
+                if (cachedBlob) {
+                    console.log(`[Cache] Loaded from DB: ${preset.url}`);
+                    arrayBuffer = await cachedBlob.arrayBuffer();
+                } else {
+                    console.log(`[Cache] Fetching from network: ${preset.url}`);
+                    let res;
+                    try {
+                        res = await fetch(preset.url);
+                        if (!res.ok) throw new Error('Direct fetch failed');
+                    } catch (e) {
+                        const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`;
+                        res = await fetch(pUrl);
+                        if (!res.ok) throw new Error('Failed');
+                    }
+                    const blob = await res.blob();
+                    await saveFileToDB(preset.url, blob); // Cache it
+                    arrayBuffer = await blob.arrayBuffer();
+                }
+            } catch (e) {
+                console.error("Audio Load Error:", e);
+                throw new Error("Failed to load audio");
+            }
+
             const decoded = await audioContext.decodeAudioData(arrayBuffer); handleDecodedBuffer(decoded); setIsLoading(false);
+
+            // [NEW] Auto-load matching preset
+            if (preset.category) {
+                const trackCategory = preset.category;
+                console.log(`[AutoLoad] Track Category: "${trackCategory}"`);
+
+                // Find first preset where track category starts with preset category OR includes it
+                const matchingPresetIdx = PRESETS_DATA.findIndex(p => {
+                    const presetCat = p.category;
+                    // Exclude "Other" preset if track is "Other Drums"
+                    if (presetCat === 'Other' && trackCategory.includes('Other Drums')) return false;
+
+                    // Match if track category starts with preset category (e.g. "Snare (小鼓)" starts with "Snare")
+                    // OR if track category includes preset category
+                    const match = trackCategory.startsWith(presetCat) || trackCategory.includes(presetCat);
+                    return match;
+                });
+
+                console.log(`[AutoLoad] Matching Preset Index: ${matchingPresetIdx}`);
+
+                if (matchingPresetIdx !== -1) {
+                    console.log(`[AutoLoad] Applying Preset: ${PRESETS_DATA[matchingPresetIdx].name}`);
+                    applyPreset(matchingPresetIdx);
+                } else {
+                    console.warn(`[AutoLoad] No matching preset found for category: ${trackCategory}`);
+                }
+            }
         } catch (err) { console.error(err); setErrorMsg(`載入失敗: ${err.message}`); setIsLoading(false); }
     };
 
