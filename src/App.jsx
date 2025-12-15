@@ -29,7 +29,7 @@ const App = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [copyStatus, setCopyStatus] = useState('idle'); // idle, copying, success, error
     const [currentSourceId, setCurrentSourceId] = useState(null);
-    const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Lead-Vocal-03');
+    const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
     const [fileName, setFileName] = useState('');
     const [resolutionPct, setResolutionPct] = useState(100);
 

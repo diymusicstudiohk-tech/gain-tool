@@ -1,118 +1,477 @@
 import { MicVocal, Zap, Disc, AudioWaveform } from 'lucide-react';
 
-export const PRESETS_DATA = [
-    {
-        name: "Default (初始設定)",
-        explanation: "【特色】\n這是壓縮器的初始狀態。Threshold 為 0dB，Ratio 為 4:1。目前不會對聲音產生任何壓縮，適合用來聆聽原始訊號，或作為從零開始調整的起點。\n\n【建議調整】\n試著慢慢逆時針旋轉 Threshold 旋鈕，直到 Gain Reduction (GR) 表頭開始跳動，觀察壓縮器如何介入。\n\n【微調技巧】\n若覺得壓縮效果不明顯，可試著增加 Ratio；若覺得聲音變小，可增加 Makeup Gain。",
-        params: { threshold: 0, ratio: 4, attack: 15, release: 150, knee: 0, lookahead: 0, makeupGain: 0, dryGain: -60, gateThreshold: -80, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Subtle Vocal Control (輕微人聲控制)",
-        explanation: "【特色】\n溫和的設定 (Ratio 2.5:1, 軟膝)，旨在輕輕撫平人聲動態，保留自然的呼吸感，聽眾幾乎不會察覺壓縮的存在。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 在人聲最大聲時大約達到 -2dB 至 -3dB 即可。\n\n【微調技巧】\n若覺得人聲還是忽大忽小，可稍微調快 Release (向左)；若覺得聲音不夠自然，可調慢 Attack (向右)。",
-        params: { threshold: -20, ratio: 2.5, attack: 10, release: 200, knee: 5, lookahead: 2, makeupGain: 3, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Aggressive Rap Vocal (激進饒舌人聲)",
-        explanation: "【特色】\n高 Ratio (8:1) 配合極快 Attack。這會將動態像磚牆一樣壓平，讓每一個字都像子彈一樣清晰有力，適合穿透力強的混音。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 大約在 -6dB 至 -10dB，確保每一句歌詞都被緊緊抓住。\n\n【微調技巧】\n若覺得咬字不清 (Transient 被吃掉)，可稍微調慢 Attack (向右 10-20ms)；若覺得尾音太短，可調慢 Release (向右)。",
-        params: { threshold: -28, ratio: 8, attack: 2, release: 80, knee: 2, lookahead: 5, makeupGain: 8, dryGain: -60, gateThreshold: -45, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Vocal Bus Glue (人聲總線黏合)",
-        explanation: "【特色】\n中等 Attack (30ms) 讓瞬態通過，配合中等 Release 讓尾韻拉起。這能讓合聲與主唱聽起來像是在同一個空間演唱，產生完美的「黏合感」。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 輕微地在 -2dB 至 -4dB 之間擺動。\n\n【微調技巧】\n若覺得合聲聽起來太分開，可增加 Ratio；若覺得總體音量被壓得太死，可嘗試調慢 Release。",
-        params: { threshold: -24, ratio: 3, attack: 30, release: 100, knee: 10, lookahead: 0, makeupGain: 4, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Acoustic Guitar Leveler (木吉他平整化)",
-        explanation: "【特色】\n使用軟膝 (Soft Knee) 和較慢的 Release，讓壓縮動作非常平滑，避免吉他刷扣時出現忽大忽小的「抽吸感」(Pumping)。\n\n【建議調整】\n調整 Threshold，讓 Gain Reduction 維持在 -3dB 至 -5dB，讓吉他鋪底更穩定。\n\n【微調技巧】\n若覺得吉他聽起來這悶，可調慢 Attack 讓刷弦聲出來；若覺得延音太短，可向右增加 Release。",
-        params: { threshold: -25, ratio: 4, attack: 20, release: 250, knee: 15, lookahead: 0, makeupGain: 5, dryGain: -60, gateThreshold: -55, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Snare Snap (小鼓衝擊感)",
-        explanation: "【特色】\n關鍵在於慢 Attack (35ms)！它允許小鼓敲擊瞬間的「啪」聲通過，隨後才介入壓低。這會人為地放大敲擊感 (Transient)，讓小鼓更兇猛。\n\n【建議調整】\n調整 Threshold，讓只有小鼓敲擊時才會觸發壓縮 (GR -3dB 到 -6dB)。\n\n【微調技巧】\n若覺得小鼓太刺耳，將 Attack 向左調快；若覺得小鼓不夠有力，試著將 Ratio 加大。",
-        params: { threshold: -18, ratio: 5, attack: 35, release: 80, knee: 0, lookahead: 0, makeupGain: 4, dryGain: -60, gateThreshold: -40, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Kick Drum Tight (大鼓緊實化)",
-        explanation: "【特色】\n針對大鼓低頻。較短的 Release (60ms) 讓壓縮器隨著節奏快速復位，防止大鼓的低頻糊成一團，讓節奏聽起來更緊湊乾淨。\n\n【建議調整】\n調整 Threshold，讓每一次大鼓踩下去都有 -3dB 至 -6dB 的壓縮量。\n\n【微調技巧】\n若覺得大鼓太短促 (Clicky)，可稍微調慢 Release；若覺得低頻混濁，可調快 Release。",
-        params: { threshold: -20, ratio: 6, attack: 40, release: 60, knee: 2, lookahead: 0, makeupGain: 3, dryGain: -60, gateThreshold: -30, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Drum Bus Smash (鼓組極限壓縮)",
-        explanation: "【特色】\n極端設定 (20:1 Ratio)！這將鼓組壓得粉碎，產生巨大的能量感與空間殘響。通常配合 Dry Gain 做平行壓縮使用。\n\n【建議調整】\n大膽調整 Threshold，讓 GR 超過 -10dB 甚至更多！\n\n【微調技巧】\n覺得太吵？慢慢增加 Dry Gain (原音混合) 把乾淨的鼓聲找回來，保留 Smash 的能量作為襯底。",
-        params: { threshold: -30, ratio: 20, attack: 5, release: 120, knee: 5, lookahead: 0, makeupGain: 12, dryGain: -10, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Parallel Compression (平行壓縮)",
-        explanation: "【特色】\n注意 Dry Gain！這個 Preset 混合了未壓縮的乾訊號 (0dB) 與被重度壓縮的濕訊號。這能在保留原始動態衝擊力的同時，大幅提升細節音量。\n\n【建議調整】\n主要調整 Threshold 來決定濕訊號的壓縮質感 (GR -10dB+)。\n\n【微調技巧】\n若想要更多衝擊力，增加 Dry Gain；若想要更多厚度與細節，增加 Makeup Gain (濕訊號)。",
-        params: { threshold: -35, ratio: 12, attack: 0.5, release: 200, knee: 10, lookahead: 0, makeupGain: 0, dryGain: 0, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Mastering Glue (母帶黏合)",
-        explanation: "【特色】\n母帶處理經典設定。低 Ratio (2:1) 和長 Attack/Release。目的不是改變音色，而是讓整首歌的所有樂器在動態上微幅「擁抱」在一起。\n\n【建議調整】\n非常微妙！調整 Threshold，讓指針只在最大聲時稍微動一點點 (-1dB 至 -2dB)。\n\n【微調技巧】\n若覺得音樂變平了，調慢 Attack；若覺得有些突兀的峰值，稍微調快 Attack。",
-        params: { threshold: -10, ratio: 2, attack: 50, release: 300, knee: 12, lookahead: 0, makeupGain: 2, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Brickwall Limiter (磚牆限制器)",
-        explanation: "【特色】\n無限大的 Ratio (100:1) 加上 Lookahead。這是一道牆，保證聲音絕對不會超過 Threshold。通常放在訊號鏈最後防止破音。\n\n【建議調整】\n設定 Threshold 為你允許的最大音量 (Ceiling)。\n\n【微調技巧】\n若聽見破音 (Distortion)，表示壓太多了，請降低 Input 或提高 Threshold；Lookahead 可增加安全性但會增加延遲。",
-        params: { threshold: -12, ratio: 100, attack: 0.1, release: 50, knee: 0, lookahead: 5, makeupGain: 12, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-    {
-        name: "Bass Sustain (貝斯延音增強)",
-        explanation: "【特色】\n長 Release (400ms) 是重點。它確保壓縮器在貝斯撥奏後持續壓制，當壓縮釋放時，會自然地帶起尾音，讓貝斯線條連綿不斷。\n\n【建議調整】\n調整 Threshold，讓 GR 保持穩定 (-3dB 至 -6dB)，不要讓指針歸零太快。\n\n【微調技巧】\n若貝斯變糊，調快 Release；若想要更有顆粒感，將 Attack 調慢。",
-        params: { threshold: -25, ratio: 4, attack: 15, release: 400, knee: 6, lookahead: 0, makeupGain: 6, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
-    },
-];
+import { PRESETS_DATA } from './presetsData';
+export { PRESETS_DATA };
 
 export const AUDIO_SOURCES = [
-    // Acoustic Guitar
-    { id: 'AG-01', name: 'AG-01', category: 'Acoustic Guitar (木結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/AG-01-MP3.mp3' },
-    { id: 'AG-02', name: 'AG-02', category: 'Acoustic Guitar (木結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/AG-02-MP3.mp3' },
-
-    // Bass
-    { id: 'Bass-01', name: 'Bass-01', category: 'Bass (貝斯)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Bass-01-MP3.mp3' },
-    { id: 'Bass-02', name: 'Bass-02', category: 'Bass (貝斯)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Bass-02-MP3.mp3' },
-    { id: 'Bass-03', name: 'Bass-03', category: 'Bass (貝斯)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Bass-03-MP3.mp3' },
-    { id: 'Bass-04', name: 'Bass-04', category: 'Bass (貝斯)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Bass-04-MP3.mp3' },
-    { id: 'Bass-05', name: 'Bass-05', category: 'Bass (貝斯)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Bass-05-MP3.mp3' },
-
-    // Cello
-    { id: 'Cello', name: 'Cello', category: 'Cello (大提琴)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Cello-MP3.mp3' },
-
-    // Drum Room
-    { id: 'Drum room', name: 'Drum room', category: 'Drum Room (鼓室音)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Drum%20room-MP3.mp3' },
-
-    // Electric Guitar
-    { id: 'EG-01', name: 'EG-01', category: 'Electric Guitar (電結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/EG-01-MP3.mp3' },
-    { id: 'EG-02', name: 'EG-02', category: 'Electric Guitar (電結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/EG-02-MP3.mp3' },
-    { id: 'EG-03', name: 'EG-03', category: 'Electric Guitar (電結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/EG-03-MP3.mp3' },
-    { id: 'EG-04', name: 'EG-04', category: 'Electric Guitar (電結他)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/EG-04-MP3.mp3' },
-
-    // Kick
-    { id: 'Kick-01', name: 'Kick-01', category: 'Kick (大鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Kick-01-MP3.mp3' },
-    { id: 'Kick-02', name: 'Kick-02', category: 'Kick (大鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Kick-02-MP3.mp3' },
-    { id: 'Kick-03', name: 'Kick-03', category: 'Kick (大鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Kick-03-MP3.mp3' },
-
-    // Lead Vocal
-    { id: 'Lead-Vocal-01', name: 'Lead-Vocal-01', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-01-MP3.mp3' },
-    { id: 'Lead-Vocal-02', name: 'Lead-Vocal-02', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-02-MP3.mp3' },
-    { id: 'Lead-Vocal-03', name: 'Lead-Vocal-03', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-03-MP3.mp3' },
-    { id: 'Lead-Vocal-04', name: 'Lead-Vocal-04', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-04-MP3.mp3' },
-    { id: 'Lead-Vocal-05', name: 'Lead-Vocal-05', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-05-MP3.mp3' },
-    { id: 'Lead-Vocal-06', name: 'Lead-Vocal-06', category: 'Lead Vocal (主唱)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Lead-Vocal-06-MP3.mp3' },
-
-    // Organ
-    { id: 'Organ', name: 'Organ', category: 'Organ (風琴)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Organ-MP3.mp3' },
-
-    // Rhodes
-    { id: 'Rhodes', name: 'Rhodes', category: 'Rhodes (羅德電鋼琴)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Rhodes-MP3.mp3' },
-
-    // Snare
-    { id: 'Snare-01', name: 'Snare-01', category: 'Snare (小鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Snare-01-MP3.mp3' },
-    { id: 'Snare-02', name: 'Snare-02', category: 'Snare (小鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Snare-02-MP3.mp3' },
-    { id: 'Snare-03', name: 'Snare-03', category: 'Snare (小鼓)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Snare-03-MP3.mp3' },
-
-    // Synth
-    { id: 'Synth', name: 'Synth', category: 'Synth (合成器)', url: 'https://onetrackstudiohk.b-cdn.net/comp-tool-playlist/Synth-MP3.mp3' },
+    {
+        id: 'Bass-01',
+        name: 'Bass-01',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-01-MP3.mp3'
+    },
+    {
+        id: 'Bass-02',
+        name: 'Bass-02',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-02-MP3.mp3'
+    },
+    {
+        id: 'Bass-03',
+        name: 'Bass-03',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-03-MP3.mp3'
+    },
+    {
+        id: 'Bass-04',
+        name: 'Bass-04',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-04-MP3.mp3'
+    },
+    {
+        id: 'Bass-05',
+        name: 'Bass-05',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-05-MP3.mp3'
+    },
+    {
+        id: 'Bass-06',
+        name: 'Bass-06',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-06-MP3.mp3'
+    },
+    {
+        id: 'Bass-07',
+        name: 'Bass-07',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-07-MP3.mp3'
+    },
+    {
+        id: 'Bass-08',
+        name: 'Bass-08',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-08-MP3.mp3'
+    },
+    {
+        id: 'Bass-09',
+        name: 'Bass-09',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-09-MP3.mp3'
+    },
+    {
+        id: 'Bass-10',
+        name: 'Bass-10',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-10-MP3.mp3'
+    },
+    {
+        id: 'Bass-11',
+        name: 'Bass-11',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-11-MP3.mp3'
+    },
+    {
+        id: 'Bass-12',
+        name: 'Bass-12',
+        category: 'Bass (貝斯)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Bass-12-MP3.mp3'
+    },
+    {
+        id: 'AG-03',
+        name: 'AG-03',
+        category: 'Acoustic Guitar (木吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/AG-03-MP3.mp3'
+    },
+    {
+        id: 'AG-04',
+        name: 'AG-04',
+        category: 'Acoustic Guitar (木吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/AG-04-MP3.mp3'
+    },
+    {
+        id: 'EG-01',
+        name: 'EG-01',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-01-MP3.mp3'
+    },
+    {
+        id: 'EG-02',
+        name: 'EG-02',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-02-MP3.mp3'
+    },
+    {
+        id: 'EG-03',
+        name: 'EG-03',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-03-MP3.mp3'
+    },
+    {
+        id: 'EG-04',
+        name: 'EG-04',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-04-MP3.mp3'
+    },
+    {
+        id: 'EG-05',
+        name: 'EG-05',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-05-MP3.mp3'
+    },
+    {
+        id: 'EG-06',
+        name: 'EG-06',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-06-MP3.mp3'
+    },
+    {
+        id: 'EG-07',
+        name: 'EG-07',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-07-MP3.mp3'
+    },
+    {
+        id: 'EG-08',
+        name: 'EG-08',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-08-MP3.mp3'
+    },
+    {
+        id: 'EG-09',
+        name: 'EG-09',
+        category: 'Electric Guitar (電吉他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/EG-09-MP3.mp3'
+    },
+    {
+        id: 'KICK-01',
+        name: 'KICK-01',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-01-MP3.mp3'
+    },
+    {
+        id: 'KICK-02',
+        name: 'KICK-02',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-02-MP3.mp3'
+    },
+    {
+        id: 'KICK-03',
+        name: 'KICK-03',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-03-MP3.mp3'
+    },
+    {
+        id: 'KICK-04',
+        name: 'KICK-04',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-04-MP3.mp3'
+    },
+    {
+        id: 'KICK-05',
+        name: 'KICK-05',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-05-MP3.mp3'
+    },
+    {
+        id: 'KICK-06',
+        name: 'KICK-06',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-06-MP3.mp3'
+    },
+    {
+        id: 'KICK-07',
+        name: 'KICK-07',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-07-MP3.mp3'
+    },
+    {
+        id: 'KICK-08',
+        name: 'KICK-08',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-08-MP3.mp3'
+    },
+    {
+        id: 'KICK-09',
+        name: 'KICK-09',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-09-MP3.mp3'
+    },
+    {
+        id: 'KICK-10',
+        name: 'KICK-10',
+        category: 'Kick (大鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/KICK-10-MP3.mp3'
+    },
+    {
+        id: 'Snare-01',
+        name: 'Snare-01',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-01-MP3.mp3'
+    },
+    {
+        id: 'Snare-02',
+        name: 'Snare-02',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-02-MP3.mp3'
+    },
+    {
+        id: 'Snare-03',
+        name: 'Snare-03',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-03-MP3.mp3'
+    },
+    {
+        id: 'Snare-04',
+        name: 'Snare-04',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-04-MP3.mp3'
+    },
+    {
+        id: 'Snare-05',
+        name: 'Snare-05',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-05-MP3.mp3'
+    },
+    {
+        id: 'Snare-06',
+        name: 'Snare-06',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-06-MP3.mp3'
+    },
+    {
+        id: 'Snare-07',
+        name: 'Snare-07',
+        category: 'Snare (小鼓)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Snare-07-MP3.mp3'
+    },
+    {
+        id: 'HIHAT-01',
+        name: 'HIHAT-01',
+        category: 'Other Drums (其他鼓件)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/HIHAT-01-MP3.mp3'
+    },
+    {
+        id: 'HIHAT-02',
+        name: 'HIHAT-02',
+        category: 'Other Drums (其他鼓件)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/HIHAT-02-MP3.mp3'
+    },
+    {
+        id: 'HIHAT-03',
+        name: 'HIHAT-03',
+        category: 'Other Drums (其他鼓件)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/HIHAT-03-MP3.mp3'
+    },
+    {
+        id: 'Tom',
+        name: 'Tom',
+        category: 'Other Drums (其他鼓件)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Tom-MP3.mp3'
+    },
+    {
+        id: 'VIOLA',
+        name: 'VIOLA',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/VIOLA-MP3.mp3'
+    },
+    {
+        id: 'Cello',
+        name: 'Cello',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Cello-MP3.mp3'
+    },
+    {
+        id: 'OTHER-DOBRO',
+        name: 'OTHER-DOBRO',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/OTHER-DOBRO-MP3.mp3'
+    },
+    {
+        id: 'OTHER-MARIMBA',
+        name: 'OTHER-MARIMBA',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/OTHER-MARIMBA-MP3.mp3'
+    },
+    {
+        id: 'PERC-BOMBO',
+        name: 'PERC-BOMBO',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/PERC-BOMBO-MP3.mp3'
+    },
+    {
+        id: 'PERC-CUNONO',
+        name: 'PERC-CUNONO',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/PERC-CUNONO-MP3.mp3'
+    },
+    {
+        id: 'SAXOPHONE',
+        name: 'SAXOPHONE',
+        category: 'Other (其他)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/SAXOPHONE-MP3.mp3'
+    },
+    {
+        id: 'PIANO-01',
+        name: 'PIANO-01',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/PIANO-01-MP3.mp3'
+    },
+    {
+        id: 'PIANO-02',
+        name: 'PIANO-02',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/PIANO-02-MP3.mp3'
+    },
+    {
+        id: 'PIANO-03',
+        name: 'PIANO-03',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/PIANO-03-MP3.mp3'
+    },
+    {
+        id: 'Synth-01',
+        name: 'Synth-01',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Synth-01-MP3.mp3'
+    },
+    {
+        id: 'Synth-02',
+        name: 'Synth-02',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Synth-02-MP3.mp3'
+    },
+    {
+        id: 'Synth-03',
+        name: 'Synth-03',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Synth-03-MP3.mp3'
+    },
+    {
+        id: 'Synth-04',
+        name: 'Synth-04',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Synth-04.mp3'
+    },
+    {
+        id: 'Organ',
+        name: 'Organ',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Organ-MP3.mp3'
+    },
+    {
+        id: 'Rhodes',
+        name: 'Rhodes',
+        category: 'Keys (鍵盤)',
+        url: 'https://onetrackstudiohk.b-cdn.net/eq-tool-practice-tracks-besides-vocal/Rhodes-MP3.mp3'
+    },
+    {
+        id: '練習用女聲主音1',
+        name: '練習用女聲主音1',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B31.mp3'
+    },
+    {
+        id: '練習用女聲主音2',
+        name: '練習用女聲主音2',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B32.mp3'
+    },
+    {
+        id: '練習用女聲主音3',
+        name: '練習用女聲主音3',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B33.mp3'
+    },
+    {
+        id: '練習用女聲主音4',
+        name: '練習用女聲主音4',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B34.mp3'
+    },
+    {
+        id: '練習用女聲主音5',
+        name: '練習用女聲主音5',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B35.mp3'
+    },
+    {
+        id: '練習用女聲主音6',
+        name: '練習用女聲主音6',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B36.mp3'
+    },
+    {
+        id: '練習用女聲主音7',
+        name: '練習用女聲主音7',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B37.mp3'
+    },
+    {
+        id: '練習用女聲主音8',
+        name: '練習用女聲主音8',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B38.mp3'
+    },
+    {
+        id: '練習用女聲主音9',
+        name: '練習用女聲主音9',
+        category: 'Female Vocal (女聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E5%A5%B3%E8%81%B2%E4%B8%BB%E9%9F%B39.mp3'
+    },
+    {
+        id: '練習用男聲主音1',
+        name: '練習用男聲主音1',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B31.mp3'
+    },
+    {
+        id: '練習用男聲主音2',
+        name: '練習用男聲主音2',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B32.mp3'
+    },
+    {
+        id: '練習用男聲主音3',
+        name: '練習用男聲主音3',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B33.mp3'
+    },
+    {
+        id: '練習用男聲主音4',
+        name: '練習用男聲主音4',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B34.mp3'
+    },
+    {
+        id: '練習用男聲主音5',
+        name: '練習用男聲主音5',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B35.mp3'
+    },
+    {
+        id: '練習用男聲主音6',
+        name: '練習用男聲主音6',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B36.mp3'
+    },
+    {
+        id: '練習用男聲主音7',
+        name: '練習用男聲主音7',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B37.mp3'
+    },
+    {
+        id: '練習用男聲主音8',
+        name: '練習用男聲主音8',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B38.mp3'
+    },
+    {
+        id: '練習用男聲主音9',
+        name: '練習用男聲主音9',
+        category: 'Male Vocal (男聲)',
+        url: 'https://onetrackstudiohk.b-cdn.net/EQ%20tool%20tracks/%E7%B7%B4%E7%BF%92%E7%94%A8%E7%94%B7%E8%81%B2%E4%B8%BB%E9%9F%B39.mp3'
+    }
 ];
 
 export const TOOLTIPS = {
