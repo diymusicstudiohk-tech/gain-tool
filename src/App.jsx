@@ -3,7 +3,7 @@ import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
 
 // --- Imports from Refactored Structure ---
 import { PRESETS_DATA, AUDIO_SOURCES, TOOLTIPS, APP_VERSION } from './utils/constants';
-import { processCompressor } from './utils/dsp';
+import { processCompressor, createRealTimeCompressor } from './utils/dsp';
 import { writeWavFile } from './utils/audioHelper';
 import {
     saveParamsToStorage, loadParamsFromStorage,
@@ -20,6 +20,8 @@ import { DraggableViewControls, DraggableInfoPanel, DraggableLegend } from './co
 import SignalFlow from './components/ui/SignalFlow';
 import ClipGainOverlay from './components/visualizer/ClipGainOverlay';
 import useVisualizerLoop from './hooks/useVisualizerLoop';
+import { generateDebugReport, copyToClipboard } from './utils/debugHelper';
+import { fetchAudioBuffer } from './utils/audioLoader';
 
 const App = () => {
     // --- 1. 狀態管理 (State Management) ---
@@ -282,7 +284,6 @@ const App = () => {
                 currentSourceId,
                 zoomX, zoomY, panOffset, panOffsetY,
                 loopStart, loopEnd,
-                loopStart, loopEnd,
                 lastPlayedType,
                 isInfoPanelEnabled,
                 signalFlowMode
@@ -418,64 +419,20 @@ const App = () => {
         let currentIndex = 0;
         const outData = new Float32Array(length);
 
-        // Prepare coefficients (Duplicate logic from DSP to avoid re-calculation every sample, keeping it optimized here)
-        const makeUpLinear = Math.pow(10, params.makeupGain / 20);
-        const effectiveSampleRate = sampleRate; // Step is 1
-        const attTime = (params.attack / 1000) * effectiveSampleRate;
-        const relTime = (params.release / 1000) * effectiveSampleRate;
-        const gAttTime = (params.gateAttack / 1000) * effectiveSampleRate;
-        const gRelTime = (params.gateRelease / 1000) * effectiveSampleRate;
-        const compAttCoeff = 1 - Math.exp(-1 / attTime);
-        const compRelCoeff = 1 - Math.exp(-1 / relTime);
-        const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
-        const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
-        const lookaheadSamples = Math.floor(((params.lookahead / 1000) * effectiveSampleRate));
-
-        let compEnvelope = 0;
-        let gateEnvelope = 0;
+        // Create compressor instance for this processing task
+        const compressor = createRealTimeCompressor(sampleRate);
 
         const processChunk = () => {
             const endIndex = Math.min(currentIndex + CHUNK_SIZE, length);
-            for (let i = currentIndex; i < endIndex; i++) {
-                let detectorIndex = Math.min(i + lookaheadSamples, length - 1);
-                const inputLevel = Math.abs(inputData[detectorIndex]);
-                const currentInput = inputData[i];
 
-                // Inline DSP logic for maximum performance in this loop
-                if (!params.isGateBypass) {
-                    if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
-                    else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
-                }
+            // Create views for the current chunk
+            const inputChunk = inputData.subarray(currentIndex, endIndex);
+            const outputChunk = outData.subarray(currentIndex, endIndex);
 
-                let gateGaindB = 0;
-                if (!params.isGateBypass) {
-                    let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
-                    if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
-                }
-                const gateGainLinear = Math.pow(10, gateGaindB / 20);
-                const gatedDetectorLevel = inputLevel * gateGainLinear;
+            // Process the chunk
+            // Note: params can be passed directly as the compressor handles parameter extraction
+            compressor.processBlock(inputChunk, outputChunk, params);
 
-                if (!params.isCompBypass) {
-                    if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
-                    else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
-                }
-
-                let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
-                let compGainReductiondB = 0;
-                if (!params.isCompBypass) {
-                    if (compEnvdB > params.threshold - params.knee / 2) {
-                        if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
-                            let slope = 1 - (1 / params.ratio);
-                            let over = compEnvdB - (params.threshold - params.knee / 2);
-                            compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
-                        } else if (compEnvdB >= params.threshold + params.knee / 2) {
-                            compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
-                        }
-                    }
-                }
-                const compGainLinear = Math.pow(10, compGainReductiondB / 20);
-                outData[i] = currentInput * gateGainLinear * compGainLinear * makeUpLinear;
-            }
             currentIndex = endIndex;
             if (currentIndex < length) {
                 processingTaskRef.current = setTimeout(processChunk, 0);
@@ -580,85 +537,16 @@ const App = () => {
                     const scriptNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
                     // DSP State for this playback session
-                    let compEnvelope = 0;
-                    let gateEnvelope = 0;
-                    const sampleRate = audioContext.sampleRate;
+                    const compressor = createRealTimeCompressor(audioContext.sampleRate);
 
                     scriptNode.onaudioprocess = (audioProcessingEvent) => {
                         const inputBuffer = audioProcessingEvent.inputBuffer;
                         const outputBuffer = audioProcessingEvent.outputBuffer;
-                        const inputData = inputBuffer.getChannelData(0);
-                        const outputData = outputBuffer.getChannelData(0);
 
                         const params = paramsRef.current; // Get latest params
 
-                        // Coefficients
-                        const makeUpLinear = Math.pow(10, params.makeupGain / 20);
-                        const attTime = (params.attack / 1000) * sampleRate;
-                        const relTime = (params.release / 1000) * sampleRate;
-                        const gAttTime = (params.gateAttack / 1000) * sampleRate;
-                        const gRelTime = (params.gateRelease / 1000) * sampleRate;
-                        const compAttCoeff = 1 - Math.exp(-1 / attTime);
-                        const compRelCoeff = 1 - Math.exp(-1 / relTime);
-                        const gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
-                        const gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
-                        const lookaheadSamples = Math.floor(((params.lookahead / 1000) * sampleRate));
-
-                        // Note: Lookahead in real-time requires buffering/delay.
-                        // For simple ScriptProcessor without significant latency compensation, lookahead is hard.
-                        // We will ignore lookahead for real-time preview or implement a simple delay line if needed.
-                        // For now, let's skip lookahead in real-time preview to keep it simple and instant.
-
-                        for (let i = 0; i < inputBuffer.length; i++) {
-                            const inputSample = inputData[i];
-                            const inputLevel = Math.abs(inputSample);
-
-                            // Gate
-                            if (!params.isGateBypass) {
-                                if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
-                                else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
-                            }
-
-                            let gateGaindB = 0;
-                            if (!params.isGateBypass) {
-                                let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
-                                if (gateEnvdB < params.gateThreshold) gateGaindB = -(params.gateThreshold - gateEnvdB) * (params.gateRatio - 1);
-                            }
-                            const gateGainLinear = Math.pow(10, gateGaindB / 20);
-                            const gatedDetectorLevel = inputLevel * gateGainLinear;
-
-                            // Compressor
-                            if (!params.isCompBypass) {
-                                if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
-                                else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
-                            }
-
-                            let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
-                            let compGainReductiondB = 0;
-                            if (!params.isCompBypass) {
-                                if (compEnvdB > params.threshold - params.knee / 2) {
-                                    if (params.knee > 0 && compEnvdB < params.threshold + params.knee / 2) {
-                                        let slope = 1 - (1 / params.ratio);
-                                        let over = compEnvdB - (params.threshold - params.knee / 2);
-                                        compGainReductiondB = -slope * ((over * over) / (2 * params.knee));
-                                    } else if (compEnvdB >= params.threshold + params.knee / 2) {
-                                        compGainReductiondB = (params.threshold - compEnvdB) * (1 - 1 / params.ratio);
-                                    }
-                                }
-                            }
-                            const compGainLinear = Math.pow(10, compGainReductiondB / 20);
-
-
-                            const wet = inputSample * gateGainLinear * compGainLinear * makeUpLinear;
-
-                            // Output Mixing (Syncs Dry/Wet perfectly)
-                            if (params.isDeltaMode) {
-                                outputData[i] = wet - inputSample;
-                            } else {
-                                const dryLinear = Math.pow(10, params.dryGain / 20);
-                                outputData[i] = wet + (inputSample * dryLinear);
-                            }
-                        }
+                        // Process using our shared DSP logic
+                        compressor.processBlock(inputBuffer, outputBuffer, params);
                     };
 
                     source.connect(scriptNode);
@@ -784,6 +672,33 @@ const App = () => {
     };
 
     const toggleDeltaMode = (e) => { e.stopPropagation(); if (lastPlayedType === 'original') return; setIsDeltaMode(prev => !prev); };
+
+    const handleLoopClear = () => {
+        // Stop current playback cleanly to avoid double-play
+        if (sourceNodeRef.current) {
+            try {
+                sourceNodeRef.current.stop();
+                sourceNodeRef.current.disconnect();
+                if (sourceNodeRef.current._scriptNode) sourceNodeRef.current._scriptNode.disconnect();
+            } catch (e) { }
+            sourceNodeRef.current = null;
+        }
+
+        // Reset loop state
+        setLoopStart(null);
+        setLoopEnd(null);
+
+        // If we were playing, restart playback from current position without loop
+        if (isPlayingRef.current && playingType !== 'none') {
+            const elapsed = audioContext.currentTime - startTimeRef.current;
+            const currentPos = startOffsetRef.current + elapsed;
+
+            // Wait a tick to ensure state updates
+            setTimeout(() => {
+                playBuffer(originalBuffer, playingType, currentPos);
+            }, 10);
+        }
+    };
 
     // --- Parameter Change Helpers ---
     const updateParamGeneric = (setter, value, name = 'PARAM') => {
@@ -917,27 +832,8 @@ const App = () => {
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id); setFileName(preset.name);
 
             let arrayBuffer;
-            // [NEW] Check Cache First
             try {
-                const cachedBlob = await loadFileFromDB(preset.url);
-                if (cachedBlob) {
-                    console.log(`[Cache] Loaded from DB: ${preset.url}`);
-                    arrayBuffer = await cachedBlob.arrayBuffer();
-                } else {
-                    console.log(`[Cache] Fetching from network: ${preset.url}`);
-                    let res;
-                    try {
-                        res = await fetch(preset.url);
-                        if (!res.ok) throw new Error('Direct fetch failed');
-                    } catch (e) {
-                        const pUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(preset.url)}`;
-                        res = await fetch(pUrl);
-                        if (!res.ok) throw new Error('Failed');
-                    }
-                    const blob = await res.blob();
-                    await saveFileToDB(preset.url, blob); // Cache it
-                    arrayBuffer = await blob.arrayBuffer();
-                }
+                arrayBuffer = await fetchAudioBuffer(preset.url);
             } catch (e) {
                 console.error("Audio Load Error:", e);
                 throw new Error("Failed to load audio");
@@ -951,24 +847,19 @@ const App = () => {
                 console.log(`[AutoLoad] Track Category: "${trackCategory}"`);
 
                 // Find first preset where track category starts with preset category OR includes it
+                // Find first preset where track category matches loosely (case-insensitive, partial)
                 const matchingPresetIdx = PRESETS_DATA.findIndex(p => {
-                    const presetCat = p.category;
-                    // Exclude "Other" preset if track is "Other Drums"
-                    if (presetCat === 'Other' && trackCategory.includes('Other Drums')) return false;
-
-                    // Match if track category starts with preset category (e.g. "Snare (小鼓)" starts with "Snare")
-                    // OR if track category includes preset category
-                    const match = trackCategory.startsWith(presetCat) || trackCategory.includes(presetCat);
-                    return match;
+                    if (!p.category) return false;
+                    const tc = trackCategory.trim().toLowerCase();
+                    const pc = p.category.trim().toLowerCase();
+                    return tc.includes(pc) || pc.includes(tc);
                 });
 
-                console.log(`[AutoLoad] Matching Preset Index: ${matchingPresetIdx}`);
-
                 if (matchingPresetIdx !== -1) {
-                    console.log(`[AutoLoad] Applying Preset: ${PRESETS_DATA[matchingPresetIdx].name}`);
+                    console.log(`[AutoLoad] Found matching preset: "${PRESETS_DATA[matchingPresetIdx].name}" (Idx: ${matchingPresetIdx})`);
                     applyPreset(matchingPresetIdx);
                 } else {
-                    console.warn(`[AutoLoad] No matching preset found for category: ${trackCategory}`);
+                    console.log(`[AutoLoad] No matching preset found for category: "${trackCategory}"`);
                 }
             }
         } catch (err) { console.error(err); setErrorMsg(`載入失敗: ${err.message}`); setIsLoading(false); }
@@ -1322,116 +1213,32 @@ const App = () => {
     useEffect(() => { const h = (e) => { if (e.code === 'Space') { e.preventDefault(); togglePlayback(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [togglePlayback]);
 
     // --- Debug Helper: Enhanced Dumpstate ---
+    // --- Debug Helper: Enhanced Dumpstate ---
     const handleCopyDebug = async () => {
         setCopyStatus('copying');
         try {
-            const snapshot = getCurrentStateSnapshot();
+            const currentParams = getCurrentStateSnapshot();
             const actionTrace = actionLogRef.current || [];
-            const now = new Date();
 
-            // 1. Audio Health Check
-            let audioHealth = { status: 'Unknown', latency: 0, time: 0, bufferCheck: 'N/A' };
-            if (audioContext) {
-                audioHealth.status = audioContext.state;
-                audioHealth.latency = audioContext.baseLatency;
-                audioHealth.time = audioContext.currentTime;
-
-                if (originalBuffer) {
-                    const data = originalBuffer.getChannelData(0);
-                    let sumSq = 0;
-                    const checkLen = Math.min(1000, data.length);
-                    for (let i = 0; i < checkLen; i++) sumSq += data[i] * data[i];
-                    const rms = Math.sqrt(sumSq / checkLen);
-                    audioHealth.bufferCheck = rms === 0 ? 'WARNING: Silent Buffer (RMS=0)' : `OK (RMS=${rms.toFixed(4)})`;
-                } else {
-                    audioHealth.bufferCheck = 'No Buffer Loaded';
-                }
-            }
-
-            // 2. DSP Sanity Check
-            let dspStatus = '✅ Passed';
-            try {
-                const testInput = new Float32Array(100).fill(0.5);
-                const res = processCompressor(testInput, 44100, currentParams, 1);
-                let hasNaN = false, hasInf = false;
-                for (let i = 0; i < res.outputData.length; i++) {
-                    if (Number.isNaN(res.outputData[i])) hasNaN = true;
-                    if (!Number.isFinite(res.outputData[i])) hasInf = true;
-                }
-                if (hasNaN) dspStatus = 'CRITICAL: NaN Detected';
-                else if (hasInf) dspStatus = 'CRITICAL: Infinity Detected';
-            } catch (e) {
-                dspStatus = `CRITICAL: Crash (${e.message})`;
-            }
-
-            // 3. Visual Snapshot
-            let visualSnapshot = 'N/A';
-            if (waveformCanvasRef.current) {
-                try {
-                    visualSnapshot = waveformCanvasRef.current.toDataURL('image/png', 0.5);
-                } catch (e) {
-                    visualSnapshot = `Error: ${e.message}`;
-                }
-            }
-
-            // 4. Construct Report
-            const report = `
-# 🐛 Bug Report Context
-* **App Version:** ${APP_VERSION}
-* **Timestamp:** ${now.toISOString()}
-
-## 🔍 1. Diagnosis
-* **AudioContext:** ${audioHealth.status} (Time: ${audioHealth.time.toFixed(2)}s)
-* **DSP Check:** ${dspStatus}
-* **Buffer:** ${originalBuffer ? `${originalBuffer.sampleRate}Hz / ${originalBuffer.numberOfChannels}ch / ${originalBuffer.duration.toFixed(2)}s` : 'None'}
-* **Buffer Health:** ${audioHealth.bufferCheck}
-
-## 🛠 2. Last User Actions
-${actionTrace.length > 0 ? actionTrace.map((a, i) => `${i + 1}. ${a}`).join('\n') : '(No actions recorded)'}
-
-## 📸 3. Visual Snapshot (Base64)
-*(Paste this into an LLM to "see" the waveform state)*
-\`\`\`
-${visualSnapshot}
-\`\`\`
-
-## 📊 4. Full State Dump
-\`\`\`json
-${JSON.stringify({
-                snapshot,
-                audioState: {
-                    fileName,
-                    currentSourceId,
-                    playingType,
-                    isPlaying: isPlayingRef.current
-                },
-                viewState: {
-                    resolutionPct,
-                    canvasDims
-                }
-            }, null, 2)}
-\`\`\`
-            `.trim();
-
-            const copyToClipboard = async (text) => {
-                if (navigator.clipboard && window.isSecureContext) {
-                    try { await navigator.clipboard.writeText(text); return true; }
-                    catch (err) { console.error('Navigator clipboard failed', err); }
-                }
-                try {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = text;
-                    textArea.style.position = "fixed"; textArea.style.left = "-9999px"; textArea.style.top = "0";
-                    document.body.appendChild(textArea);
-                    textArea.focus(); textArea.select();
-                    const successful = document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    return successful;
-                } catch (err) {
-                    console.error('Fallback copy failed', err);
-                    return false;
-                }
+            // Construct appState object
+            const appState = {
+                fileName,
+                currentSourceId,
+                playingType,
+                isPlaying: isPlayingRef.current,
+                resolutionPct,
+                canvasDims
             };
+
+            const report = await generateDebugReport({
+                audioContext,
+                originalBuffer,
+                currentParams,
+                actionLog: actionTrace,
+                waveformCanvas: waveformCanvasRef.current,
+                appVersion: APP_VERSION,
+                appState
+            });
 
             const success = await copyToClipboard(report);
             if (success) {
@@ -1582,8 +1389,7 @@ ${JSON.stringify({
                             }}
                             onClick={(e) => {
                                 e.stopPropagation(); // Prevent seeking
-                                setLoopStart(null);
-                                setLoopEnd(null);
+                                handleLoopClear();
                             }}
                             title="Clear Loop"
                         >
