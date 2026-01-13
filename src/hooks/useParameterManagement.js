@@ -51,8 +51,8 @@ export const useParameterManagement = () => {
     }, [currentParams]);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            saveParamsToStorage({
+        const timer = setTimeout(async () => {
+            await saveParamsToStorage({
                 threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
                 gateThreshold, gateRatio, gateAttack, gateRelease,
                 isGateBypass, isCompBypass
@@ -62,8 +62,8 @@ export const useParameterManagement = () => {
     }, [threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
         gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
 
-    const loadParams = useCallback(() => {
-        const savedParams = loadParamsFromStorage();
+    const loadParams = useCallback(async () => {
+        const savedParams = await loadParamsFromStorage();
         if (savedParams) {
             setThreshold(savedParams.threshold);
             setRatio(savedParams.ratio);
