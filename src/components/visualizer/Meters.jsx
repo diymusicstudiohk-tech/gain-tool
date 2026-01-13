@@ -194,19 +194,24 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
     const safeGrHeight = Math.max(0, grHeight);
     const safeCfHeight = Math.max(0, cfHeight);
 
+    // Calculate proper canvas widths based on container width (w-44 = 176px in Tailwind)
+    // Left column is 1/3 of 176px ≈ 59px, Right column is 2/3 ≈ 117px
+    const leftCanvasWidth = Math.floor(176 / 3); // 59px
+    const rightCanvasWidth = Math.floor(176 * 2 / 3); // 117px
+
     return (
         <div className="w-44 flex flex-row bg-slate-950 border-l border-slate-800 flex-none h-full">
             {/* Left Column: GR + CF + Spacer */}
             <div className="w-1/3 flex flex-col border-r border-slate-800 h-full">
                 {/* GR Meter */}
                 <div className="relative w-full" style={{ height: safeGrHeight }}>
-                    <canvas ref={grCanvasRef} width={64} height={safeGrHeight} className="w-full h-full" />
+                    <canvas ref={grCanvasRef} width={leftCanvasWidth} height={safeGrHeight} className="w-full h-full" />
                     <div className="absolute top-1 left-0 w-full text-center text-[9px] text-cyan-500 font-bold">GR</div>
                 </div>
 
                 {/* Crest Factor Meter */}
                 <div className="relative w-full border-t border-slate-800" style={{ height: safeCfHeight }}>
-                    <canvas ref={cfMeterCanvasRef} width={64} height={safeCfHeight} className="w-full h-full" />
+                    <canvas ref={cfMeterCanvasRef} width={leftCanvasWidth} height={safeCfHeight} className="w-full h-full" />
                 </div>
 
                 {/* Spacer for HUD */}
@@ -215,7 +220,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
 
             {/* Right Column: Output */}
             <div className="w-2/3 relative h-full">
-                <canvas ref={outputCanvasRef} width={128} height={height} className="w-full h-full" />
+                <canvas ref={outputCanvasRef} width={rightCanvasWidth} height={height} className="w-full h-full" />
             </div>
         </div>
     );
