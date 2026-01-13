@@ -24,6 +24,7 @@ import { generateDebugReport, copyToClipboard } from './utils/debugHelper';
 import { fetchAudioBuffer } from './utils/audioLoader';
 
 const App = () => {
+    console.log('🎨 App component rendering...');
     // --- 1. 狀態管理 (State Management) ---
     const [isLoading, setIsLoading] = useState(false);
     const [audioContext, setAudioContext] = useState(null);
@@ -169,48 +170,52 @@ const App = () => {
         setRatioControl(calculateControlFromRatio(4));
 
         // --- Persistence: Load Settings ---
-        const savedParams = loadParamsFromStorage();
-        if (savedParams) {
-            setThreshold(savedParams.threshold); setRatio(savedParams.ratio); setRatioControl(calculateControlFromRatio(savedParams.ratio));
-            setAttack(savedParams.attack); setRelease(savedParams.release); setKnee(savedParams.knee); setLookahead(savedParams.lookahead);
-            setMakeupGain(savedParams.makeupGain); setDryGain(savedParams.dryGain);
-            setGateThreshold(savedParams.gateThreshold); setGateRatio(savedParams.gateRatio);
-            setGateAttack(savedParams.gateAttack); setGateRelease(savedParams.gateRelease);
-            setIsGateBypass(savedParams.isGateBypass); setIsCompBypass(savedParams.isCompBypass);
-        }
+        const loadInitialData = async () => {
+            const savedParams = await loadParamsFromStorage();
+            if (savedParams) {
+                setThreshold(savedParams.threshold); setRatio(savedParams.ratio); setRatioControl(calculateControlFromRatio(savedParams.ratio));
+                setAttack(savedParams.attack); setRelease(savedParams.release); setKnee(savedParams.knee); setLookahead(savedParams.lookahead);
+                setMakeupGain(savedParams.makeupGain); setDryGain(savedParams.dryGain);
+                setGateThreshold(savedParams.gateThreshold); setGateRatio(savedParams.gateRatio);
+                setGateAttack(savedParams.gateAttack); setGateRelease(savedParams.gateRelease);
+                setIsGateBypass(savedParams.isGateBypass); setIsCompBypass(savedParams.isCompBypass);
+            }
 
-        // --- Persistence: Load App State (Source, Resolution, View, Mode) ---
-        const savedState = loadAppStateFromStorage();
-        if (savedState) {
-            setResolutionPct(savedState.resolutionPct);
-            if (savedState.zoomX) setZoomX(savedState.zoomX);
-            if (savedState.zoomY) setZoomY(savedState.zoomY);
-            if (savedState.panOffset) setPanOffset(savedState.panOffset);
-            if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
-            if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
-            if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
-            if (savedState.lastPlayedType) setLastPlayedType(savedState.lastPlayedType);
-            if (savedState.isInfoPanelEnabled !== undefined) setIsInfoPanelEnabled(savedState.isInfoPanelEnabled);
-            if (savedState.signalFlowMode) setSignalFlowMode(savedState.signalFlowMode);
+            // --- Persistence: Load App State (Source, Resolution, View, Mode) ---
+            const savedState = await loadAppStateFromStorage();
+            if (savedState) {
+                setResolutionPct(savedState.resolutionPct);
+                if (savedState.zoomX) setZoomX(savedState.zoomX);
+                if (savedState.zoomY) setZoomY(savedState.zoomY);
+                if (savedState.panOffset) setPanOffset(savedState.panOffset);
+                if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
+                if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
+                if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
+                if (savedState.lastPlayedType) setLastPlayedType(savedState.lastPlayedType);
+                if (savedState.isInfoPanelEnabled !== undefined) setIsInfoPanelEnabled(savedState.isInfoPanelEnabled);
+                if (savedState.signalFlowMode) setSignalFlowMode(savedState.signalFlowMode);
 
-            if (savedState.currentSourceId) {
-                // If it was 'upload', we need to check IndexedDB
-                if (savedState.currentSourceId === 'upload') {
-                    // We will handle the async DB load in a separate effect or here below
-                    // For simplicity, let's trigger it here
-                    setCurrentSourceId('upload');
-                } else {
-                    const source = AUDIO_SOURCES.find(s => s.id === savedState.currentSourceId);
-                    if (source) {
-                        setCurrentSourceId(source.id);
-                        setFileName(source.name);
-                        // We need to fetch this source... but loadPreset resets everything.
-                        // We need a way to load audio WITHOUT resetting params.
-                        // Implementation detail: we will use a dedicated effect to load audio when audioContext is ready & sourceID changes initially.
+                if (savedState.currentSourceId) {
+                    // If it was 'upload', we need to check IndexedDB
+                    if (savedState.currentSourceId === 'upload') {
+                        // We will handle the async DB load in a separate effect or here below
+                        // For simplicity, let's trigger it here
+                        setCurrentSourceId('upload');
+                    } else {
+                        const source = AUDIO_SOURCES.find(s => s.id === savedState.currentSourceId);
+                        if (source) {
+                            setCurrentSourceId(source.id);
+                            setFileName(source.name);
+                            // We need to fetch this source... but loadPreset resets everything.
+                            // We need a way to load audio WITHOUT resetting params.
+                            // Implementation detail: we will use a dedicated effect to load audio when audioContext is ready & sourceID changes initially.
+                        }
                     }
                 }
             }
-        }
+        };
+
+        loadInitialData();
 
         return () => { ctx.close(); cancelAnimationFrame(rafIdRef.current); if (processingTaskRef.current) clearTimeout(processingTaskRef.current); }
     }, []);
@@ -265,8 +270,8 @@ const App = () => {
 
     // --- Persistence: Auto-Save Params ---
     useEffect(() => {
-        const timer = setTimeout(() => {
-            saveParamsToStorage({
+        const timer = setTimeout(async () => {
+            await saveParamsToStorage({
                 threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
                 gateThreshold, gateRatio, gateAttack, gateRelease,
                 isGateBypass, isCompBypass
@@ -278,8 +283,8 @@ const App = () => {
 
     // --- Persistence: Auto-Save App State ---
     useEffect(() => {
-        const timer = setTimeout(() => {
-            saveAppStateToStorage({
+        const timer = setTimeout(async () => {
+            await saveAppStateToStorage({
                 resolutionPct,
                 currentSourceId,
                 zoomX, zoomY, panOffset, panOffsetY,
@@ -1256,8 +1261,27 @@ const App = () => {
 
 
     // --- 8. Render ---
+    console.log('✅ App component returning JSX...');
+    console.log('State check:', { audioContext: !!audioContext, originalBuffer: !!originalBuffer, fileName, currentSourceId });
+
+    // Temporary test render
+    if (!audioContext) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-slate-950 text-white">
+                <div className="text-center">
+                    <h1 className="text-4xl font-bold mb-4">⏳ Initializing Audio Context...</h1>
+                    <p className="text-xl">Please wait...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden p-4 relative">
+            {/* Test visibility */}
+            <div className="fixed top-4 left-4 bg-green-500 text-white px-4 py-2 rounded z-50">
+                ✅ APP IS RENDERING!
+            </div>
             <Header
                 fileName={fileName}
                 resolutionPct={resolutionPct} setResolutionPct={setResolutionPct}

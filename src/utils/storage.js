@@ -1,185 +1,109 @@
+import { paramsStorage, stateStorage } from '../storage/LocalStorageAdapter';
+import { audioFileStorage } from '../storage/IndexedDBAdapter';
 
-// LocalStorage Keys
-const STORAGE_KEY_PARAMS = 'comp_v2_params';
-const STORAGE_KEY_APP_STATE = 'comp_v2_app_state';
-
-// IndexedDB Config
-const DB_NAME = 'CompVisualizerDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'audio_files';
-const AUDIO_KEY = 'user_upload_file';
-
-// --- LocalStorage Helpers ---
-
-export const saveParamsToStorage = (params) => {
+export const saveParamsToStorage = async (params) => {
     try {
-        localStorage.setItem(STORAGE_KEY_PARAMS, JSON.stringify(params));
+        await paramsStorage.save('params', params);
     } catch (e) {
-        console.error("Failed to save params to storage", e);
+        console.error('Failed to save params:', e);
     }
 };
 
-export const loadParamsFromStorage = () => {
+export const loadParamsFromStorage = async () => {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY_PARAMS);
-        return raw ? JSON.parse(raw) : null;
+        return await paramsStorage.load('params');
     } catch (e) {
-        console.error("Failed to load params from storage", e);
+        console.error('Failed to load params:', e);
         return null;
     }
 };
 
-export const saveAppStateToStorage = (state) => {
+export const saveAppStateToStorage = async (state) => {
     try {
-        localStorage.setItem(STORAGE_KEY_APP_STATE, JSON.stringify(state));
+        await stateStorage.save('state', state);
     } catch (e) {
-        console.error("Failed to save app state", e);
+        console.error('Failed to save app state:', e);
     }
 };
 
-export const loadAppStateFromStorage = () => {
+export const loadAppStateFromStorage = async () => {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY_APP_STATE);
-        return raw ? JSON.parse(raw) : null;
+        return await stateStorage.load('state');
     } catch (e) {
+        console.error('Failed to load app state:', e);
         return null;
     }
-};
-
-export const clearLocalStorage = () => {
-    localStorage.removeItem(STORAGE_KEY_PARAMS);
-    localStorage.removeItem(STORAGE_KEY_APP_STATE);
-};
-
-// --- IndexedDB Helpers ---
-
-const openDB = () => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = (event) => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
-            }
-        };
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => reject(event.target.error);
-    });
 };
 
 export const saveAudioFileToDB = async (fileBlob, fileName) => {
     try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            // We store an object with the file and metadata
-            const request = store.put({ file: fileBlob, name: fileName }, AUDIO_KEY);
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
+        if (!fileBlob) {
+            await audioFileStorage.remove('userUpload');
+            return;
+        }
+        await audioFileStorage.save('userUpload', { file: fileBlob, name: fileName });
     } catch (e) {
-        console.error("IndexedDB Save Error:", e);
-        return false;
+        console.error('Failed to save audio file:', e);
     }
 };
 
 export const loadAudioFileFromDB = async () => {
     try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            const request = store.get(AUDIO_KEY);
-            request.onsuccess = () => {
-                if (request.result) resolve(request.result);
-                else resolve(null);
-            };
-            request.onerror = () => reject(request.error);
-        });
+        return await audioFileStorage.load('userUpload');
     } catch (e) {
-        console.error("IndexedDB Load Error:", e);
+        console.error('Failed to load audio file:', e);
         return null;
     }
 };
 
-// [NEW] Generic File Storage for Caching
 export const saveFileToDB = async (key, fileBlob) => {
     try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            const request = store.put(fileBlob, key);
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
+        await audioFileStorage.save(key, { file: fileBlob });
     } catch (e) {
-        console.error("IndexedDB Cache Save Error:", e);
-        return false;
+        console.error('Failed to save file:', e);
     }
 };
 
 export const loadFileFromDB = async (key) => {
     try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            const request = store.get(key);
-            request.onsuccess = () => {
-                if (request.result) resolve(request.result);
-                else resolve(null);
-            };
-            request.onerror = () => reject(request.error);
-        });
+        return await audioFileStorage.load(key);
     } catch (e) {
-        console.error("IndexedDB Cache Load Error:", e);
+        console.error('Failed to load file:', e);
         return null;
     }
 };
 
-export const clearAudioDB = async () => {
-    try {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
-            const request = store.clear();
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
-    } catch (e) {
-        console.warn("Could not clear IndexedDB", e);
-        return false;
-    }
-};
-
 export const factoryReset = async () => {
-    clearLocalStorage();
-    await clearAudioDB();
-    window.location.reload();
+    try {
+        await paramsStorage.clear();
+        await stateStorage.clear();
+        await audioFileStorage.clear();
+        audioFileStorage.close();
+        indexedDB.deleteDatabase('CompVisualizerDB');
+        window.location.reload();
+    } catch (e) {
+        console.error('Factory reset failed:', e);
+    }
 };
 
-export const softReset = () => {
-    // 1. Get current state to preserve simple ID strings
-    const currentState = loadAppStateFromStorage();
-    const preservedState = {};
-    if (currentState) {
-        if (currentState.currentSourceId) preservedState.currentSourceId = currentState.currentSourceId;
-        if (currentState.lastPracticeSourceId) preservedState.lastPracticeSourceId = currentState.lastPracticeSourceId;
+export const softReset = async () => {
+    try {
+        const currentState = await loadAppStateFromStorage();
+        const preservedState = {};
+        if (currentState) {
+            if (currentState.currentSourceId) preservedState.currentSourceId = currentState.currentSourceId;
+            if (currentState.lastPracticeSourceId) preservedState.lastPracticeSourceId = currentState.lastPracticeSourceId;
+        }
+
+        await paramsStorage.clear();
+        await stateStorage.clear();
+
+        if (Object.keys(preservedState).length > 0) {
+            await saveAppStateToStorage(preservedState);
+        }
+
+        window.location.reload();
+    } catch (e) {
+        console.error('Soft reset failed:', e);
     }
-
-    // 2. Clear all LocalStorage (Params & State)
-    clearLocalStorage();
-
-    // 3. Restore only the source IDs
-    if (Object.keys(preservedState).length > 0) {
-        saveAppStateToStorage(preservedState);
-    }
-
-    // 4. Do NOT clear IndexedDB (preserves uploaded audio)
-
-    // 5. Reload to apply defaults to everything else
-    window.location.reload();
 };
