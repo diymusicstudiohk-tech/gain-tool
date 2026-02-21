@@ -23,9 +23,6 @@ const ControlHud = ({
     playingType, lastPlayedType, isDryMode, isDeltaMode,
     handleModeChange, toggleDeltaMode, togglePlayback,
 
-    // A/B & Presets
-    activeSlot, handleABSwitch,
-
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
     resetAllParams,

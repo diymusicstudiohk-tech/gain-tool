@@ -272,7 +272,6 @@ const useVisualizerLoop = ({
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
         signalFlowMode // [NEW] Dep
     ]);
