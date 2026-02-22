@@ -9,6 +9,10 @@
 .glass-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
 /* 強制設定背景色，確保網頁滿版，禁止 scroll */
+html, body, #root {
+  touch-action: manipulation; /* prevent double-tap zoom on iOS */
+}
+
 html, body {
   background-color: #111111; /* App background per colour-guide.md */
   color: white;
