@@ -38,6 +38,7 @@ const Header = ({
 }) => {
     const [isOptionsOpen, setIsOptionsOpen] = useState(false);
     const optionsRef = useRef(null);
+    const [showAbout, setShowAbout] = useState(false);
 
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -95,11 +96,72 @@ const Header = ({
                 onConfirm={confirmChange}
                 onCancel={cancelChange}
             />
-            <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2 text-white">
-                    看得見的壓縮器 {APP_VERSION}
-                </h1>
+            {/* About modal */}
+            {showAbout && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                    onClick={() => setShowAbout(false)}
+                >
+                    <div
+                        className="bg-[#202020] border border-white/10 rounded-xl shadow-2xl p-6 min-w-[260px] max-w-sm mx-4 flex flex-col gap-4"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#C0A374' }}>
+                                <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
+                                <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />
+                            </svg>
+                            <span className="text-white font-medium text-sm">金耳朵壓縮顯示器</span>
+                        </div>
+                        <div className="border-t border-white/10" />
+                        <div className="flex flex-col gap-1">
+                            <span className="text-xs text-slate-400 uppercase tracking-wider">最新更新</span>
+                            <span className="text-sm text-white font-mono">
+                                {(() => {
+                                    try {
+                                        return new Date(__GIT_COMMIT_TIME__).toLocaleString('zh-HK', {
+                                            timeZone: 'Asia/Hong_Kong',
+                                            year: 'numeric', month: '2-digit', day: '2-digit',
+                                            hour: '2-digit', minute: '2-digit', second: '2-digit',
+                                            hour12: false,
+                                        });
+                                    } catch (_) {
+                                        return __GIT_COMMIT_TIME__;
+                                    }
+                                })()}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => setShowAbout(false)}
+                            className="self-end text-xs text-slate-400 hover:text-white transition-colors px-3 py-1 rounded-md hover:bg-white/10"
+                        >
+                            關閉
+                        </button>
+                    </div>
+                </div>
+            )}
 
+            <div>
+                <h1
+                    className="text-sm font-medium flex items-center gap-2 text-white cursor-pointer hover:opacity-75 transition-opacity select-none"
+                    onClick={() => setShowAbout(true)}
+                    title="點擊查看版本資訊"
+                >
+                    <svg
+                        className="w-6 h-6"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ color: '#C0A374' }}
+                    >
+                        <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
+                        <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />
+                    </svg>
+                    金耳朵壓縮顯示器
+                </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 relative">
                 {/* Clear Upload Button */}
@@ -142,7 +204,7 @@ const Header = ({
 
                 <button
                     onClick={switchToPractice}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId !== 'upload' ? 'bg-orange-600 text-white border-orange-500 animate-pulse' : 'bg-slate-800 text-orange-400 hover:bg-slate-700'}`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId !== 'upload' ? 'bg-[#B54C35] text-white border-[#B54C35] animate-pulse' : 'bg-slate-800 text-[#B54C35] hover:bg-slate-700'}`}
                 >
                     {currentSourceId !== 'upload' && <Play size={16} fill="currentColor" />}
                     練習音檔
