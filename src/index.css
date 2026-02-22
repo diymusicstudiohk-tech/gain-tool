@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Glass scrollbar (matches colour-guide.md §15) */
+.glass-scrollbar::-webkit-scrollbar { width: 6px; }
+.glass-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.glass-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+.glass-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
 /* 強制設定背景色，確保網頁滿版 */
 body {
   background-color: #111111; /* App background per colour-guide.md */

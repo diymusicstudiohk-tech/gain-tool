@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
-    Settings2, Upload, User, Download, Ban, RotateCcw, FolderOpen, ChevronDown
+    Settings2, Upload, User, Download, Ban, RotateCcw, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION, PRESETS_DATA } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -64,6 +64,20 @@ const Header = ({
     const [isCustomDropdownOpen, setIsCustomDropdownOpen] = useState(false);
     const customDropdownRef = useRef(null);
     const customPracticeInputRef = useRef(null);
+    const customListRef = useRef(null);
+    const [canScrollUp, setCanScrollUp] = useState(false);
+    const [canScrollDown, setCanScrollDown] = useState(false);
+
+    const updateScrollIndicators = useCallback(() => {
+        if (!customListRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = customListRef.current;
+        setCanScrollUp(scrollTop > 5);
+        setCanScrollDown(scrollTop < scrollHeight - clientHeight - 5);
+    }, []);
+
+    useEffect(() => {
+        if (isCustomDropdownOpen) setTimeout(updateScrollIndicators, 50);
+    }, [isCustomDropdownOpen, updateScrollIndicators]);
 
     // Load custom audio index from DB on mount
     useEffect(() => {
@@ -314,84 +328,123 @@ const Header = ({
                     練習音檔
                 </button>
 
-                {/* Custom practice audio dropdown */}
+                {/* Custom practice audio dropdown — EqPresetDropdown style */}
                 <div className="relative" ref={customDropdownRef}>
-                    {/* Trigger */}
+                    {/* Trigger button */}
                     <button
-                        onClick={() => setIsCustomDropdownOpen(o => !o)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-bold border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition-all cursor-pointer ${currentSourceId === 'upload' ? 'opacity-50 pointer-events-none' : ''}`}
+                        onClick={() => !currentSourceId || currentSourceId === 'upload' ? null : setIsCustomDropdownOpen(o => !o)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-300 border-2 max-w-[180px]
+                            ${currentSourceId === 'upload' || !currentSourceId
+                                ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                                : isCustomDropdownOpen
+                                    ? 'bg-[#C2A475] border-[#C2A475] text-black z-10'
+                                    : 'bg-[#202020] border-white/30 text-gray-300 opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                            }`}
                     >
-                        <span className="max-w-[120px] truncate">{dropdownDisplayName}</span>
-                        <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${isCustomDropdownOpen ? 'rotate-180' : ''}`} />
+                        <span className="truncate">{dropdownDisplayName}</span>
+                        <ChevronDown size={14} className="flex-shrink-0" />
                     </button>
 
                     {/* Dropdown panel */}
                     {isCustomDropdownOpen && (
-                        <div className="absolute top-full left-0 mt-1 w-56 max-h-80 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[200] flex flex-col">
-
-                            {/* Load custom file */}
-                            <button
-                                onClick={() => { customPracticeInputRef.current?.click(); setIsCustomDropdownOpen(false); }}
-                                className="flex items-center gap-2 px-3 py-2.5 text-sm text-[#C2A475] hover:bg-white/10 transition-colors border-b border-dashed border-slate-700 flex-shrink-0"
+                        <div
+                            className="absolute top-full left-0 mt-1 w-64 bg-black/70 border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)] z-[200] overflow-hidden glass-scrollbar"
+                            style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                        >
+                            {/* Scrollable list */}
+                            <div
+                                ref={customListRef}
+                                className="max-h-[400px] overflow-y-auto glass-scrollbar"
+                                onScroll={updateScrollIndicators}
                             >
-                                <FolderOpen size={14} className="flex-shrink-0" />
-                                載入自訂音檔
-                            </button>
+                                {/* Load custom file */}
+                                <button
+                                    onClick={() => { customPracticeInputRef.current?.click(); setIsCustomDropdownOpen(false); }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[#C2A475] hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
+                                >
+                                    <FolderOpen size={14} className="flex-shrink-0" />
+                                    載入自訂音檔
+                                </button>
 
-                            {/* Custom files */}
-                            {customAudioFiles.length > 0 && (
-                                <>
-                                    {customAudioFiles.map(f => {
-                                        const isActive = currentSourceId === `custom_${f.id}`;
-                                        return (
-                                            <div key={f.id} className={`flex items-center gap-1 px-3 py-2 hover:bg-white/10 transition-colors ${isActive ? 'bg-[#B54C35]/20' : ''}`}>
-                                                <button
-                                                    className="flex-1 text-left text-sm text-slate-200 truncate"
-                                                    onClick={() => handleSelectCustomSource(f)}
-                                                    title={f.name}
-                                                >
-                                                    {f.name}
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleRemoveCustomFile(f.id); }}
-                                                    className="flex-shrink-0 p-0.5 text-slate-500 hover:text-red-400 transition-colors"
-                                                    title="移除"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                    <div className="border-t border-slate-700 my-0.5" />
-                                </>
-                            )}
+                                <div className="border-t border-white/10" />
 
-                            {/* Built-in sources grouped by category */}
-                            {Object.entries(
-                                AUDIO_SOURCES.reduce((acc, s) => {
-                                    if (!acc[s.category]) acc[s.category] = [];
-                                    acc[s.category].push(s);
-                                    return acc;
-                                }, {})
-                            ).map(([category, sources]) => (
-                                <div key={category}>
-                                    <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-500 font-bold bg-black/20">
-                                        {category}
+                                {/* Custom files */}
+                                {customAudioFiles.length > 0 && (
+                                    <>
+                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                            自訂音檔
+                                        </div>
+                                        {customAudioFiles.map(f => {
+                                            const isActive = currentSourceId === `custom_${f.id}`;
+                                            return (
+                                                <div
+                                                    key={f.id}
+                                                    className={`flex items-center gap-1 rounded-md mx-0.5 transition-colors duration-150 ${isActive ? 'bg-[#B54C35] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                >
+                                                    <button
+                                                        className="flex-1 text-left px-3 py-2 text-sm truncate"
+                                                        onClick={() => handleSelectCustomSource(f)}
+                                                        title={f.name}
+                                                    >
+                                                        {f.name}
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRemoveCustomFile(f.id); }}
+                                                        className={`flex-shrink-0 p-1.5 transition-colors ${isActive ? 'text-white/70 hover:text-white' : 'text-white/30 hover:text-red-400'}`}
+                                                        title="移除"
+                                                    >
+                                                        <X size={11} />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                        <div className="border-t border-white/10 mt-1" />
+                                    </>
+                                )}
+
+                                {/* Built-in sources grouped by category */}
+                                {Object.entries(
+                                    AUDIO_SOURCES.reduce((acc, s) => {
+                                        if (!acc[s.category]) acc[s.category] = [];
+                                        acc[s.category].push(s);
+                                        return acc;
+                                    }, {})
+                                ).map(([category, sources]) => (
+                                    <div key={category}>
+                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                            {category}
+                                        </div>
+                                        {sources.map(source => {
+                                            const isActive = currentSourceId === source.id;
+                                            return (
+                                                <button
+                                                    key={source.id}
+                                                    onClick={() => handleSelectRegularSource(source)}
+                                                    className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-[#C2A475] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                >
+                                                    {source.name}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                    {sources.map(source => {
-                                        const isActive = currentSourceId === source.id;
-                                        return (
-                                            <button
-                                                key={source.id}
-                                                onClick={() => handleSelectRegularSource(source)}
-                                                className={`w-full text-left px-4 py-1.5 text-sm transition-colors hover:bg-white/10 ${isActive ? 'text-[#C2A475] font-bold' : 'text-slate-200'}`}
-                                            >
-                                                {source.name}
-                                            </button>
-                                        );
-                                    })}
+                                ))}
+                            </div>
+
+                            {/* Scroll indicators */}
+                            {canScrollUp && (
+                                <div className="absolute top-0 right-2 pointer-events-none">
+                                    <div className="bg-gray-700/90 rounded-full p-0.5 mt-1">
+                                        <ChevronUp size={12} className="text-[#C2A475]" />
+                                    </div>
                                 </div>
-                            ))}
+                            )}
+                            {canScrollDown && (
+                                <div className="absolute bottom-0 right-2 pointer-events-none">
+                                    <div className="bg-gray-700/90 rounded-full p-0.5 mb-1">
+                                        <ChevronDown size={12} className="text-[#C2A475]" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
