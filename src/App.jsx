@@ -63,7 +63,7 @@ const App = () => {
     }, []);
 
     // --- 1. Debug ---
-    const { copyStatus, logAction, handleCopyDebug } = useDebug();
+    const { logAction } = useDebug();
 
     // --- 2. View State ---
     const view = useViewState({ containerRef });
@@ -432,26 +432,7 @@ const App = () => {
                 </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#202020] border-t border-white/10 flex items-center justify-center z-50">
-                <button
-                    onClick={() => handleCopyDebug({
-                        audioContext, originalBuffer,
-                        getCurrentStateSnapshot: comp.getCurrentStateSnapshot,
-                        fileName: engine.fileName,
-                        currentSourceId: engine.currentSourceId,
-                        playingType: playback.playingType,
-                        isPlayingRef, resolutionPct: engine.resolutionPct,
-                        canvasDims: view.canvasDims,
-                        waveformCanvasRef,
-                    })}
-                    className="text-[10px] text-slate-500 hover:text-cyan-400 font-mono tracking-widest uppercase transition-colors px-4 py-1 hover:bg-white/5 rounded"
-                >
-                    {copyStatus === 'idle' && '[ copy all program setting ]'}
-                    {copyStatus === 'copying' && '[ generating... ]'}
-                    {copyStatus === 'success' && '[ ✅ copied to clipboard ]'}
-                    {copyStatus === 'error' && '[ ❌ copy failed ]'}
-                </button>
-            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#111111] z-50" />
         </div>
     );
 };
