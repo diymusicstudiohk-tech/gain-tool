@@ -131,6 +131,19 @@ const Header = ({
                                 })()}
                             </span>
                         </div>
+                        <div className="border-t border-white/10" />
+                        <button
+                            onClick={() => {
+                                setShowAbout(false);
+                                stopAudio();
+                                setPendingAction('factoryReset');
+                                setShowConfirmModal(true);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-green-500 bg-green-600 text-white hover:bg-green-500"
+                        >
+                            <RotateCcw size={16} />
+                            還原所有設定
+                        </button>
                         <button
                             onClick={() => setShowAbout(false)}
                             className="self-end text-xs text-slate-400 hover:text-white transition-colors px-3 py-1 rounded-md hover:bg-white/10"
@@ -328,20 +341,6 @@ const Header = ({
                 </div>
 
 
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
-                <button
-                    onClick={() => {
-                        stopAudio();
-                        setPendingAction('factoryReset');
-                        setShowConfirmModal(true);
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-green-500 bg-green-600 text-white hover:bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                    title="還原所有設定"
-                >
-                    <RotateCcw size={16} />
-                    還原所有設定
-                </button>
             </div>
         </div >
     );
