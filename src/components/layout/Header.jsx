@@ -150,22 +150,20 @@ const Header = ({
         }
     };
 
-    // Select a regular (built-in) source from dropdown
+    // Select a regular (built-in) source from dropdown — switch directly, no confirmation
     const handleSelectRegularSource = (source) => {
         setIsCustomDropdownOpen(false);
         if (source.id === currentSourceId) return;
-        setPendingSource(source);
-        setPendingAction('sourceChange');
-        setShowConfirmModal(true);
+        resetAllParams();
+        loadPreset(source);
     };
 
-    // Select a custom source from dropdown
+    // Select a custom source from dropdown — switch directly, no confirmation
     const handleSelectCustomSource = (file) => {
         setIsCustomDropdownOpen(false);
         if (currentSourceId === `custom_${file.id}`) return;
-        setPendingCustomFile(file);
-        setPendingAction('customSourceChange');
-        setShowConfirmModal(true);
+        resetAllParams();
+        loadCustomAudio(file.id, file.name);
     };
 
     const confirmChange = () => {
