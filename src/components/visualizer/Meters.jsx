@@ -195,7 +195,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
     const safeCfHeight = Math.max(0, cfHeight);
 
     return (
-        <div className="w-44 flex flex-row bg-slate-950 border-l border-slate-800 flex-none h-full">
+        <div className="w-44 flex flex-row bg-[#111111] border-l border-slate-800 flex-none h-full">
             {/* Left Column: GR + CF + Spacer */}
             <div className="w-1/3 flex flex-col border-r border-slate-800 h-full">
                 {/* GR Meter */}
@@ -210,7 +210,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
                 </div>
 
                 {/* Spacer for HUD */}
-                <div className="w-full bg-slate-950" style={{ height: hudSpacer }}></div>
+                <div className="w-full bg-[#111111]" style={{ height: hudSpacer }}></div>
             </div>
 
             {/* Right Column: Output */}

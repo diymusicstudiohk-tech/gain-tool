@@ -4,7 +4,7 @@
 
 /* 強制設定背景色，確保網頁滿版 */
 body {
-  background-color: #020617; /* 這是你程式碼用的 slate-950 */
+  background-color: #111111; /* App background per colour-guide.md */
   color: white;
   margin: 0;
   min-height: 100vh;

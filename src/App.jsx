@@ -250,7 +250,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden p-4 relative">
+        <div className="h-screen flex flex-col bg-[#111111] text-slate-200 overflow-hidden p-4 relative">
             <Header
                 fileName={engine.fileName}
                 resolutionPct={engine.resolutionPct} setResolutionPct={engine.setResolutionPct}
@@ -431,7 +431,7 @@ const App = () => {
                 </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-900 border-t border-white/10 flex items-center justify-center z-50">
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#202020] border-t border-white/10 flex items-center justify-center z-50">
                 <button
                     onClick={() => handleCopyDebug({
                         audioContext, originalBuffer,
