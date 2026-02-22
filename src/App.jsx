@@ -263,6 +263,7 @@ const App = () => {
                 userBufferRef={engine.userBufferRef} userFileNameRef={engine.userFileNameRef}
                 handleDownload={engine.handleDownload} isLoading={engine.isLoading}
                 loadPreset={engine.loadAudio}
+                loadCustomAudio={engine.loadCustomAudio}
                 isInfoPanelEnabled={view.isInfoPanelEnabled} setIsInfoPanelEnabled={view.setIsInfoPanelEnabled}
                 fileInputRef={engine.fileInputRef}
                 resetAllParams={() => {

@@ -1,10 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
     ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
-    Settings2, Upload, User, Download, Ban, RotateCcw
+    Settings2, Upload, User, Download, Ban, RotateCcw, FolderOpen, ChevronDown
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION, PRESETS_DATA } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
+import {
+    loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
+    saveCustomAudioBlobToDB, deleteCustomAudioBlobFromDB,
+} from '../../utils/storage';
+
+const MAX_CUSTOM_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
+const CUSTOM_ALLOWED_MIME_TYPES = [
+    'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac',
+    'audio/ogg', 'audio/flac', 'audio/x-m4a', 'audio/x-wav',
+    'audio/webm', 'audio/mp3',
+    'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
+];
 
 const Header = ({
     fileName,
@@ -29,7 +41,8 @@ const Header = ({
     resetAllParams,
 
     handleFactoryReset,
-    stopAudio, // [NEW]
+    stopAudio,
+    loadCustomAudio,
 
     // Presets
     selectedPresetIdx,
@@ -43,9 +56,21 @@ const Header = ({
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [pendingSource, setPendingSource] = useState(null);
-    const [pendingAction, setPendingAction] = useState(null); // 'sourceChange' | 'factoryReset'
+    const [pendingCustomFile, setPendingCustomFile] = useState(null);
+    const [pendingAction, setPendingAction] = useState(null); // 'sourceChange' | 'customSourceChange' | 'factoryReset'
 
-    // Click Outside to Close Options
+    // Custom practice audio files
+    const [customAudioFiles, setCustomAudioFiles] = useState([]); // [{ id, name }]
+    const [isCustomDropdownOpen, setIsCustomDropdownOpen] = useState(false);
+    const customDropdownRef = useRef(null);
+    const customPracticeInputRef = useRef(null);
+
+    // Load custom audio index from DB on mount
+    useEffect(() => {
+        loadCustomAudioIndexFromDB().then(setCustomAudioFiles);
+    }, []);
+
+    // Click outside to close options panel
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (isOptionsOpen && optionsRef.current && !optionsRef.current.contains(event.target)) {
@@ -56,16 +81,77 @@ const Header = ({
         return () => window.removeEventListener('mousedown', handleClickOutside, true);
     }, [isOptionsOpen]);
 
-    const handleSourceChange = (e) => {
-        const newId = e.target.value;
-        if (newId === currentSourceId) return;
+    // Click outside to close custom dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isCustomDropdownOpen && customDropdownRef.current && !customDropdownRef.current.contains(event.target)) {
+                setIsCustomDropdownOpen(false);
+            }
+        };
+        if (isCustomDropdownOpen) window.addEventListener('mousedown', handleClickOutside, true);
+        return () => window.removeEventListener('mousedown', handleClickOutside, true);
+    }, [isCustomDropdownOpen]);
 
-        const selected = AUDIO_SOURCES.find(s => s.id === newId);
-        if (selected) {
-            setPendingSource(selected);
-            setPendingAction('sourceChange');
-            setShowConfirmModal(true);
+    // Derive display name for the dropdown trigger
+    const dropdownDisplayName = (() => {
+        const sid = currentSourceId === 'upload' ? lastPracticeSourceId : currentSourceId;
+        if (sid?.startsWith('custom_')) {
+            const id = sid.replace('custom_', '');
+            const f = customAudioFiles.find(f => f.id === id);
+            return f ? (f.name.length > 14 ? f.name.substring(0, 12) + '…' : f.name) : '自訂音檔';
         }
+        const src = AUDIO_SOURCES.find(s => s.id === sid);
+        return src ? src.name : '選擇音檔';
+    })();
+
+    // Custom practice file picker handler
+    const handleCustomAudioFilesSelected = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const newEntries = [];
+        for (const file of files) {
+            if (file.size > MAX_CUSTOM_FILE_SIZE) continue;
+            if (file.type && !CUSTOM_ALLOWED_MIME_TYPES.includes(file.type)) continue;
+            const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            await saveCustomAudioBlobToDB(id, file);
+            newEntries.push({ id, name: file.name });
+        }
+        if (!newEntries.length) return;
+        const updated = [...newEntries, ...customAudioFiles];
+        await saveCustomAudioIndexToDB(updated);
+        setCustomAudioFiles(updated);
+        if (e.target) e.target.value = '';
+    };
+
+    // Remove a custom file from DB and state
+    const handleRemoveCustomFile = async (id) => {
+        await deleteCustomAudioBlobFromDB(id);
+        const updated = customAudioFiles.filter(f => f.id !== id);
+        await saveCustomAudioIndexToDB(updated);
+        setCustomAudioFiles(updated);
+        // If the removed file is currently active, fall back to default practice track
+        if (currentSourceId === `custom_${id}`) {
+            resetAllParams();
+            loadPreset(AUDIO_SOURCES[0]);
+        }
+    };
+
+    // Select a regular (built-in) source from dropdown
+    const handleSelectRegularSource = (source) => {
+        setIsCustomDropdownOpen(false);
+        if (source.id === currentSourceId) return;
+        setPendingSource(source);
+        setPendingAction('sourceChange');
+        setShowConfirmModal(true);
+    };
+
+    // Select a custom source from dropdown
+    const handleSelectCustomSource = (file) => {
+        setIsCustomDropdownOpen(false);
+        if (currentSourceId === `custom_${file.id}`) return;
+        setPendingCustomFile(file);
+        setPendingAction('customSourceChange');
+        setShowConfirmModal(true);
     };
 
     const confirmChange = () => {
@@ -73,6 +159,10 @@ const Header = ({
             resetAllParams();
             loadPreset(pendingSource);
             setPendingSource(null);
+        } else if (pendingAction === 'customSourceChange' && pendingCustomFile) {
+            resetAllParams();
+            loadCustomAudio(pendingCustomFile.id, pendingCustomFile.name);
+            setPendingCustomFile(null);
         } else if (pendingAction === 'factoryReset') {
             handleFactoryReset();
         }
@@ -82,6 +172,7 @@ const Header = ({
 
     const cancelChange = () => {
         setPendingSource(null);
+        setPendingCustomFile(null);
         setPendingAction(null);
         setShowConfirmModal(false);
     };
@@ -223,30 +314,96 @@ const Header = ({
                     練習音檔
                 </button>
 
-                <div className="relative">
-                    <select
-                        value={currentSourceId === 'upload' ? lastPracticeSourceId : (currentSourceId || '')}
-                        onChange={handleSourceChange}
-                        className={`appearance-none bg-slate-800 text-slate-200 text-sm font-bold px-3 py-2 pr-8 rounded-md border border-slate-700 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all cursor-pointer ${currentSourceId === 'upload' ? 'opacity-50' : ''}`}
+                {/* Custom practice audio dropdown */}
+                <div className="relative" ref={customDropdownRef}>
+                    {/* Trigger */}
+                    <button
+                        onClick={() => setIsCustomDropdownOpen(o => !o)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-bold border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 transition-all cursor-pointer ${currentSourceId === 'upload' ? 'opacity-50 pointer-events-none' : ''}`}
                     >
-                        <option value="" disabled>Select Audio Source</option>
-                        {Object.entries(AUDIO_SOURCES.reduce((acc, source) => {
-                            if (!acc[source.category]) acc[source.category] = [];
-                            acc[source.category].push(source);
-                            return acc;
-                        }, {})).map(([category, sources]) => (
-                            <optgroup key={category} label={category} className="bg-slate-900 text-slate-400 font-bold">
-                                {sources.map(source => (
-                                    <option key={source.id} value={source.id} className="text-white font-normal">
-                                        {source.name}
-                                    </option>
-                                ))}
-                            </optgroup>
-                        ))}
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </div>
+                        <span className="max-w-[120px] truncate">{dropdownDisplayName}</span>
+                        <ChevronDown size={14} className={`flex-shrink-0 transition-transform ${isCustomDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* Dropdown panel */}
+                    {isCustomDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-1 w-56 max-h-80 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-[200] flex flex-col">
+
+                            {/* Load custom file */}
+                            <button
+                                onClick={() => { customPracticeInputRef.current?.click(); setIsCustomDropdownOpen(false); }}
+                                className="flex items-center gap-2 px-3 py-2.5 text-sm text-[#C2A475] hover:bg-white/10 transition-colors border-b border-dashed border-slate-700 flex-shrink-0"
+                            >
+                                <FolderOpen size={14} className="flex-shrink-0" />
+                                載入自訂音檔
+                            </button>
+
+                            {/* Custom files */}
+                            {customAudioFiles.length > 0 && (
+                                <>
+                                    {customAudioFiles.map(f => {
+                                        const isActive = currentSourceId === `custom_${f.id}`;
+                                        return (
+                                            <div key={f.id} className={`flex items-center gap-1 px-3 py-2 hover:bg-white/10 transition-colors ${isActive ? 'bg-[#B54C35]/20' : ''}`}>
+                                                <button
+                                                    className="flex-1 text-left text-sm text-slate-200 truncate"
+                                                    onClick={() => handleSelectCustomSource(f)}
+                                                    title={f.name}
+                                                >
+                                                    {f.name}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleRemoveCustomFile(f.id); }}
+                                                    className="flex-shrink-0 p-0.5 text-slate-500 hover:text-red-400 transition-colors"
+                                                    title="移除"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                    <div className="border-t border-slate-700 my-0.5" />
+                                </>
+                            )}
+
+                            {/* Built-in sources grouped by category */}
+                            {Object.entries(
+                                AUDIO_SOURCES.reduce((acc, s) => {
+                                    if (!acc[s.category]) acc[s.category] = [];
+                                    acc[s.category].push(s);
+                                    return acc;
+                                }, {})
+                            ).map(([category, sources]) => (
+                                <div key={category}>
+                                    <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-500 font-bold bg-black/20">
+                                        {category}
+                                    </div>
+                                    {sources.map(source => {
+                                        const isActive = currentSourceId === source.id;
+                                        return (
+                                            <button
+                                                key={source.id}
+                                                onClick={() => handleSelectRegularSource(source)}
+                                                className={`w-full text-left px-4 py-1.5 text-sm transition-colors hover:bg-white/10 ${isActive ? 'text-[#C2A475] font-bold' : 'text-slate-200'}`}
+                                            >
+                                                {source.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Hidden file input for custom practice audio */}
+                    <input
+                        ref={customPracticeInputRef}
+                        type="file"
+                        multiple
+                        accept="audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac,audio/x-m4a,audio/webm,video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={handleCustomAudioFilesSelected}
+                    />
                 </div>
                 <div className="w-px h-6 bg-slate-700 mx-1"></div>
 

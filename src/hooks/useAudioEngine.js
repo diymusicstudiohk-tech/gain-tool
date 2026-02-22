@@ -4,7 +4,8 @@ import { processCompressor } from '../utils/dsp';
 import { writeWavFile, toMono, stopCurrentSource } from '../utils/audioHelper';
 import { fetchAudioBuffer } from '../utils/audioLoader';
 import {
-    loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB
+    loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB,
+    loadCustomAudioBlobFromDB,
 } from '../utils/storage';
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
@@ -314,12 +315,40 @@ const useAudioEngine = ({
         }
     }, [audioContext, originalBuffer, currentSourceId, isLoading, loadAudio]);
 
+    const loadCustomAudio = useCallback(async (id, name) => {
+        if (!audioContext) return;
+        try {
+            setIsLoading(true);
+            setErrorMsg('');
+            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            setPlayingType('none');
+            isPlayingRef.current = false;
+            setLoopStart(null);
+            setLoopEnd(null);
+            startOffsetRef.current = 0;
+            setCurrentSourceId(`custom_${id}`);
+            setFileName(name);
+            setOriginalBuffer(null);
+
+            const blob = await loadCustomAudioBlobFromDB(id);
+            if (!blob) throw new Error('找不到音檔');
+            const ab = await blob.arrayBuffer();
+            const decoded = await audioContext.decodeAudioData(ab);
+            handleDecodedBuffer(decoded);
+            setIsLoading(false);
+        } catch (_) {
+            setErrorMsg('無法載入自訂音檔，請重新上載。');
+            setIsLoading(false);
+        }
+    }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef,
+        isPlayingRef, startOffsetRef, setPlayingType, setLoopStart, setLoopEnd, setOriginalBuffer]);
+
     return {
         isLoading, errorMsg,
         currentSourceId, lastPracticeSourceId,
         fileName, resolutionPct, setResolutionPct,
         userBufferRef, userFileNameRef, fileInputRef,
-        loadAudio, handleFileUpload, handleDecodedBuffer,
+        loadAudio, loadCustomAudio, handleFileUpload, handleDecodedBuffer,
         switchToPractice, switchToUpload,
         restoreUserUpload, clearUserUpload, handleDownload,
     };

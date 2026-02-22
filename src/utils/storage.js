@@ -155,6 +155,71 @@ export const clearAudioDB = async () => {
     }
 };
 
+// --- Custom Practice Audio (multiple files) ---
+
+const CUSTOM_AUDIO_INDEX_KEY = 'custom_audio_index';
+const customAudioKey = (id) => `custom_audio_${id}`;
+
+export const loadCustomAudioIndexFromDB = async () => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const req = tx.objectStore(STORE_NAME).get(CUSTOM_AUDIO_INDEX_KEY);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    } catch (_) { return []; }
+};
+
+export const saveCustomAudioIndexToDB = async (index) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const req = tx.objectStore(STORE_NAME).put(index, CUSTOM_AUDIO_INDEX_KEY);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (_) { return false; }
+};
+
+export const saveCustomAudioBlobToDB = async (id, blob) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const req = tx.objectStore(STORE_NAME).put(blob, customAudioKey(id));
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (_) { return false; }
+};
+
+export const loadCustomAudioBlobFromDB = async (id) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const req = tx.objectStore(STORE_NAME).get(customAudioKey(id));
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (_) { return null; }
+};
+
+export const deleteCustomAudioBlobFromDB = async (id) => {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const req = tx.objectStore(STORE_NAME).delete(customAudioKey(id));
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (_) { return false; }
+};
+
 export const factoryReset = async () => {
     clearLocalStorage();
     await clearAudioDB();
