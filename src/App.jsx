@@ -250,7 +250,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className="h-screen flex flex-col bg-[#111111] text-slate-200 overflow-hidden p-4 relative">
+        <div className="h-dvh flex flex-col bg-[#111111] text-slate-200 overflow-hidden p-4 relative">
             <Header
                 fileName={engine.fileName}
                 resolutionPct={engine.resolutionPct} setResolutionPct={engine.setResolutionPct}
