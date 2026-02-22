@@ -1,3 +1,7 @@
+// Pre-computed constants to replace Math.log10/Math.pow(10, x/20) in hot loops
+const LN10_OVER_20 = Math.LN10 / 20;        // Math.exp(db * LN10_OVER_20) ≡ Math.pow(10, db/20)
+const TWENTY_LOG10E = 20 * Math.LOG10E;      // Math.log(x) * TWENTY_LOG10E ≡ 20 * Math.log10(x)
+
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
         threshold, ratio, attack, release, knee, lookahead,
@@ -8,7 +12,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const length = inputData.length;
     const outputData = new Float32Array(length);
     const grCurve = new Float32Array(length);
-    const makeUpLinear = Math.pow(10, makeupGain / 20);
+    const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
     const effectiveSampleRate = sampleRate / step;
 
     const attTime = (attack / 1000) * effectiveSampleRate;
@@ -36,17 +40,17 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
 
         let gateGaindB = 0;
         if (!isGateBypass) {
-            let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+            let gateEnvdB = Math.log(gateEnvelope + 1e-6) * TWENTY_LOG10E;
             if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
         }
-        const gateGainLinear = Math.pow(10, gateGaindB / 20);
+        const gateGainLinear = Math.exp(gateGaindB * LN10_OVER_20);
 
         // Comp
         const gatedDetectorLevel = inputLevel * gateGainLinear;
         if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
         else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
 
-        let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
+        let compEnvdB = Math.log(compEnvelope + 1e-6) * TWENTY_LOG10E;
         let compGainReductiondB = 0;
 
         if (!isCompBypass) {
@@ -61,7 +65,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
             }
         }
 
-        const compGainLinear = Math.pow(10, compGainReductiondB / 20);
+        const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
         outputData[i] = currentInput * gateGainLinear * compGainLinear * makeUpLinear;
         grCurve[i] = Math.min(0, gateGaindB + compGainReductiondB);
     }
@@ -86,7 +90,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 isDeltaMode, dryGain
             } = params;
 
-            const makeUpLinear = Math.pow(10, makeupGain / 20);
+            const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
             const attTime = (attack / 1000) * sampleRate;
             const relTime = (release / 1000) * sampleRate;
             const gAttTime = (gateAttack / 1000) * sampleRate;
@@ -99,7 +103,7 @@ export const createRealTimeCompressor = (sampleRate) => {
 
             // Lookahead is skipped for real-time/script processor as per original code comment
 
-            const dryLinear = Math.pow(10, dryGain / 20);
+            const dryLinear = Math.exp(dryGain * LN10_OVER_20);
 
             for (let i = 0; i < length; i++) {
                 const inputSample = inputData[i];
@@ -113,10 +117,10 @@ export const createRealTimeCompressor = (sampleRate) => {
 
                 let gateGaindB = 0;
                 if (!isGateBypass) {
-                    let gateEnvdB = 20 * Math.log10(gateEnvelope + 1e-6);
+                    let gateEnvdB = Math.log(gateEnvelope + 1e-6) * TWENTY_LOG10E;
                     if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
                 }
-                const gateGainLinear = Math.pow(10, gateGaindB / 20);
+                const gateGainLinear = Math.exp(gateGaindB * LN10_OVER_20);
                 const gatedDetectorLevel = inputLevel * gateGainLinear;
 
                 // Compressor
@@ -125,7 +129,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                     else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
                 }
 
-                let compEnvdB = 20 * Math.log10(compEnvelope + 1e-6);
+                let compEnvdB = Math.log(compEnvelope + 1e-6) * TWENTY_LOG10E;
                 let compGainReductiondB = 0;
 
                 if (!isCompBypass) {
@@ -140,7 +144,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                     }
                 }
 
-                const compGainLinear = Math.pow(10, compGainReductiondB / 20);
+                const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
                 // Final Output
                 const wet = inputSample * gateGainLinear * compGainLinear * makeUpLinear;

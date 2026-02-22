@@ -1,4 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
+
+const LN10_OVER_20 = Math.LN10 / 20;       // Math.exp(db * LN10_OVER_20) ≡ Math.pow(10, db/20)
+const TWENTY_LOG10E = 20 * Math.LOG10E;    // Math.log(x) * TWENTY_LOG10E ≡ 20 * Math.log10(x)
 import { drawMainWaveform } from '../components/visualizer/Waveform';
 import { drawDualMeter, drawGRBar, drawCrestFactorMeter } from '../components/visualizer/Meters';
 
@@ -46,6 +49,8 @@ const useVisualizerLoop = ({
     lastPlayedTypeRef,
     signalFlowMode
 }) => {
+
+    const waveformFrameRef = useRef(0);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -95,7 +100,7 @@ const useVisualizerLoop = ({
 
             const isProcessed = currentType === 'processed' || (currentType !== 'original' && lastType === 'processed');
 
-            const dryLinear = dryGain <= -60 ? 0 : Math.pow(10, dryGain / 20);
+            const dryLinear = dryGain <= -60 ? 0 : Math.exp(dryGain * LN10_OVER_20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;
@@ -116,21 +121,6 @@ const useVisualizerLoop = ({
                     }
                 } else {
                     mix = visualResult.visualInput[i] || 0; // Guard undefined
-                }
-
-                // Debug Trigger
-                if (i === visualIndex && Math.random() < 0.005) {
-                    console.log('[VizDebug]', {
-                        isProcessed,
-                        isDeltaMode,
-                        dryLinear,
-                        mix,
-                        currentInput: visualResult.visualInput[i],
-                        currentOutput: visualResult.outputData ? visualResult.outputData[i] : 'no-out',
-                        currentType,
-                        lastType,
-                        playingType
-                    });
                 }
 
                 const abs = Math.abs(mix);
@@ -158,8 +148,8 @@ const useVisualizerLoop = ({
             let currentInstantCF = 0;
             // Only calculate if we have signal to avoid infinity
             if (currentOutRms > 0.0001 && maxMix > 0.0001) {
-                const peakDb = 20 * Math.log10(maxMix);
-                const rmsDb = 20 * Math.log10(currentOutRms);
+                const peakDb = Math.log(maxMix) * TWENTY_LOG10E;
+                const rmsDb = Math.log(currentOutRms) * TWENTY_LOG10E;
                 currentInstantCF = peakDb - rmsDb;
             } else {
                 currentInstantCF = 0; // Fallback to 0 if silent
@@ -181,24 +171,27 @@ const useVisualizerLoop = ({
                 drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current);
             }
 
-            // Draw Main Waveform
-            drawMainWaveform({
-                canvas: waveformCanvasRef.current,
-                canvasDims,
-                visualResult,
-                originalBuffer,
-                zoomX, zoomY, panOffset, panOffsetY,
-                playingType, lastPlayedType, isDeltaMode, dryGain,
-                threshold, gateThreshold,
-                loopStart, loopEnd,
-                mousePos, hoverLine,
-                isDraggingLine: isDraggingLineRef.current,
-                isCompAdjusting, hasThresholdBeenAdjusted,
-                isGateAdjusting, hasGateBeenAdjusted,
-                hoverGrRef,
-                isGateBypass, isCompBypass,
-                signalFlowMode
-            });
+            // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting
+            waveformFrameRef.current = (waveformFrameRef.current + 1) % 2;
+            if (waveformFrameRef.current === 0 || isDraggingLineRef.current || isCompAdjusting || isGateAdjusting) {
+                drawMainWaveform({
+                    canvas: waveformCanvasRef.current,
+                    canvasDims,
+                    visualResult,
+                    originalBuffer,
+                    zoomX, zoomY, panOffset, panOffsetY,
+                    playingType, lastPlayedType, isDeltaMode, dryGain,
+                    threshold, gateThreshold,
+                    loopStart, loopEnd,
+                    mousePos, hoverLine,
+                    isDraggingLine: isDraggingLineRef.current,
+                    isCompAdjusting, hasThresholdBeenAdjusted,
+                    isGateAdjusting, hasGateBeenAdjusted,
+                    hoverGrRef,
+                    isGateBypass, isCompBypass,
+                    signalFlowMode
+                });
+            }
         }
 
         // Loop & Playback Logic
