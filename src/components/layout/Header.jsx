@@ -206,7 +206,7 @@ const Header = ({
                     {!userBufferRef.current ? <Upload size={16} /> : <User size={16} />}
                     {!userBufferRef.current ? "上載音檔" : (userFileNameRef.current.length > 10 ? userFileNameRef.current.substring(0, 8) + '...' : userFileNameRef.current)}
                 </button>
-                <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} />
+                <input ref={fileInputRef} type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac,audio/x-m4a,audio/webm,video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleFileUpload} />
 
                 <button onClick={handleDownload} disabled={currentSourceId !== 'upload'} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all ${currentSourceId === 'upload' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'}`} title={currentSourceId === 'upload' ? "下載處理後的音檔" : "僅支援下載自行上載的音檔"}>
                     {currentSourceId === 'upload' ? <Download size={16} /> : <Ban size={16} />} 下載壓縮後音檔

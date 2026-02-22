@@ -7,6 +7,15 @@ import {
     loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB
 } from '../utils/storage';
 
+const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
+
+const ALLOWED_MIME_TYPES = [
+    'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac',
+    'audio/ogg', 'audio/flac', 'audio/x-m4a', 'audio/x-wav',
+    'audio/webm', 'audio/mp3',
+    'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
+];
+
 /**
  * Receives shared refs from App.jsx and playback setters to coordinate loading.
  */
@@ -80,7 +89,7 @@ const useAudioEngine = ({
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
             setFileName(preset.name);
 
-            const arrayBuffer = await fetchAudioBuffer(preset.url);
+            const arrayBuffer = await fetchAudioBuffer(preset.trackName);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
             setIsLoading(false);
@@ -106,6 +115,21 @@ const useAudioEngine = ({
     const handleFileUpload = useCallback(async (e) => {
         const file = e.target.files[0];
         if (!file || !audioContext) return;
+
+        // File size validation
+        if (file.size > MAX_FILE_SIZE) {
+            setErrorMsg(`檔案超過 1GB 上限：${file.name}`);
+            if (e.target) e.target.value = '';
+            return;
+        }
+
+        // MIME type validation (allow empty type as some browsers omit it)
+        if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
+            setErrorMsg(`不支援的格式：${file.type || '未知格式'}。支援：MP3, WAV, M4A, AAC, OGG, FLAC`);
+            if (e.target) e.target.value = '';
+            return;
+        }
+
         try {
             setIsLoading(true); setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
@@ -123,7 +147,7 @@ const useAudioEngine = ({
             handleDecodedBuffer(decoded);
             setIsLoading(false);
         } catch (err) {
-            setErrorMsg(`Failed: ${err.message}`);
+            setErrorMsg('無法解析音檔，請確認格式 (MP3/WAV/M4A/AAC/FLAC)。');
             setIsLoading(false);
         }
     }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef, isPlayingRef,
@@ -161,7 +185,7 @@ const useAudioEngine = ({
             const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
             if (source) loadAudio(source, { autoMatchPreset: false });
         } else {
-            const defaultSource = AUDIO_SOURCES.find(s => s.id === 'Lead-Vocal-03') || AUDIO_SOURCES[0];
+            const defaultSource = AUDIO_SOURCES[0];
             loadAudio(defaultSource);
         }
     }, [sourceNodeRef, drySourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
