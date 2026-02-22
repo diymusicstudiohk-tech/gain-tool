@@ -37,7 +37,8 @@ const RotaryKnob = ({
     const colors = {
         cyan: "#22d3ee", indigo: "#818cf8", yellow: "#facc15", slate: "#94a3b8",
         red: "#f87171", orange: "#fb923c", blue: "#3b82f6", pink: "#ec4899",
-        emerald: "#10b981", rose: "#f43f5e", purple: "#d8b4fe"
+        emerald: "#10b981", rose: "#f43f5e", purple: "#d8b4fe",
+        gold: "#C2A475"
     };
     const strokeColor = disabled ? '#475569' : (colors[color] || colors.slate);
     const labelColorClass = disabled ? 'text-slate-600' : 'text-slate-500 hover:text-slate-300';
