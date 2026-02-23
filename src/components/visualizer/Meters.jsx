@@ -225,7 +225,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
                 </div>
 
                 {/* Crest Factor Meter */}
-                <div className="relative w-full border-t border-[#2B2B2B]" style={{ height: safeCfHeight }}>
+                <div className="relative w-full" style={{ height: safeCfHeight }}>
                     <canvas ref={cfMeterCanvasRef} className="w-full h-full" />
                 </div>
             </div>
