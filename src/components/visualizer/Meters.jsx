@@ -160,27 +160,11 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
     // Clear
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#202020';
-    ctx.fillRect(4, 0, width - 8, height); // Slightly narrower to match GR
 
     // Scale range: 3dB (bottom) to 20dB (top)
     const minDb = 3;
     const maxDb = 20;
     const range = maxDb - minDb;
-
-    // Background scale ticks
-    ctx.strokeStyle = '#2B2B2B';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-
-    const dbTicks = [6, 12, 18];
-    dbTicks.forEach(db => {
-        const pct = (db - minDb) / range;
-        const y = height - (pct * height);
-        ctx.moveTo(4, y);
-        ctx.lineTo(width - 4, y);
-    });
-    ctx.stroke();
 
     // Value Indicator
     // Clamp value
