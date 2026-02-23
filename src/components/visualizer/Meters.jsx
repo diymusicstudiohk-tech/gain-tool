@@ -15,7 +15,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -37,19 +37,47 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = 60; }
     else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= 0.98; }
 
+    // GR State Logic
+    const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
+    meterState.grPeakLevel = reductionLinear;
+    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = 60; }
+    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= 0.95; }
+
     // Drawing
     ctx.clearRect(0, 0, width, height);
 
     const PADDING = 24; const maxPixelHeight = (height / 2) - PADDING;
+    const grMaxPixelHeight = maxPixelHeight * 0.5;
 
-    const barWidth = (width / 2) * 0.5 * (2 / 3);
-    const spacing = width / 4 * 0.5;
-    const dryCenterX = width / 2 - spacing;
-    const outCenterX = width / 2 + spacing;
+    // 3 bars equally spaced
+    const barWidth = width / 8;
+    const centerSpacing = width / 4;
+    const grCenterX = width / 4;
+    const dryCenterX = width / 2;
+    const outCenterX = 3 * width / 4;
+    const grX = grCenterX - (barWidth / 2);
     const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
 
-    // Dry Bar
+    // --- GR Bar (top-down) ---
+    if (meterState.grPeakLevel > 0.001) {
+        const barHeight = meterState.grPeakLevel * grMaxPixelHeight;
+        ctx.fillStyle = '#E05E42'; ctx.fillRect(grX, 0, barWidth, barHeight);
+        ctx.fillStyle = '#fff'; ctx.fillRect(grX, barHeight - 2, barWidth, 2);
+    }
+    if (meterState.grHoldPeakLevel > 0.001) {
+        const holdHeight = meterState.grHoldPeakLevel * grMaxPixelHeight;
+        ctx.fillStyle = '#D4B88A'; ctx.fillRect(grX, holdHeight, barWidth, 2);
+        let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
+        if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12); }
+    }
+    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1) {
+        const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
+        ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(grX, hoverY); ctx.lineTo(grX + barWidth, hoverY); ctx.stroke();
+    }
+
+    // --- Dry Bar (center-outward) ---
     const dryBarDist = Math.min(meterState.dryPeakLevel, 1.4) * maxPixelHeight;
     if (dryBarDist > 0) {
         const grad = getCachedGradient(canvas, ctx, 'dry', width, height, PADDING, (c, w, h, p) => {
@@ -69,7 +97,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const isClipping = meterState.outClipping;
     const outColor = isClipping ? '#E05E42' : '#C2A475';
 
-    // Output Bar (solid fill, no gradient)
+    // --- Output Bar (center-outward) ---
     const outBarDist = Math.min(meterState.peakLevel, 1.4) * maxPixelHeight;
     if (outBarDist > 0) {
         ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
@@ -92,6 +120,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, centerY - outHoldDist - 6); }
 
     ctx.fillStyle = '#888'; ctx.font = 'bold 10px sans-serif';
+    ctx.fillText("GR", grCenterX, 12);
     ctx.fillText("In", dryCenterX, 12);
     ctx.fillText("Out", outCenterX, 12);
 
@@ -204,37 +233,25 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 // --- Component ---
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
-    // Layout Update:
-    // Left Col (1/3): GR Meter + CF Meter + Spacer
-    // Right Col (2/3): Output Meter (Full Height)
-
-    const cfHeight = Math.floor(height * 0.3); // 30% of total height
-    const grHeight = height - cfHeight;
-
-    // Ensure non-negative heights
-    const safeGrHeight = Math.max(0, grHeight);
+    const cfHeight = Math.floor(height * 0.3);
     const safeCfHeight = Math.max(0, cfHeight);
 
     return (
         <div className="w-44 flex flex-row flex-none h-full">
-            {/* Left Column: GR + CF */}
-            <div className="w-1/3 flex flex-col h-full">
-                {/* GR Meter */}
-                <div className="relative w-full flex-1" style={{ height: safeGrHeight }}>
-                    <canvas ref={grCanvasRef} className="w-full h-full" />
-                    <div className="absolute top-1 left-0 w-full text-center text-[9px] text-[#888] font-bold">GR</div>
-                </div>
-
-                {/* Crest Factor Meter */}
+            {/* Left Column: CF only */}
+            <div className="w-1/4 flex flex-col h-full">
+                <div className="flex-1" />
                 <div className="relative w-full" style={{ height: safeCfHeight }}>
                     <canvas ref={cfMeterCanvasRef} className="w-full h-full" />
                 </div>
             </div>
 
-            {/* Right Column: Output */}
-            <div className="w-2/3 relative h-full">
+            {/* Right Column: GR + In + Out (triple meter) */}
+            <div className="w-3/4 relative h-full">
                 <canvas ref={outputCanvasRef} className="w-full h-full" />
             </div>
+            {/* Hidden GR canvas (kept for ref compatibility) */}
+            <canvas ref={grCanvasRef} className="hidden" />
         </div>
     );
 };
