@@ -111,8 +111,9 @@ export const drawMainWaveform = ({
         const dryLinear = Math.pow(10, dryGain / 20);
 
         // Viewport culling: compute visible pixel range
-        const loopStartX = Math.max(0, Math.floor(-panOffset / 1) - 1);  // first visible pixel
-        const loopEndX = Math.min(width, Math.ceil((-panOffset + width) / 1) + 1); // extra safety margin but capped
+        // panOffset can be negative (audio shifted left) — use panOffset directly, not -panOffset
+        const loopStartX = Math.max(0, Math.floor(panOffset) - 1);  // first visible pixel
+        const loopEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1); // capped at canvas width
 
         // Select mipmap levels for this zoom
         const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
 
 import { PRESETS_DATA, TOOLTIPS } from './utils/constants';
@@ -69,6 +69,40 @@ const App = () => {
 
     // --- 2. View State ---
     const view = useViewState({ containerRef });
+
+    // --- Region: controls what portion of audio is shown in the main visualizer ---
+    // regionStart / regionEnd are normalized fractions [0, 1]
+    const [regionStart, setRegionStart] = useState(0);
+    const [regionEnd, setRegionEnd] = useState(1);
+
+    const handleRegionChange = useCallback((s, e) => {
+        setRegionStart(s);
+        setRegionEnd(e);
+    }, []);
+
+    // When a new audio file loads, default region to 2-second window centred at midpoint
+    useEffect(() => {
+        if (!originalBuffer) return;
+        const D = originalBuffer.duration;
+        if (D <= 2) {
+            setRegionStart(0);
+            setRegionEnd(1);
+        } else {
+            const half = 1 / D; // 1 second expressed as fraction
+            setRegionStart(0.5 - half);
+            setRegionEnd(0.5 + half);
+        }
+    }, [originalBuffer]);
+
+    // Sync region fractions → zoomX + panOffset (in pixels)
+    useEffect(() => {
+        const width = view.canvasDims.width;
+        if (width === 0) return;
+        const regionWidth = regionEnd - regionStart;
+        if (regionWidth < 0.01) return;
+        view.setZoomX(1 / regionWidth);
+        view.setPanOffset(-regionStart * width / regionWidth);
+    }, [regionStart, regionEnd, view.canvasDims.width]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- 3. Compressor Params (uses refs for mode switch) ---
     const comp = useCompressorParams({
@@ -261,6 +295,8 @@ const App = () => {
                     comp.resetAllParams();
                     view.resetView();
                     playback.setIsDeltaMode(false);
+                    setRegionStart(0);
+                    setRegionEnd(1);
                 }}
                 makeupGain={comp.makeupGain} dryGain={comp.dryGain}
                 handleGainChange={comp.handleGainChange}
@@ -338,6 +374,9 @@ const App = () => {
                 playBufferRef={playBufferRef}
                 playingTypeRef={playback.playingTypeRef}
                 outputPlayheadRef={outputPlayheadRef}
+                regionStart={regionStart}
+                regionEnd={regionEnd}
+                onRegionChange={handleRegionChange}
             />
 
             <ControlHud
@@ -379,6 +418,8 @@ const App = () => {
                     comp.resetAllParams();
                     view.resetView();
                     playback.setIsDeltaMode(false);
+                    setRegionStart(0);
+                    setRegionEnd(1);
                 }}
             />
 
