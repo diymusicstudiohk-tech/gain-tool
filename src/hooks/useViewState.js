@@ -9,8 +9,6 @@ const useViewState = ({ containerRef }) => {
     const [panOffsetY, setPanOffsetY] = useState(0);
     const [cuePoint, setCuePoint] = useState(0);
     const [canvasDims, setCanvasDims] = useState({ width: 1000, height: 400 });
-    const [signalFlowMode, setSignalFlowMode] = useState('comp1');
-
     // Info panel
     const [hoveredKnob, setHoveredKnob] = useState(null);
     const [showInfoPanel, setShowInfoPanel] = useState(false);
@@ -22,7 +20,6 @@ const useViewState = ({ containerRef }) => {
         const savedState = loadAppStateFromStorage();
         if (savedState) {
             if (savedState.isInfoPanelEnabled !== undefined) setIsInfoPanelEnabled(savedState.isInfoPanelEnabled);
-            if (savedState.signalFlowMode) setSignalFlowMode(savedState.signalFlowMode);
         }
     }, []);
 
@@ -63,7 +60,6 @@ const useViewState = ({ containerRef }) => {
         panOffsetY, setPanOffsetY,
         cuePoint, setCuePoint,
         canvasDims, setCanvasDims,
-        signalFlowMode, setSignalFlowMode,
         hoveredKnob, setHoveredKnob,
         showInfoPanel, setShowInfoPanel,
         isInfoPanelEnabled, setIsInfoPanelEnabled,

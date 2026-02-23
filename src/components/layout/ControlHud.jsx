@@ -31,9 +31,7 @@ const ControlHud = ({
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
     resetAllParams,
-    signalFlowMode
 }) => {
-    const isClipMode = signalFlowMode === 'clip';
     const [expandedModule, setExpandedModule] = useState('comp');
     const cycleModule = (current) => {
         const order = ['gate', 'comp'];
@@ -101,7 +99,7 @@ const ControlHud = ({
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={() => handleModeChange(isDryMode ? 'processed' : 'original')}
                             title={isDryMode ? "關閉 Bypass" : "開啟 Bypass"}
-                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''} ${
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDryMode
                                     ? 'breathe-brick-red border-[#B54C35]'
                                     : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
@@ -115,7 +113,7 @@ const ControlHud = ({
                             onClick={toggleDeltaMode}
                             disabled={isDryMode}
                             title="Delta Monitoring"
-                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''} ${
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDryMode
                                     ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
                                     : isDeltaMode
@@ -126,7 +124,7 @@ const ControlHud = ({
                             <Triangle size={14} fill={isDeltaMode ? "white" : "none"} className="relative z-10 text-white" />
                         </button>
                         {/* Comp Preset Button */}
-                        <div className={`relative ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`} ref={presetDropdownRef}>
+                        <div className="relative" ref={presetDropdownRef}>
                             <button
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onClick={() => setIsPresetOpen(o => !o)}
@@ -212,7 +210,6 @@ const ControlHud = ({
 
                     {/* MODULES WRAPPER - Dimmed in Clip Mode */}
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
-                        {isClipMode && <div className="absolute inset-0 z-40 bg-slate-900/60 pointer-events-none backdrop-blur-[1px] rounded-xl"></div>}
 
                         {/* GATE MODULE */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10">

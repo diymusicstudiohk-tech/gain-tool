@@ -9,8 +9,6 @@ import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
 import Meters from './components/visualizer/Meters';
 import { DraggableLegend } from './components/ui/Draggables';
-import SignalFlow from './components/ui/SignalFlow';
-import ClipGainOverlay from './components/visualizer/ClipGainOverlay';
 
 import useDebug from './hooks/useDebug';
 import useViewState from './hooks/useViewState';
@@ -117,7 +115,6 @@ const App = () => {
         setThreshold: comp.setThreshold, setGateThreshold: comp.setGateThreshold,
         zoomX: view.zoomX, zoomY: view.zoomY,
         panOffset: view.panOffset, panOffsetY: view.panOffsetY,
-        signalFlowMode: view.signalFlowMode,
         playingTypeRef: playback.playingTypeRef,
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
         playBufferRef, playheadRef, startOffsetRef, isPlayingRef,
@@ -175,7 +172,6 @@ const App = () => {
         panOffset: view.panOffset, panOffsetY: view.panOffsetY,
         playingTypeRef: playback.playingTypeRef,
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
-        signalFlowMode: view.signalFlowMode,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)
@@ -203,13 +199,12 @@ const App = () => {
                 currentSourceId: engine.currentSourceId,
                 lastPlayedType: playback.lastPlayedType,
                 isInfoPanelEnabled: view.isInfoPanelEnabled,
-                signalFlowMode: view.signalFlowMode,
             });
         }, 1000);
         return () => clearTimeout(timer);
     }, [engine.currentSourceId,
         playback.lastPlayedType,
-        view.isInfoPanelEnabled, view.signalFlowMode]);
+        view.isInfoPanelEnabled]);
 
     // --- Info Panel Content ---
     const getActiveInfo = () => {
@@ -273,7 +268,6 @@ const App = () => {
                     view.setShowInfoPanel(true);
                 }}
                 handleKnobLeave={() => view.setHoveredKnob(null)}
-                signalFlowMode={view.signalFlowMode}
             />
 
             <div className="flex-1 flex min-h-0 gap-4 relative z-0">
@@ -285,8 +279,6 @@ const App = () => {
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleLocalMouseMove}
                 >
-                    <SignalFlow mode={view.signalFlowMode} setMode={view.setSignalFlowMode} />
-
                     {view.hoveredKnob && activeInfo && activeInfo.isKnob && view.isInfoPanelEnabled ? (
                         <div
                             className="absolute bottom-4 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
@@ -309,17 +301,7 @@ const App = () => {
                         </div>
                     ) : null}
 
-                    {view.signalFlowMode !== 'clip' && <DraggableLegend />}
-
-                    {view.signalFlowMode === 'clip' && (
-                        <ClipGainOverlay
-                            gainDB={comp.clipGain}
-                            setGainDB={comp.setClipGain}
-                            containerHeight={view.canvasDims.height}
-                            panOffsetY={view.panOffsetY}
-                            zoomY={view.zoomY}
-                        />
-                    )}
+                    <DraggableLegend />
 
                     <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2 items-end">
                         <button
@@ -342,7 +324,6 @@ const App = () => {
             </div>
 
             <ControlHud
-                signalFlowMode={view.signalFlowMode}
                 gateThreshold={comp.gateThreshold} gateRatio={comp.gateRatio}
                 gateAttack={comp.gateAttack} gateRelease={comp.gateRelease}
                 handleGateThresholdChange={comp.handleGateThresholdChange}

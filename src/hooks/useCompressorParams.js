@@ -28,7 +28,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [gateAttack, setGateAttack] = useState(2);
     const [gateRelease, setGateRelease] = useState(100);
 
-    const [clipGain, setClipGain] = useState(0);
     const [isGateBypass, setIsGateBypass] = useState(true);
     const [isCompBypass, setIsCompBypass] = useState(false);
     const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
@@ -190,7 +189,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         threshold, ratio, ratioControl, attack, release, knee, lookahead,
         makeupGain, dryGain, setDryGain,
         gateThreshold, gateRatio, gateAttack, gateRelease,
-        clipGain, setClipGain,
         isGateBypass, setIsGateBypass,
         isCompBypass, setIsCompBypass,
         selectedPresetIdx, isCustomSettings, setIsCustomSettings,

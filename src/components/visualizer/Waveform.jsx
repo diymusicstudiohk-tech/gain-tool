@@ -28,7 +28,6 @@ export const drawMainWaveform = ({
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
     isGateBypass, isCompBypass,
-    signalFlowMode,
     mipmaps, mixMipmaps // mipmap data
 }) => {
     if (!canvas) return;
@@ -187,7 +186,7 @@ export const drawMainWaveform = ({
         const isDry = lastPlayedType === 'original';
         const inactiveColor = '#555';
 
-        if ((hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) && signalFlowMode !== 'clip') {
+        if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
             const threshY = Math.pow(10, threshold / 20) * ampScale;
             if (centerY - threshY > -20 && centerY - threshY < height + 20) {
                 const tTop = centerY - threshY;
@@ -200,7 +199,7 @@ export const drawMainWaveform = ({
         }
         // Gate Threshold Line (Always Visible)
         const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
-        if ((centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) && signalFlowMode !== 'clip') {
+        if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
             const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';
             ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
@@ -230,7 +229,7 @@ export const drawMainWaveform = ({
         }
 
         // Mouse GR Inspection (with mipmap optimization)
-        if (mousePos.x >= 0 && lastPlayedType === 'processed' && signalFlowMode !== 'clip') {
+        if (mousePos.x >= 0 && lastPlayedType === 'processed') {
             const vX = mousePos.x - panOffset;
             const start = Math.floor(vX * step);
             const end = Math.floor((vX + 1) * step);

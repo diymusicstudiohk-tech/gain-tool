@@ -47,7 +47,7 @@ const useVisualizerLoop = ({
     panOffsetY,
     playingTypeRef,
     lastPlayedTypeRef,
-    signalFlowMode
+    outputPlayheadRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
@@ -68,6 +68,13 @@ const useVisualizerLoop = ({
             const screenPct = (((pct * totalWidth) + panOffset) / width) * 100;
             playheadRef.current.style.left = `${screenPct}%`;
             playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
+        }
+
+        // Update Output Waveform Playhead
+        if (outputPlayheadRef?.current) {
+            const pct = (currentPosition / duration) * 100;
+            outputPlayheadRef.current.style.left = `${pct}%`;
+            outputPlayheadRef.current.style.opacity = (pct < 0 || pct > 100) ? 0 : 1;
         }
 
         if (visualResult) {
@@ -173,7 +180,6 @@ const useVisualizerLoop = ({
                     isGateAdjusting, hasGateBeenAdjusted,
                     hoverGrRef,
                     isGateBypass, isCompBypass,
-                    signalFlowMode,
                     mipmaps, mixMipmaps
                 });
             }
@@ -199,7 +205,6 @@ const useVisualizerLoop = ({
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
-        signalFlowMode
     ]);
 
     // --- Static Draw for Initial State ---
@@ -221,7 +226,6 @@ const useVisualizerLoop = ({
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
                 isGateBypass, isCompBypass,
-                signalFlowMode,
                 mipmaps, mixMipmaps
             });
         }
@@ -240,7 +244,7 @@ const useVisualizerLoop = ({
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
-        signalFlowMode, mipmaps, mixMipmaps
+        mipmaps, mixMipmaps
     ]);
 
     return animate;
