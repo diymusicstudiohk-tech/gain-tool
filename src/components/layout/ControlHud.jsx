@@ -212,7 +212,7 @@ const ControlHud = ({
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
 
                         {/* GATE MODULE */}
-                        <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10">
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
                                 <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
                                 <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
@@ -230,7 +230,7 @@ const ControlHud = ({
                         </div>
 
                         {/* COMPRESSOR MODULE */}
-                        <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
                                 <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
                                 <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
