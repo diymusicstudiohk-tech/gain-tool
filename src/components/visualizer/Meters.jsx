@@ -43,10 +43,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const PADDING = 24; const maxPixelHeight = (height / 2) - PADDING;
 
     const barWidth = (width / 2) * 0.5 * (2 / 3);
-    const dryX = (width / 4) - (barWidth / 2);
-    const outX = (3 * width / 4) - (barWidth / 2);
-    const dryCenterX = width / 4;
-    const outCenterX = 3 * width / 4;
+    const spacing = width / 4 * 0.5;
+    const dryCenterX = width / 2 - spacing;
+    const outCenterX = width / 2 + spacing;
+    const dryX = dryCenterX - (barWidth / 2);
+    const outX = outCenterX - (barWidth / 2);
 
     // Dry Bar
     const dryBarDist = Math.min(meterState.dryPeakLevel, 1.4) * maxPixelHeight;
