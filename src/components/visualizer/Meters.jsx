@@ -127,10 +127,10 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
     ctx.clearRect(0, 0, w, h);
     const PADDING = 24; const maxPixelHeight = ((h / 2) - PADDING) * 0.5;
 
-    if (meterState.grPeakLevel > 0.001) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = '#E05E42'; ctx.fillRect(6, 0, w - 12, barHeight); ctx.fillStyle = '#fff'; ctx.fillRect(6, barHeight - 2, w - 12, 2); }
+    if (meterState.grPeakLevel > 0.001) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = '#E05E42'; ctx.fillRect(0, 0, w, barHeight); ctx.fillStyle = '#fff'; ctx.fillRect(0, barHeight - 2, w, 2); }
     if (meterState.grHoldPeakLevel > 0.001) {
         const holdHeight = meterState.grHoldPeakLevel * maxPixelHeight;
-        ctx.fillStyle = '#D4B88A'; ctx.fillRect(4, holdHeight, w - 8, 2);
+        ctx.fillStyle = '#D4B88A'; ctx.fillRect(0, holdHeight, w, 2);
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
         if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), w / 2, holdHeight + 14); }
     }
@@ -139,10 +139,9 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
         const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * maxPixelHeight;
         ctx.strokeStyle = '#C2A475';
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(4, hoverY); ctx.lineTo(w - 4, hoverY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, hoverY); ctx.lineTo(w, hoverY); ctx.stroke();
     }
 
-    ctx.fillStyle = '#666'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText("GR", w / 2, h - 8);
 };
 
 // --- New Crest Factor Meter ---
@@ -176,8 +175,8 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
     ctx.strokeStyle = '#96CFAD'; // bright green
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(4, yPos);
-    ctx.lineTo(width - 4, yPos);
+    ctx.moveTo(0, yPos);
+    ctx.lineTo(width, yPos);
     ctx.stroke();
 
     // Labels
