@@ -3,7 +3,7 @@ import { useEffect, useRef, useCallback } from 'react';
 const LN10_OVER_20 = Math.LN10 / 20;       // Math.exp(db * LN10_OVER_20) ≡ Math.pow(10, db/20)
 const TWENTY_LOG10E = 20 * Math.LOG10E;    // Math.log(x) * TWENTY_LOG10E ≡ 20 * Math.log10(x)
 import { drawMainWaveform } from '../components/visualizer/Waveform';
-import { drawDualMeter, drawCrestFactorMeter } from '../components/visualizer/Meters';
+import { drawDualMeter } from '../components/visualizer/Meters';
 
 const useVisualizerLoop = ({
     audioContext,
@@ -154,12 +154,10 @@ const useVisualizerLoop = ({
             meterStateRef.current.crestFactor = meterStateRef.current.crestFactor * 0.9 + currentInstantCF * 0.1;
 
             // Draw Meters
-            drawCrestFactorMeter(cfMeterCanvasRef.current, meterStateRef.current.crestFactor);
-
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor);
             }
 
             // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting
@@ -230,10 +228,7 @@ const useVisualizerLoop = ({
         }
 
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current);
-        }
-        if (cfMeterCanvasRef.current) {
-            drawCrestFactorMeter(cfMeterCanvasRef.current, 0);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,

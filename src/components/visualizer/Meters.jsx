@@ -15,7 +15,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -113,6 +113,22 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     // Clip Indicators
     if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = '#C2A475'; ctx.fillRect(dryX, 0, barWidth, 4); ctx.fillRect(dryX, height - 4, barWidth, 4); }
     if (meterState.peakLevel > 1.0) { ctx.fillStyle = '#E05E42'; ctx.fillRect(outX, 0, barWidth, 4); ctx.fillRect(outX, height - 4, barWidth, 4); }
+
+    // --- Crest Factor (below GR, same column) ---
+    const cfTop = height * 0.65;
+    const cfBottom = height - 8;
+    const cfHeight = cfBottom - cfTop;
+    const cfMinDb = 3; const cfMaxDb = 20; const cfRange = cfMaxDb - cfMinDb;
+    const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, crestFactor));
+    const cfPct = (cfVal - cfMinDb) / cfRange;
+    const cfY = cfBottom - (cfPct * cfHeight);
+
+    ctx.strokeStyle = '#96CFAD'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(grX, cfY); ctx.lineTo(grX + barWidth, cfY); ctx.stroke();
+
+    ctx.fillStyle = '#888'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText("CF", grCenterX, cfTop - 2);
+    if (crestFactor > 0.1) { ctx.fillStyle = '#96CFAD'; ctx.font = 'bold 9px monospace'; ctx.fillText(`${crestFactor.toFixed(1)}`, grCenterX, cfY - 5); }
 
     // Text Labels
     ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
@@ -233,25 +249,12 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 // --- Component ---
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
-    const cfHeight = Math.floor(height * 0.3);
-    const safeCfHeight = Math.max(0, cfHeight);
-
     return (
-        <div className="w-44 flex flex-row flex-none h-full">
-            {/* Left Column: CF only */}
-            <div className="w-1/4 flex flex-col h-full">
-                <div className="flex-1" />
-                <div className="relative w-full" style={{ height: safeCfHeight }}>
-                    <canvas ref={cfMeterCanvasRef} className="w-full h-full" />
-                </div>
-            </div>
-
-            {/* Right Column: GR + In + Out (triple meter) */}
-            <div className="w-3/4 relative h-full">
-                <canvas ref={outputCanvasRef} className="w-full h-full" />
-            </div>
-            {/* Hidden GR canvas (kept for ref compatibility) */}
+        <div className="w-44 flex-none h-full relative">
+            <canvas ref={outputCanvasRef} className="w-full h-full" />
+            {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />
+            <canvas ref={cfMeterCanvasRef} className="hidden" />
         </div>
     );
 };
