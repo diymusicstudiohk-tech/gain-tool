@@ -63,20 +63,19 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, 1.4) * maxPixelHeight;
     if (dryHoldDist > 0) { ctx.fillStyle = '#D4B88A'; ctx.fillRect(dryX, centerY - dryHoldDist, barWidth, 2); ctx.fillRect(dryX, centerY + dryHoldDist - 2, barWidth, 2); }
 
-    // Output Bar
+    // Clipping detection: latch on when output peak exceeds 0dB
+    if (meterState.peakLevel > 1.0) meterState.outClipping = true;
+    const isClipping = meterState.outClipping;
+    const outColor = isClipping ? '#E05E42' : '#C2A475';
+
+    // Output Bar (solid fill, no gradient)
     const outBarDist = Math.min(meterState.peakLevel, 1.4) * maxPixelHeight;
     if (outBarDist > 0) {
-        const grad = getCachedGradient(canvas, ctx, 'out', width, height, PADDING, (c, w, h, p) => {
-            const mph = (h / 2) - p;
-            const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
-            g.addColorStop(0, '#E05E42'); g.addColorStop(0.5, '#96CFAD'); g.addColorStop(1, '#E05E42');
-            return g;
-        });
-        ctx.fillStyle = grad; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
+        ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
     }
 
     const outHoldDist = Math.min(meterState.holdPeakLevel, 1.4) * maxPixelHeight;
-    if (outHoldDist > 0) { ctx.fillStyle = '#D4B88A'; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2); ctx.fillRect(outX, centerY + outHoldDist - 2, barWidth, 2); }
+    if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2); ctx.fillRect(outX, centerY + outHoldDist - 2, barWidth, 2); }
 
     // Ghost Peaks
     if (dryBarDist > outBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(outX, centerY - dryBarDist, barWidth, 2); ctx.fillRect(outX, centerY + dryBarDist - 2, barWidth, 2); }
@@ -89,21 +88,23 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     // Text Labels
     ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
     if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; ctx.fillStyle = '#D4B88A'; ctx.fillText(dbVal.toFixed(1), dryCenterX, centerY - dryHoldDist - 6); }
-    if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; ctx.fillStyle = '#D4B88A'; ctx.fillText(dbVal.toFixed(1), outCenterX, centerY - outHoldDist - 6); }
+    if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, centerY - outHoldDist - 6); }
 
     ctx.fillStyle = '#888'; ctx.font = 'bold 10px sans-serif';
     ctx.fillText("In", dryCenterX, 12);
     ctx.fillText("Out", outCenterX, 12);
 
-    ctx.fillStyle = '#e5e7eb'; ctx.font = 'bold 10px monospace';
     const dryRmsDb = dryRms > 0.0001 ? 20 * Math.log10(dryRms) : -100;
     const outRmsDb = outRms > 0.0001 ? 20 * Math.log10(outRms) : -100;
 
+    ctx.fillStyle = '#e5e7eb'; ctx.font = 'bold 10px monospace';
     ctx.fillText(`${dryRmsDb <= -60 ? '-inf' : dryRmsDb.toFixed(1)}`, dryCenterX, 24);
+    ctx.fillStyle = isClipping ? '#E05E42' : '#e5e7eb'; ctx.font = 'bold 10px monospace';
     ctx.fillText(`${outRmsDb <= -60 ? '-inf' : outRmsDb.toFixed(1)}`, outCenterX, 24);
 
     ctx.fillStyle = '#666'; ctx.font = '8px sans-serif';
     ctx.fillText("RMS", dryCenterX, 34);
+    ctx.fillStyle = isClipping ? '#E05E42' : '#666'; ctx.font = '8px sans-serif';
     ctx.fillText("RMS", outCenterX, 34);
 };
 
@@ -214,9 +215,9 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
     const safeCfHeight = Math.max(0, cfHeight);
 
     return (
-        <div className="w-44 flex flex-row bg-[#111111] border-l border-[#2B2B2B] flex-none h-full">
+        <div className="w-44 flex flex-row flex-none h-full">
             {/* Left Column: GR + CF */}
-            <div className="w-1/3 flex flex-col border-r border-[#2B2B2B] h-full">
+            <div className="w-1/3 flex flex-col h-full">
                 {/* GR Meter */}
                 <div className="relative w-full flex-1" style={{ height: safeGrHeight }}>
                     <canvas ref={grCanvasRef} className="w-full h-full" />

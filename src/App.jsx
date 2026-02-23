@@ -48,7 +48,8 @@ const App = () => {
         peakLevel: 0, holdPeakLevel: 0, holdTimer: 0,
         dryPeakLevel: 0, dryHoldPeakLevel: 0, dryHoldTimer: 0,
         grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
-        dryRmsLevel: 0, outRmsLevel: 0, crestFactor: 0
+        dryRmsLevel: 0, outRmsLevel: 0, crestFactor: 0,
+        outClipping: false
     });
 
     // Ref-based callbacks (break circular deps)
@@ -73,6 +74,7 @@ const App = () => {
         onModeSwitchRef: handleModeChangeRef,
         lastPlayedTypeRef,
         logAction,
+        meterStateRef,
     });
 
     // --- 4. Playback (uses animateRef to break cycle) ---
@@ -87,6 +89,7 @@ const App = () => {
         handleModeDryGainSync: comp.handleModeDryGainSync,
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
         isPlayingRef, rafIdRef, playBufferRef,
+        meterStateRef,
     });
 
     // Wire ref-based callbacks

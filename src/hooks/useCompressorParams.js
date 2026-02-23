@@ -12,7 +12,7 @@ const calculateControlFromRatio = (r) =>
  * Uses ref-based callbacks to break circular dependency with usePlayback.
  * onModeSwitchRef.current and lastPlayedTypeRef.current are populated after usePlayback initializes.
  */
-const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction }) => {
+const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [threshold, setThreshold] = useState(0);
     const [ratioControl, setRatioControl] = useState(0);
     const [ratio, setRatio] = useState(4);
@@ -104,8 +104,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction }) 
         if (key === 'makeupGain') { setMakeupGain(value); logAction(`SET_GAIN: Makeup -> ${value}`); }
         if (key === 'dryGain') { setDryGain(value); logAction(`SET_GAIN: Dry -> ${value}`); }
         gainAdjustedRef.current = true; setIsProcessing(true);
+        if (meterStateRef?.current) meterStateRef.current.outClipping = false;
         ensureProcessedMode();
-    }, [logAction, ensureProcessedMode]);
+    }, [logAction, ensureProcessedMode, meterStateRef]);
 
     const updateRatio = useCallback((v) => {
         setRatioControl(v); setRatio(calculateRatioFromControl(v));

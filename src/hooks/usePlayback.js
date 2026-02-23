@@ -11,13 +11,11 @@ const usePlayback = ({
     animateRef, fullAudioDataRef, logAction, handleModeDryGainSync,
     // Shared refs from App
     sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
-    isPlayingRef, rafIdRef, playBufferRef,
+    isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
     const [isDeltaMode, setIsDeltaMode] = useState(false);
-    const [loopStart, setLoopStart] = useState(null);
-    const [loopEnd, setLoopEnd] = useState(null);
 
     const playingTypeRef = useRef(playingType);
     const lastPlayedTypeRef = useRef(lastPlayedType);
@@ -89,12 +87,6 @@ const usePlayback = ({
                     source.connect(audioContext.destination);
                 }
 
-                if (loopStart !== null && loopEnd !== null) {
-                    source.loop = true;
-                    source.loopStart = loopStart;
-                    source.loopEnd = loopEnd;
-                }
-
                 sourceNodeRef.current = source;
                 source.start(0, safeOffset);
                 setPlayingType(type);
@@ -126,6 +118,7 @@ const usePlayback = ({
             setPlayingType('none');
             cancelAnimationFrame(rafIdRef.current);
             isPlayingRef.current = false;
+            if (meterStateRef?.current) meterStateRef.current.outClipping = false;
         } else {
             if (loopStart !== null && loopEnd !== null) {
                 startOffsetRef.current = loopStart;
@@ -190,8 +183,9 @@ const usePlayback = ({
         if (audioContext && audioContext.state === 'running') audioContext.suspend();
         setPlayingType('none');
         isPlayingRef.current = false;
+        if (meterStateRef?.current) meterStateRef.current.outClipping = false;
         if (audioContext && audioContext.state === 'suspended') audioContext.resume();
-    }, [audioContext, sourceNodeRef, isPlayingRef]);
+    }, [audioContext, sourceNodeRef, isPlayingRef, meterStateRef]);
 
     return {
         playingType, setPlayingType,
