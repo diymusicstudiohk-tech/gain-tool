@@ -8,6 +8,7 @@ import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
 import Meters from './components/visualizer/Meters';
+import OutputWaveform from './components/visualizer/OutputWaveform';
 import { DraggableLegend } from './components/ui/Draggables';
 
 import useDebug from './hooks/useDebug';
@@ -31,6 +32,7 @@ const App = () => {
     const outputMeterCanvasRef = useRef(null);
     const cfMeterCanvasRef = useRef(null);
     const playheadRef = useRef(null);
+    const outputPlayheadRef = useRef(null);
     const sourceNodeRef = useRef(null);
     const drySourceNodeRef = useRef(null);
     const dryGainNodeRef = useRef(null);
@@ -127,6 +129,7 @@ const App = () => {
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
+        outputPlayheadRef,
     });
 
     // --- 7. DSP Processing ---
@@ -172,6 +175,7 @@ const App = () => {
         panOffset: view.panOffset, panOffsetY: view.panOffsetY,
         playingTypeRef: playback.playingTypeRef,
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
+        outputPlayheadRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)
@@ -322,6 +326,18 @@ const App = () => {
                     height={view.canvasDims.height}
                 />
             </div>
+
+            <OutputWaveform
+                outputData={dsp.visualResult?.outputData}
+                originalBuffer={originalBuffer}
+                audioContext={audioContext}
+                startTimeRef={startTimeRef}
+                startOffsetRef={startOffsetRef}
+                isPlayingRef={isPlayingRef}
+                playBufferRef={playBufferRef}
+                playingTypeRef={playback.playingTypeRef}
+                outputPlayheadRef={outputPlayheadRef}
+            />
 
             <ControlHud
                 gateThreshold={comp.gateThreshold} gateRatio={comp.gateRatio}
