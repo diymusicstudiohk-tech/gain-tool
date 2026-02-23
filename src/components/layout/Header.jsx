@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    ToggleLeft, ToggleRight, Settings, X, Sliders, Play,
-    Settings2, Upload, User, Download, Ban, RotateCcw, FolderOpen, ChevronDown, ChevronUp
+    ToggleLeft, ToggleRight, Settings, X, Sliders,
+    Settings2, Download, RotateCcw, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION, PRESETS_DATA } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -135,6 +135,9 @@ const Header = ({
         await saveCustomAudioIndexToDB(updated);
         setCustomAudioFiles(updated);
         if (e.target) e.target.value = '';
+        // Immediately load the first uploaded file as current audio
+        resetAllParams();
+        loadCustomAudio(newEntries[0].id, newEntries[0].name);
     };
 
     // Remove a custom file from DB and state
@@ -280,52 +283,6 @@ const Header = ({
                 </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 relative">
-                {/* Clear Upload Button */}
-                <button
-                    onClick={clearUserUpload}
-                    disabled={!userBufferRef.current}
-                    className={`w-8 h-8 flex items-center justify-center rounded-md text-xs font-bold transition-all border ${!userBufferRef.current ? 'bg-slate-800 text-slate-600 border-slate-700 cursor-not-allowed' : 'bg-red-600 text-white border-red-500 hover:bg-red-500'}`}
-                    title="清除上載音檔"
-                >
-                    <X size={16} />
-                </button>
-
-                {/* Merged Upload / My Audio Button */}
-                <button
-                    onClick={() => {
-                        if (!userBufferRef.current) {
-                            fileInputRef.current?.click();
-                        } else {
-                            if (currentSourceId === 'upload') {
-                                fileInputRef.current?.click();
-                            } else {
-                                restoreUserUpload();
-                            }
-                        }
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId === 'upload' ? 'bg-cyan-600 text-white border-cyan-500' : 'bg-slate-800 text-cyan-400 hover:bg-slate-700'}`}
-                    title={!userBufferRef.current ? "上載音檔" : "切換至我的音檔 (點擊再次上載)"}
-                >
-                    {!userBufferRef.current ? <Upload size={16} /> : <User size={16} />}
-                    {!userBufferRef.current ? "上載音檔" : (userFileNameRef.current.length > 10 ? userFileNameRef.current.substring(0, 8) + '...' : userFileNameRef.current)}
-                </button>
-                <input ref={fileInputRef} type="file" accept="audio/mpeg,audio/wav,audio/mp4,audio/aac,audio/ogg,audio/flac,audio/x-m4a,audio/webm,video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleFileUpload} />
-
-                <button onClick={handleDownload} disabled={currentSourceId !== 'upload'} className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all ${currentSourceId === 'upload' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'}`} title={currentSourceId === 'upload' ? "下載處理後的音檔" : "僅支援下載自行上載的音檔"}>
-                    {currentSourceId === 'upload' ? <Download size={16} /> : <Ban size={16} />} 下載壓縮後音檔
-                </button>
-
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
-                <button
-                    onClick={switchToPractice}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-slate-700 ${currentSourceId !== 'upload' ? 'bg-[#B54C35] text-white border-[#B54C35] animate-pulse' : 'bg-slate-800 text-[#B54C35] hover:bg-slate-700'}`}
-                >
-                    {currentSourceId !== 'upload' && <Play size={16} fill="currentColor" />}
-                    練習音檔
-                </button>
-
                 {/* Custom practice audio dropdown — EqPresetDropdown style */}
                 <div className="relative" ref={customDropdownRef}>
                     {/* Trigger button */}
@@ -456,6 +413,21 @@ const Header = ({
                         onChange={handleCustomAudioFilesSelected}
                     />
                 </div>
+
+                {/* Download processed audio button */}
+                <button
+                    onClick={handleDownload}
+                    disabled={isLoading || !currentSourceId}
+                    className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                        ${!currentSourceId || isLoading
+                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                            : 'bg-[#202020] border-white/30 text-gray-300 opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                        }`}
+                    title="下載壓縮後音檔"
+                >
+                    <Download size={16} />
+                </button>
+
                 <div className="w-px h-6 bg-slate-700 mx-1"></div>
 
                 {/* PRESET SELECTOR [FILTERED, STICKY & CATEGORIZED] */}

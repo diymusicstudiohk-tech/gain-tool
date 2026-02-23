@@ -90,7 +90,7 @@ const useAudioEngine = ({
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
             setFileName(preset.name);
 
-            const arrayBuffer = await fetchAudioBuffer(preset.trackName);
+            const arrayBuffer = await fetchAudioBuffer(preset.url);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
             setIsLoading(false);
@@ -218,7 +218,7 @@ const useAudioEngine = ({
     }, [currentSourceId, switchToPractice]);
 
     const handleDownload = useCallback(() => {
-        if (currentSourceId !== 'upload' || !originalBuffer || !audioContext) return;
+        if (!originalBuffer || !audioContext) return;
         setIsLoading(true);
         setTimeout(() => {
             try {
@@ -230,14 +230,17 @@ const useAudioEngine = ({
                 const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);
                 exportBuffer.copyToChannel(mixedData, 0);
                 const url = URL.createObjectURL(writeWavFile(exportBuffer));
-                const dlName = `${fileName.substring(0, fileName.lastIndexOf('.')) || fileName} 壓縮後結果.wav`;
+                const dotIdx = fileName.lastIndexOf('.');
+                const baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+                const ext = dotIdx > 0 ? fileName.substring(dotIdx) : '.wav';
+                const dlName = `${baseName}-Compressed${ext}`;
                 const a = document.createElement('a');
                 a.style.display = 'none'; a.href = url; a.download = dlName;
                 document.body.appendChild(a); a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             } catch (e) { console.error(e); setErrorMsg("匯出失敗"); } finally { setIsLoading(false); }
         }, 50);
-    }, [currentSourceId, originalBuffer, audioContext, currentParams, dryGain, fileName]);
+    }, [originalBuffer, audioContext, currentParams, dryGain, fileName]);
 
     // Load initial state from storage
     useEffect(() => {
