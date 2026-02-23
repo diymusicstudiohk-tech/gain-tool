@@ -51,6 +51,7 @@ const useVisualizerLoop = ({
 }) => {
 
     const waveformFrameRef = useRef(0);
+    const waveformCacheRef = useRef({ key: null, imageData: null });
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -177,7 +178,8 @@ const useVisualizerLoop = ({
                     isGateAdjusting, hasGateBeenAdjusted,
                     hoverGrRef,
                     isGateBypass, isCompBypass,
-                    mipmaps, mixMipmaps
+                    mipmaps, mixMipmaps,
+                    waveformCacheRef,
                 });
             }
         }
@@ -223,7 +225,8 @@ const useVisualizerLoop = ({
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
                 isGateBypass, isCompBypass,
-                mipmaps, mixMipmaps
+                mipmaps, mixMipmaps,
+                waveformCacheRef,
             });
         }
 
