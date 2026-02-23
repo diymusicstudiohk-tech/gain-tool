@@ -73,7 +73,7 @@ const ControlHud = ({
             {/* PRESET SELECTOR: REMOVED (Moved to Header) */}
 
             {/* MAIN HUD */}
-            <div className="z-30 transition-all select-none flex h-[95px] flex-none" onMouseDown={e => e.stopPropagation()}>
+            <div className="z-30 transition-all select-none flex h-[130px] flex-none" onMouseDown={e => e.stopPropagation()}>
 
                 {/* Main Controls Area */}
                 <div className="flex-1 flex items-end justify-center gap-2 px-4 md:px-8 pb-4 pt-4">
