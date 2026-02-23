@@ -242,7 +242,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className="h-dvh flex flex-col bg-[#111111] text-slate-200 overflow-hidden pl-4 pt-4 pb-4 relative">
+        <div className="h-dvh flex flex-col bg-[#111111] text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative">
             <Header
                 fileName={engine.fileName}
                 currentSourceId={engine.currentSourceId} lastPracticeSourceId={engine.lastPracticeSourceId}
@@ -275,7 +275,7 @@ const App = () => {
                 handleKnobLeave={() => view.setHoveredKnob(null)}
             />
 
-            <div className="flex-1 flex min-h-0 relative z-0 pr-4">
+            <div className="flex-1 flex min-h-0 relative z-0">
                 <Waveform
                     canvasRef={waveformCanvasRef}
                     containerRef={containerRef}
