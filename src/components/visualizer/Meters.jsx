@@ -42,7 +42,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
 
     const PADDING = 24; const maxPixelHeight = (height / 2) - PADDING;
 
-    const barWidth = ((width / 2) - 4) * 0.5;
+    const barWidth = (width / 2) * 0.5;
     const dryX = (width / 4) - (barWidth / 2);
     const outX = (3 * width / 4) - (barWidth / 2);
     const dryCenterX = width / 4;
