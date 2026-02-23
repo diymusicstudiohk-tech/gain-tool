@@ -215,7 +215,6 @@ const useVisualizerLoop = ({
                 zoomX, zoomY, panOffset, panOffsetY,
                 playingType, lastPlayedType, isDeltaMode, dryGain,
                 threshold, gateThreshold,
-                loopStart, loopEnd,
                 mousePos, hoverLine,
                 isDraggingLine: isDraggingLineRef.current,
                 isCompAdjusting, hasThresholdBeenAdjusted,
