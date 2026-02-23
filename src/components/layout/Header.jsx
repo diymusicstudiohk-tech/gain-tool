@@ -4,6 +4,7 @@ import {
     Download, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
+import RotaryKnob from '../ui/RotaryKnob';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
@@ -42,7 +43,12 @@ const Header = ({
     stopAudio,
     loadCustomAudio,
 
+    // Gain knobs
+    makeupGain, dryGain, handleGainChange,
+    isDryMode, isDraggingKnobRef, handleNormalDragState,
+    handleKnobEnter, handleKnobLeave, signalFlowMode,
 }) => {
+    const isClipMode = signalFlowMode === 'clip';
     const [showAbout, setShowAbout] = useState(false);
 
     // Confirmation Modal State
@@ -260,7 +266,7 @@ const Header = ({
                     金耳朵壓縮顯示器
                 </h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 relative">
+            <div className="flex flex-wrap items-center gap-2 relative">
                 {/* Custom practice audio dropdown — EqPresetDropdown style */}
                 <div className="relative" ref={customDropdownRef}>
                     {/* Trigger button */}
@@ -396,7 +402,7 @@ const Header = ({
                 <button
                     onClick={handleDownload}
                     disabled={isLoading || !currentSourceId}
-                    className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                    className={`w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
                         ${!currentSourceId || isLoading
                             ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                             : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
@@ -406,7 +412,13 @@ const Header = ({
                     <Download size={16} />
                 </button>
 
+                <div className="w-px self-stretch bg-white/10"></div>
 
+                {/* WET/DRY GAIN Knobs */}
+                <div className={`flex items-center gap-3 ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={-60} max={6} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                </div>
             </div>
         </div >
     );

@@ -272,6 +272,18 @@ const App = () => {
                     playback.setLoopStart(null); playback.setLoopEnd(null);
                     playback.setIsDeltaMode(false);
                 }}
+                makeupGain={comp.makeupGain} dryGain={comp.dryGain}
+                handleGainChange={comp.handleGainChange}
+                isDryMode={playback.isDryMode}
+                isDraggingKnobRef={isDraggingKnobRef}
+                handleNormalDragState={waveform.setIsKnobDragging}
+                handleKnobEnter={(k, e) => {
+                    view.setHoveredKnob(k);
+                    if (e) view.setHoveredKnobPos({ x: e.clientX, y: e.clientY });
+                    view.setShowInfoPanel(true);
+                }}
+                handleKnobLeave={() => view.setHoveredKnob(null)}
+                signalFlowMode={view.signalFlowMode}
             />
 
             <div className="flex-1 flex min-h-0 gap-4 relative z-0">
@@ -393,8 +405,6 @@ const App = () => {
                 hasThresholdBeenAdjusted={comp.hasThresholdBeenAdjusted}
                 isCompBypass={comp.isCompBypass}
                 setIsCompBypass={(v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); }}
-                makeupGain={comp.makeupGain} dryGain={comp.dryGain}
-                handleGainChange={comp.handleGainChange}
                 playingType={playback.playingType} lastPlayedType={playback.lastPlayedType}
                 isDryMode={playback.isDryMode} isDeltaMode={playback.isDeltaMode}
                 handleModeChange={playback.handleModeChange}

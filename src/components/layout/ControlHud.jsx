@@ -21,10 +21,6 @@ const ControlHud = ({
     handleThresholdChange, updateRatio, handleCompKnobChange, handleCompDragState, hasThresholdBeenAdjusted,
     isCompBypass, setIsCompBypass,
 
-    // Output Params
-    makeupGain, dryGain,
-    handleGainChange,
-
     // Playback & Modes
     playingType, lastPlayedType, isDryMode, isDeltaMode,
     handleModeChange, toggleDeltaMode, togglePlayback,
@@ -82,9 +78,9 @@ const ControlHud = ({
             <div className="bg-black/40 backdrop-blur-md border-t border-white/10 z-30 transition-all select-none flex h-[160px] flex-none" onMouseDown={e => e.stopPropagation()}>
 
                 {/* Main Controls Area */}
-                <div className="flex-1 flex items-end px-4 md:px-8 pb-4 pt-4">
+                <div className="flex-1 flex items-end gap-2 px-4 md:px-8 pb-4 pt-4">
                     {/* PLAYBACK CONTROLS */}
-                    <div className="flex gap-2 flex-none items-stretch px-4 relative z-50 self-stretch">
+                    <div className="flex gap-2 flex-none items-stretch pl-4 relative z-50 self-stretch">
                         {/* Play/Pause Button */}
                         <button
                             onMouseDown={(e) => e.stopPropagation()}
@@ -209,15 +205,10 @@ const ControlHud = ({
                                 </div>
                             )}
                         </div>
-                        {/* Vertical Divider */}
-                        <div className="w-px self-stretch my-2 bg-white/10"></div>
-
-                        {/* OUTPUT MODULE - always open, no title/collapse */}
-                        <div className={`flex items-center gap-4 flex-none ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={-60} max={6} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        </div>
                     </div>
+
+                    {/* Vertical Divider */}
+                    <div className="w-px self-stretch my-2 bg-white/10 flex-none"></div>
 
                     {/* MODULES WRAPPER - Dimmed in Clip Mode */}
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
@@ -226,7 +217,7 @@ const ControlHud = ({
                         {/* GATE MODULE */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10">
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
-                                <span className={`text-xs font-bold tracking-widest group-hover/label:text-slate-200 transition-colors ${isGateBypass ? 'text-slate-600' : 'text-slate-400'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
                                 <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
                                 {expandedModule === 'gate'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -244,7 +235,7 @@ const ControlHud = ({
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
-                                <span className={`text-xs font-bold tracking-widest group-hover/label:text-slate-200 transition-colors ${isCompBypass ? 'text-slate-600' : 'text-slate-400'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
                                 <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
                                 {expandedModule === 'comp'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />

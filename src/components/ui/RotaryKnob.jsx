@@ -16,7 +16,8 @@ const RotaryKnob = ({
     onHover,
     onLeave,
     dragLockRef,
-    disabled
+    disabled,
+    compact
 }) => {
     const isDraggingRef = useRef(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -45,13 +46,12 @@ const RotaryKnob = ({
     const labelColorClass = disabled ? 'text-slate-600' : 'text-slate-500 hover:text-slate-300';
     const valueColorStyle = disabled ? { color: '#475569' } : { color: colors[color] || colors.slate };
 
-    const handleGlobalMouseMove = useCallback((e) => {
+    const handleMove = useCallback((clientY) => {
         if (!isDraggingRef.current) return;
-        e.preventDefault();
         const { min: pMin, max: pMax, step: pStep } = paramsRef.current;
         const { onChange: pOnChange } = callbacksRef.current;
 
-        const delta = startY.current - e.clientY;
+        const delta = startY.current - clientY;
         const range = pMax - pMin;
         let nVal = startVal.current + (delta / 200) * range;
         if (nVal < pMin) nVal = pMin; if (nVal > pMax) nVal = pMax;
@@ -62,18 +62,28 @@ const RotaryKnob = ({
         }
     }, []);
 
-    const handleGlobalMouseUp = useCallback(() => {
+    const handleGlobalMouseMove = useCallback((e) => {
+        e.preventDefault();
+        handleMove(e.clientY);
+    }, [handleMove]);
+
+    const handleGlobalTouchMove = useCallback((e) => {
+        e.preventDefault();
+        if (e.touches[0]) handleMove(e.touches[0].clientY);
+    }, [handleMove]);
+
+    const handleEnd = useCallback(() => {
         isDraggingRef.current = false;
         if (dragLockRef) dragLockRef.current = false;
-
         if (callbacksRef.current.onDragStateChange) callbacksRef.current.onDragStateChange(false);
-
         document.body.style.cursor = 'default';
         window.removeEventListener('mousemove', handleGlobalMouseMove);
-        window.removeEventListener('mouseup', handleGlobalMouseUp);
-    }, [dragLockRef, handleGlobalMouseMove]);
+        window.removeEventListener('mouseup', handleEnd);
+        window.removeEventListener('touchmove', handleGlobalTouchMove);
+        window.removeEventListener('touchend', handleEnd);
+    }, [dragLockRef, handleGlobalMouseMove, handleGlobalTouchMove]);
 
-    const handleStart = (clientY) => {
+    const handleStart = (clientY, isTouch = false) => {
         if (disabled) return;
         isDraggingRef.current = true;
 
@@ -84,16 +94,23 @@ const RotaryKnob = ({
         startVal.current = value;
         document.body.style.cursor = 'ns-resize';
 
-        window.addEventListener('mousemove', handleGlobalMouseMove, { passive: false });
-        window.addEventListener('mouseup', handleGlobalMouseUp);
+        if (isTouch) {
+            window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+            window.addEventListener('touchend', handleEnd);
+        } else {
+            window.addEventListener('mousemove', handleGlobalMouseMove, { passive: false });
+            window.addEventListener('mouseup', handleEnd);
+        }
     };
 
     useEffect(() => {
         return () => {
             window.removeEventListener('mousemove', handleGlobalMouseMove);
-            window.removeEventListener('mouseup', handleGlobalMouseUp);
+            window.removeEventListener('mouseup', handleEnd);
+            window.removeEventListener('touchmove', handleGlobalTouchMove);
+            window.removeEventListener('touchend', handleEnd);
         };
-    }, [handleGlobalMouseMove, handleGlobalMouseUp]);
+    }, [handleGlobalMouseMove, handleGlobalTouchMove, handleEnd]);
 
     const handleDoubleClick = () => { if (disabled) return; setIsEditing(true); setInputValue(displayValue || value); };
     const handleInputBlur = () => { let val = parseFloat(inputValue); if (!isNaN(val)) { if (val < min) val = min; if (val > max) val = max; onChange(val); } setIsEditing(false); };
@@ -101,9 +118,30 @@ const RotaryKnob = ({
     const pct = (value - min) / (max - min); const radius = 14; const circumference = 2 * Math.PI * radius; const arcLength = circumference * 0.75; const dashOffset = arcLength * (1 - pct); const rotation = -135 + (pct * 270);
     const displayStr = displayValue !== undefined ? displayValue : value.toFixed(Number.isInteger(step) ? 0 : 1);
 
+    if (compact) {
+        return (
+            <div className={`flex flex-col items-center relative select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { setIsHovered(false); onLeave && onLeave(); }}>
+                <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
+                    <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
+                        <circle cx="18" cy="18" r={radius} fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeDashoffset={dashOffset} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
+                    </svg>
+                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `rotate(${rotation}deg)` }}><div className={`w-1 h-1 rounded-full mx-auto mt-1 shadow-sm ${disabled ? 'bg-slate-500' : 'bg-white'}`}></div></div>
+                </div>
+                {isHovered && (
+                    <div className="absolute top-full mt-1 z-50 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl pointer-events-none whitespace-nowrap flex flex-col items-center">
+                        <div className="text-[11px] font-mono font-bold" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
+                    </div>
+                )}
+                {isEditing && <input autoFocus type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleInputBlur} onKeyDown={(e) => { if (e.key === 'Enter') handleInputBlur() }} onClick={(e) => e.stopPropagation()} className="absolute top-full mt-1 w-12 text-center text-xs bg-slate-800 text-white border border-slate-600 rounded z-50" />}
+            </div>
+        );
+    }
+
     return (
         <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { setIsHovered(false); onLeave && onLeave(); }}>
-            <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }}>
+            <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                     <circle cx="18" cy="18" r={radius} fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeDashoffset={dashOffset} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
