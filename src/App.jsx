@@ -57,7 +57,7 @@ const App = () => {
 
     // --- Initialize AudioContext ---
     useEffect(() => {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
         setAudioContext(ctx);
         return () => { ctx.close(); };
     }, []);
@@ -139,7 +139,7 @@ const App = () => {
     const dsp = useDSPProcessing({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
-        resolutionPct: engine.resolutionPct,
+        dryGain: comp.dryGain,
         playingType: playback.playingType,
         isDeltaMode: playback.isDeltaMode,
         setIsProcessing: comp.setIsProcessing,
@@ -167,7 +167,9 @@ const App = () => {
         isGateBypass: comp.isGateBypass,
         isCompBypass: comp.isCompBypass,
         visualResult: dsp.visualResult,
-        visualSourceCache: dsp.visualSourceCache,
+        visualStep: dsp.visualStep,
+        mipmaps: dsp.mipmaps,
+        mixMipmaps: dsp.mixMipmaps,
         fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
         waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef,
@@ -203,7 +205,6 @@ const App = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             saveAppStateToStorage({
-                resolutionPct: engine.resolutionPct,
                 currentSourceId: engine.currentSourceId,
                 zoomX: view.zoomX, zoomY: view.zoomY,
                 panOffset: view.panOffset, panOffsetY: view.panOffsetY,
@@ -214,7 +215,7 @@ const App = () => {
             });
         }, 1000);
         return () => clearTimeout(timer);
-    }, [engine.resolutionPct, engine.currentSourceId,
+    }, [engine.currentSourceId,
         view.zoomX, view.zoomY, view.panOffset, view.panOffsetY,
         playback.loopStart, playback.loopEnd, playback.lastPlayedType,
         view.isInfoPanelEnabled, view.signalFlowMode]);
@@ -253,7 +254,6 @@ const App = () => {
         <div className="h-dvh flex flex-col bg-[#111111] text-slate-200 overflow-hidden p-4 relative">
             <Header
                 fileName={engine.fileName}
-                resolutionPct={engine.resolutionPct} setResolutionPct={engine.setResolutionPct}
                 currentSourceId={engine.currentSourceId} lastPracticeSourceId={engine.lastPracticeSourceId}
                 handleFileUpload={engine.handleFileUpload} restoreUserUpload={engine.restoreUserUpload}
                 clearUserUpload={engine.clearUserUpload}
@@ -272,12 +272,9 @@ const App = () => {
                     playback.setLoopStart(null); playback.setLoopEnd(null);
                     playback.setIsDeltaMode(false);
                 }}
-                selectedPresetIdx={comp.selectedPresetIdx}
-                isCustomSettings={comp.isCustomSettings}
-                applyPreset={comp.applyPreset}
             />
 
-            <div className="flex-1 flex min-h-0 gap-4 relative">
+            <div className="flex-1 flex min-h-0 gap-4 relative z-0">
                 <Waveform
                     canvasRef={waveformCanvasRef}
                     containerRef={containerRef}
@@ -290,7 +287,7 @@ const App = () => {
 
                     {view.hoveredKnob && activeInfo && activeInfo.isKnob && view.isInfoPanelEnabled ? (
                         <div
-                            className="absolute bottom-44 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
+                            className="absolute bottom-4 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
                             style={{
                                 left: Math.max(10, Math.min(view.canvasDims.width - 270, view.hoveredKnobPos.x - (containerRef.current?.getBoundingClientRect().left || 0) - 128))
                             }}
@@ -322,7 +319,7 @@ const App = () => {
                         />
                     )}
 
-                    <div className="absolute bottom-44 right-4 z-40 flex flex-col gap-2 items-end">
+                    <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2 items-end">
                         <button
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); view.setIsInfoPanelEnabled(!view.isInfoPanelEnabled); }}
@@ -355,7 +352,7 @@ const App = () => {
 
                     {playback.loopStart !== null && playback.loopEnd !== null && originalBuffer && (
                         <div
-                            className="absolute top-0 flex items-center justify-center bg-green-500/90 text-white hover:bg-green-400 cursor-pointer shadow-lg z-30 transition-colors"
+                            className="absolute top-0 flex items-center justify-center bg-[#C2A475]/90 text-white hover:bg-[#D4B686] cursor-pointer shadow-lg z-30 transition-colors"
                             style={{
                                 left: `calc(${((playback.loopEnd / originalBuffer.duration) * view.zoomX * 100) + ((view.panOffset / view.canvasDims.width) * 100)}% - 24px)`,
                                 width: '24px', height: '24px',
@@ -403,6 +400,10 @@ const App = () => {
                 handleModeChange={playback.handleModeChange}
                 toggleDeltaMode={playback.toggleDeltaMode}
                 togglePlayback={playback.togglePlayback}
+                selectedPresetIdx={comp.selectedPresetIdx}
+                isCustomSettings={comp.isCustomSettings}
+                applyPreset={comp.applyPreset}
+                currentSourceId={engine.currentSourceId}
                 isDraggingKnobRef={isDraggingKnobRef}
                 handleNormalDragState={waveform.setIsKnobDragging}
                 handleKnobEnter={(k, e) => {
@@ -432,7 +433,6 @@ const App = () => {
                 </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#111111] z-50" />
         </div>
     );
 };

@@ -36,7 +36,6 @@ const useAudioEngine = ({
     const [currentSourceId, setCurrentSourceId] = useState(null);
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
     const [fileName, setFileName] = useState('');
-    const [resolutionPct, setResolutionPct] = useState(100);
 
     const userBufferRef = useRef(null);
     const userFileNameRef = useRef("");
@@ -64,19 +63,6 @@ const useAudioEngine = ({
         const monoBuffer = audioContext.createBuffer(1, length, sampleRate);
         monoBuffer.copyToChannel(monoData, 0);
         setOriginalBuffer(monoBuffer);
-
-        const MAX_SMOOTH_POINTS = 250000;
-        let autoPct = 100;
-        if (length > MAX_SMOOTH_POINTS) {
-            const idealStep = Math.ceil(length / MAX_SMOOTH_POINTS);
-            const minPoints = 3000;
-            const maxStep = Math.floor(length / minPoints);
-            let factor = (idealStep - 1) / (maxStep - 1);
-            if (factor < 0) factor = 0; if (factor > 1) factor = 1;
-            autoPct = Math.round(100 - (factor * 99));
-            if (autoPct === 100 && idealStep > 1) autoPct = 99;
-        }
-        setResolutionPct(autoPct);
     }, [audioContext, setOriginalBuffer]);
 
     const loadAudio = useCallback(async (preset, { autoMatchPreset = true } = {}) => {
@@ -246,7 +232,6 @@ const useAudioEngine = ({
     useEffect(() => {
         const savedState = loadAppStateFromStorage();
         if (savedState) {
-            if (savedState.resolutionPct) setResolutionPct(savedState.resolutionPct);
             if (savedState.currentSourceId) {
                 setCurrentSourceId(savedState.currentSourceId);
                 if (savedState.currentSourceId !== 'upload') {
@@ -349,7 +334,7 @@ const useAudioEngine = ({
     return {
         isLoading, errorMsg,
         currentSourceId, lastPracticeSourceId,
-        fileName, resolutionPct, setResolutionPct,
+        fileName,
         userBufferRef, userFileNameRef, fileInputRef,
         loadAudio, loadCustomAudio, handleFileUpload, handleDecodedBuffer,
         switchToPractice, switchToUpload,

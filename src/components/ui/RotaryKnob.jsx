@@ -20,6 +20,7 @@ const RotaryKnob = ({
 }) => {
     const isDraggingRef = useRef(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
     const [inputValue, setInputValue] = useState(displayValue || value);
 
     // 使用 Refs 儲存變數，以便在事件監聽器中訪問最新值
@@ -101,7 +102,7 @@ const RotaryKnob = ({
     const displayStr = displayValue !== undefined ? displayValue : value.toFixed(Number.isInteger(step) ? 0 : 1);
 
     return (
-        <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => onHover && onHover(tooltipKey, e)} onMouseLeave={() => onLeave && onLeave()}>
+        <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { setIsHovered(false); onLeave && onLeave(); }}>
             <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
@@ -111,10 +112,15 @@ const RotaryKnob = ({
             </div>
             <div className="text-center group/label relative" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                 <div className="flex flex-col items-center justify-end cursor-help pb-2">
-                    <div className="flex items-center gap-0.5 mb-1"><div className={`text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>{!disabled && <div className="w-1 h-1 rounded-full bg-slate-600 group-hover/label:bg-cyan-400 transition-colors"></div>}</div>
+                    <div className="flex items-center gap-0.5 mb-1">
+                        {isHovered
+                            ? <div className="text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
+                            : <div className={`text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>
+                        }
+                    </div>
                     {subLabel && <div className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">{subLabel}</div>}
                 </div>
-                {isEditing ? (<input autoFocus type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleInputBlur} onKeyDown={(e) => { if (e.key === 'Enter') handleInputBlur() }} onClick={(e) => e.stopPropagation()} className="w-12 text-center text-xs bg-slate-800 text-white border border-slate-600 rounded mt-1" />) : (<div className={`text-sm font-mono font-bold cursor-text -mt-1`} style={valueColorStyle}>{displayStr}{unit}</div>)}
+                {isEditing && <input autoFocus type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleInputBlur} onKeyDown={(e) => { if (e.key === 'Enter') handleInputBlur() }} onClick={(e) => e.stopPropagation()} className="w-12 text-center text-xs bg-slate-800 text-white border border-slate-600 rounded mt-1" />}
             </div>
         </div>
     );

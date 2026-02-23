@@ -1,5 +1,37 @@
 
 export const PRESETS_DATA = [
+    // --- GENERAL (通用) ---
+    {
+        name: "General: 1. Gentle Leveling (溫和平整)",
+        category: "General",
+        explanation: "【特色】\n非常輕微的壓縮，幾乎聽不出來，只控制最高峰值。適用於任何音源。\n\n【建議調整】\nThreshold 設在峰值附近，GR 偶爾出現 -1dB 至 -2dB。\n\n【音色變化】\n若覺得不夠明顯，可稍微降低 Threshold 或提高 Ratio。",
+        params: { threshold: -18, ratio: 2, attack: 20, release: 200, knee: 15, lookahead: 0, makeupGain: 1, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+    },
+    {
+        name: "General: 2. All-Purpose Glue (萬用黏合)",
+        category: "General",
+        explanation: "【特色】\n中等壓縮，適合任何音軌的萬用起點。平滑且均衡。\n\n【建議調整】\n調整 Threshold 讓 GR 約 -3dB 至 -5dB。\n\n【音色變化】\n若想更透明，降低 Ratio；若想更黏合，提高 Ratio 或降低 Threshold。",
+        params: { threshold: -22, ratio: 3, attack: 15, release: 150, knee: 10, lookahead: 0, makeupGain: 3, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+    },
+    {
+        name: "General: 3. Punch Enhancer (增強衝擊)",
+        category: "General",
+        explanation: "【特色】\n慢 Attack 讓瞬態通過，為任何音源增加衝擊感和存在感。\n\n【建議調整】\n調整 Threshold 讓 GR 約 -3dB 至 -6dB。\n\n【音色變化】\n若衝擊太多，加快 Attack；若不夠有力，調慢 Attack 或加大 Ratio。",
+        params: { threshold: -20, ratio: 4, attack: 35, release: 120, knee: 5, lookahead: 0, makeupGain: 3, dryGain: -60, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+    },
+    {
+        name: "General: 4. Heavy Control (重度控制)",
+        category: "General",
+        explanation: "【特色】\n激進的壓縮，用於強力動態控制。讓任何音源緊貼混音中的位置。\n\n【建議調整】\nGR 可達 -6dB 至 -10dB。\n\n【音色變化】\n若太扁平，調慢 Attack 保留一些瞬態；若要更多控制，降低 Threshold。",
+        params: { threshold: -26, ratio: 6, attack: 8, release: 80, knee: 3, lookahead: 0, makeupGain: 6, dryGain: -60, gateThreshold: -55, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+    },
+    {
+        name: "General: 5. Parallel Thickener (平行增厚)",
+        category: "General",
+        explanation: "【特色】\n重度壓縮，專為平行混音設計。使用 Dry Gain 混入未壓縮信號，為音色增添厚度。\n\n【建議調整】\n調整 Dry Gain 來控制乾濕比例，-12dB 是不錯的起點。\n\n【音色變化】\n提高 Dry Gain 讓乾信號更多（更自然）；降低 Dry Gain 讓壓縮更明顯（更厚實）。",
+        params: { threshold: -30, ratio: 8, attack: 5, release: 100, knee: 2, lookahead: 0, makeupGain: 8, dryGain: -12, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+    },
+
     // --- BASS (貝斯) ---
     {
         name: "Bass: 1. Transparent Leveling (透明平整)",

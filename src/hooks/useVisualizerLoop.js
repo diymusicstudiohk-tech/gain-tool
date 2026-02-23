@@ -26,7 +26,9 @@ const useVisualizerLoop = ({
     isGateBypass,
     isCompBypass,
     visualResult,
-    visualSourceCache,
+    visualStep,
+    mipmaps,
+    mixMipmaps,
     fullAudioDataRef,
     playBufferRef,
     startTimeRef,
@@ -36,7 +38,7 @@ const useVisualizerLoop = ({
     waveformCanvasRef,
     grBarCanvasRef,
     outputMeterCanvasRef,
-    cfMeterCanvasRef, // [NEW]
+    cfMeterCanvasRef,
     playheadRef,
     meterStateRef,
     hoverGrRef,
@@ -72,7 +74,7 @@ const useVisualizerLoop = ({
 
         // Update Playhead Position
         if (waveformCanvasRef.current && playheadRef.current) {
-            const width = waveformCanvasRef.current.width;
+            const width = canvasDims.width;
             const totalWidth = width * zoomX;
             const pct = currentPosition / duration;
             const screenPct = (((pct * totalWidth) + panOffset) / width) * 100;
@@ -82,7 +84,7 @@ const useVisualizerLoop = ({
 
         if (visualResult) {
             // RMS Calculation
-            const step = visualSourceCache.step;
+            const step = visualStep;
             // Prevent negative index access which causes NaNs
             const visualIndex = Math.max(0, Math.floor((currentPosition * audioContext.sampleRate) / step));
             const windowSize = Math.max(1, Math.floor(2048 / step));
@@ -115,8 +117,6 @@ const useVisualizerLoop = ({
                     if (isDeltaMode) {
                         mix = wet - dry;
                     } else {
-                        // Logic: mix = wet + (dry * dryLinear)
-                        // Note: If dryLinear is 0, mix == wet.
                         mix = wet + (dry * dryLinear);
                     }
                 } else {
@@ -146,24 +146,21 @@ const useVisualizerLoop = ({
 
             // --- Crest Factor Calculation ---
             let currentInstantCF = 0;
-            // Only calculate if we have signal to avoid infinity
             if (currentOutRms > 0.0001 && maxMix > 0.0001) {
                 const peakDb = Math.log(maxMix) * TWENTY_LOG10E;
                 const rmsDb = Math.log(currentOutRms) * TWENTY_LOG10E;
                 currentInstantCF = peakDb - rmsDb;
             } else {
-                currentInstantCF = 0; // Fallback to 0 if silent
+                currentInstantCF = 0;
             }
 
-            // Smoothing for CF (EMA) - User requested 0.9 / 0.1
-            // But let's check if meterStateRef.current.crestFactor exists (it should, initialized in App)
             if (meterStateRef.current.crestFactor === undefined) meterStateRef.current.crestFactor = 0;
 
             meterStateRef.current.crestFactor = meterStateRef.current.crestFactor * 0.9 + currentInstantCF * 0.1;
 
             // Draw Meters
             drawGRBar(grBarCanvasRef.current, isProcessed ? currentGR : 0, meterStateRef.current, hoverGrRef.current);
-            drawCrestFactorMeter(cfMeterCanvasRef.current, meterStateRef.current.crestFactor); // [NEW]
+            drawCrestFactorMeter(cfMeterCanvasRef.current, meterStateRef.current.crestFactor);
 
             if (isProcessed) {
                 drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current);
@@ -189,25 +186,21 @@ const useVisualizerLoop = ({
                     isGateAdjusting, hasGateBeenAdjusted,
                     hoverGrRef,
                     isGateBypass, isCompBypass,
-                    signalFlowMode
+                    signalFlowMode,
+                    mipmaps, mixMipmaps
                 });
             }
         }
 
         // Loop & Playback Logic
         if (loopStart !== null && loopEnd !== null) {
-            // Only enforce loop if we are theoretically "in" the loop or just passed it.
-            // If the user started playback WAY past the loop (e.g. seeking to outro), allowing them to play freely.
-            // Logic: If currentPosition > loopEnd, AND startOffset < loopEnd (meaning we played INTO the boundary), then loop.
-            // Native looping handles the audio. We just need to ensure the visual playhead wraps correctly.
-            // No manual restart needed here.
+            // Native looping handles the audio. Visual playhead wraps above.
         } else if (currentPosition >= duration) {
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
 
                 if (targetBuffer) {
-                    // Fix: If loop is active, jump to loop start instead of 0
                     if (loopStart !== null && loopEnd !== null) {
                         playBufferRef.current(targetBuffer, playingType, loopStart);
                     } else {
@@ -221,11 +214,11 @@ const useVisualizerLoop = ({
         return () => cancelAnimationFrame(rafIdRef.current);
     }, [
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, dryGain, isDeltaMode,
-        visualSourceCache, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
+        visualStep, mipmaps, mixMipmaps, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
-        signalFlowMode // [NEW] Dep
+        signalFlowMode
     ]);
 
     // --- Static Draw for Initial State ---
@@ -248,7 +241,8 @@ const useVisualizerLoop = ({
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
                 isGateBypass, isCompBypass,
-                signalFlowMode
+                signalFlowMode,
+                mipmaps, mixMipmaps
             });
         }
 
@@ -266,7 +260,7 @@ const useVisualizerLoop = ({
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
-        signalFlowMode // [NEW] Dep
+        signalFlowMode, mipmaps, mixMipmaps
     ]);
 
     return animate;

@@ -1,23 +1,23 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { processCompressor, createRealTimeCompressor } from '../utils/dsp';
 import { toMono } from '../utils/audioHelper';
+import { buildMipmaps } from '../utils/mipmapCache';
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, resolutionPct, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef }) => {
+const MAX_SMOOTH_POINTS = 250000;
+
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
 
-    // Downsampling for Visuals
+    // Downsampling for Visuals — always auto-cap to MAX_SMOOTH_POINTS
     useEffect(() => {
         if (!originalBuffer) return;
         const length = originalBuffer.length;
         const monoData = toMono(originalBuffer);
 
         let targetStep = 1;
-        if (resolutionPct < 100) {
-            const minPoints = 3000;
-            const maxStep = Math.floor(length / minPoints);
-            const factor = (100 - resolutionPct) / 99;
-            targetStep = 1 + Math.floor(factor * (maxStep - 1));
+        if (length > MAX_SMOOTH_POINTS) {
+            targetStep = Math.ceil(length / MAX_SMOOTH_POINTS);
         }
 
         const cacheLength = Math.floor(length / targetStep);
@@ -36,13 +36,39 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, resolut
             cacheData[i] = chunkVal;
         }
         setVisualSourceCache({ data: cacheData, step: targetStep });
-    }, [originalBuffer, resolutionPct]);
+    }, [originalBuffer]);
 
     // Visual Result Memo
     const visualResult = useMemo(() => {
         if (!visualSourceCache.data || !audioContext) return null;
         return processCompressor(visualSourceCache.data, audioContext.sampleRate, currentParams, visualSourceCache.step);
     }, [visualSourceCache, audioContext, currentParams]);
+
+    // Build mipmaps for input, output, and GR curves
+    const mipmaps = useMemo(() => {
+        if (!visualResult) return null;
+        return {
+            input: buildMipmaps(visualResult.visualInput, 'absMax'),
+            output: buildMipmaps(visualResult.outputData, 'absMax'),
+            gr: buildMipmaps(visualResult.grCurve, 'min'),
+        };
+    }, [visualResult]);
+
+    // Build mix mipmaps (depends on dryGain)
+    const mixMipmaps = useMemo(() => {
+        if (!visualResult) return null;
+        const src = visualResult;
+        const dryLinear = Math.pow(10, dryGain / 20);
+        const len = src.outputData.length;
+        const mixData = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+            mixData[i] = Math.abs(src.outputData[i] + (src.visualInput[i] * dryLinear));
+        }
+        return buildMipmaps(mixData, 'absMax');
+    }, [visualResult, dryGain]);
+
+    // visualStep = original samples per visual cache sample
+    const visualStep = visualSourceCache.step;
 
     // Full Audio Processing (Async Chunking)
     useEffect(() => {
@@ -85,8 +111,10 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, resolut
     }, [originalBuffer, audioContext, currentParams, playingType, isDeltaMode, setIsProcessing]);
 
     return {
-        visualSourceCache,
         visualResult,
+        mipmaps,
+        mixMipmaps,
+        visualStep,
         fullAudioDataRef,
         processingTaskRef,
     };

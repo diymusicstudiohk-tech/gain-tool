@@ -8,7 +8,7 @@ export const generateDebugReport = async ({
     actionLog,
     waveformCanvas,
     appVersion,
-    appState // { fileName, currentSourceId, playingType, isPlaying, resolutionPct, canvasDims }
+    appState // { fileName, currentSourceId, playingType, isPlaying, canvasDims }
 }) => {
     const now = new Date();
     const actionTrace = actionLog || [];
@@ -90,7 +90,6 @@ ${JSON.stringify({
             isPlaying: appState.isPlaying
         },
         viewState: {
-            resolutionPct: appState.resolutionPct,
             canvasDims: appState.canvasDims
         }
     }, null, 2)}

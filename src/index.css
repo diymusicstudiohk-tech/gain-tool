@@ -8,6 +8,60 @@
 .glass-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 .glass-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
+/* Breathing animations (from colour-guide.md §11) */
+@keyframes breathe-mixcheck {
+  0%, 100% { background-color: #C2A475; }
+  50% { background-color: #D4B88A; }
+}
+
+@keyframes breathe-brick-red {
+  0%, 100% {
+    background-color: #8F3C29;
+    box-shadow: 0 0 5px rgba(181, 76, 53, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #B54C35;
+    box-shadow: 0 0 25px rgba(181, 76, 53, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-brick-red {
+  animation: breathe-brick-red 1.5s infinite ease-in-out;
+}
+
+@keyframes breathe-free-mode {
+  0%, 100% {
+    background-color: #C2A475;
+    border-color: #C2A475;
+    box-shadow: 0 0 8px rgba(194, 164, 117, 0.5);
+  }
+  50% {
+    background-color: #D4B88A;
+    border-color: #D4B88A;
+    box-shadow: 0 0 20px rgba(212, 184, 138, 0.9);
+  }
+}
+.breathe-free-mode {
+  animation: breathe-free-mode 2.5s infinite ease-in-out;
+}
+
+@keyframes breathe-blue {
+  0%, 100% {
+    background-color: #1e40af;
+    box-shadow: 0 0 5px rgba(37, 99, 235, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #2563eb;
+    box-shadow: 0 0 25px rgba(37, 99, 235, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-blue {
+  animation: breathe-blue 1.5s infinite ease-in-out;
+}
+
 /* 強制設定背景色，確保網頁滿版，禁止 scroll */
 html, body, #root {
   touch-action: manipulation; /* prevent double-tap zoom on iOS */

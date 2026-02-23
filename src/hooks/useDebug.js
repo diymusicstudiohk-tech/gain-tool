@@ -15,7 +15,7 @@ const useDebug = () => {
     const handleCopyDebug = useCallback(async ({
         audioContext, originalBuffer, getCurrentStateSnapshot,
         fileName, currentSourceId, playingType, isPlayingRef,
-        resolutionPct, canvasDims, waveformCanvasRef
+        canvasDims, waveformCanvasRef
     }) => {
         setCopyStatus('copying');
         try {
@@ -27,7 +27,6 @@ const useDebug = () => {
                 currentSourceId,
                 playingType,
                 isPlaying: isPlayingRef.current,
-                resolutionPct,
                 canvasDims
             };
 

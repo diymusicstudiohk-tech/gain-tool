@@ -1,4 +1,5 @@
 import React from 'react';
+import { selectMipmapLevel } from '../../utils/mipmapCache';
 
 // --- Helper Drawing Functions ---
 
@@ -28,18 +29,23 @@ export const drawMainWaveform = ({
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
     isGateBypass, isCompBypass,
-    signalFlowMode // [NEW]
+    signalFlowMode,
+    mipmaps, mixMipmaps // mipmap data
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const { width, height } = canvasDims;
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
+    const dpr = window.devicePixelRatio || 1;
+    const physW = Math.round(width * dpr);
+    const physH = Math.round(height * dpr);
+    if (canvas.width !== physW) canvas.width = physW;
+    if (canvas.height !== physH) canvas.height = physH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    ctx.setLineDash([]); ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, width, height);
+    ctx.setLineDash([]); ctx.fillStyle = '#202020'; ctx.fillRect(0, 0, width, height);
 
     if (!visualResult) {
-        ctx.fillStyle = '#475569'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#666'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('請載入音訊...', width / 2, height / 2); return;
     }
 
@@ -60,9 +66,9 @@ export const drawMainWaveform = ({
             const loopW = endX - startX;
 
             if (loopW > 0) {
-                ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
+                ctx.fillStyle = 'rgba(193, 164, 117, 0.2)';
                 ctx.fillRect(startX, 0, loopW, height);
-                ctx.fillStyle = 'rgba(34, 197, 94, 0.5)';
+                ctx.fillStyle = 'rgba(193, 164, 117, 0.5)';
                 ctx.fillRect(startX, 0, 1, height);
                 ctx.fillRect(endX, 0, 1, height);
             }
@@ -73,15 +79,31 @@ export const drawMainWaveform = ({
         const grMaxHeight = maxPixelHeight * 0.5;
 
         // Grid
-        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
+        ctx.strokeStyle = '#2B2B2B'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
         const gridX = width / 4; for (let x = panOffset % gridX; x < width; x += gridX) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
         ctx.stroke();
 
         const inPoints = []; const outPoints = []; const corePoints = []; const mixPoints = []; const grPoints = [];
         const dryLinear = Math.pow(10, dryGain / 20);
 
-        // Waveform Calculation Loop
-        for (let x = 0; x < width; x++) {
+        // Viewport culling: compute visible pixel range
+        const loopStartX = Math.max(0, Math.floor(-panOffset / 1) - 1);  // first visible pixel
+        const loopEndX = Math.min(width, Math.ceil((-panOffset + width) / 1) + 1); // extra safety margin but capped
+
+        // Select mipmap levels for this zoom
+        const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
+        let mmIn, mmOut, mmGR, mmMix;
+        if (useMipmaps) {
+            mmIn = selectMipmapLevel(mipmaps.input, step);
+            mmOut = selectMipmapLevel(mipmaps.output, step);
+            mmGR = selectMipmapLevel(mipmaps.gr, step);
+            if (mixMipmaps && lastPlayedType === 'processed') {
+                mmMix = selectMipmapLevel(mixMipmaps, step);
+            }
+        }
+
+        // Waveform Calculation Loop (with viewport culling + mipmap optimization)
+        for (let x = loopStartX; x < loopEndX; x++) {
             const vX = x - panOffset;
             const start = Math.floor(vX * step);
             const end = Math.floor((vX + 1) * step);
@@ -92,10 +114,50 @@ export const drawMainWaveform = ({
             const count = safeEnd - loopStartIdx;
 
             if (count > 0) {
-                for (let i = loopStartIdx; i < safeEnd; i++) {
-                    const absIn = Math.abs(srcInput[i]); const absOut = Math.abs(srcOutput[i]); const grVal = srcGR[i];
-                    if (absIn > maxIn) maxIn = absIn; if (absOut > maxOut) maxOut = absOut; if (grVal < minGR) minGR = grVal;
-                    if (lastPlayedType === 'processed') { const mixVal = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mixVal > maxMix) maxMix = mixVal; }
+                if (useMipmaps) {
+                    // Mipmap-based inner loop for input (absMax)
+                    const inLevel = mmIn.level; const inBS = mmIn.blockSize;
+                    const inStart = Math.floor(loopStartIdx / inBS);
+                    const inEnd = Math.ceil(safeEnd / inBS);
+                    for (let i = inStart; i < inEnd && i < inLevel.length; i++) {
+                        const a = Math.abs(inLevel[i]);
+                        if (a > maxIn) maxIn = a;
+                    }
+
+                    // Output (absMax)
+                    const outLevel = mmOut.level; const outBS = mmOut.blockSize;
+                    const outStart = Math.floor(loopStartIdx / outBS);
+                    const outEnd = Math.ceil(safeEnd / outBS);
+                    for (let i = outStart; i < outEnd && i < outLevel.length; i++) {
+                        const a = Math.abs(outLevel[i]);
+                        if (a > maxOut) maxOut = a;
+                    }
+
+                    // GR (min)
+                    const grLevel = mmGR.level; const grBS = mmGR.blockSize;
+                    const grStart = Math.floor(loopStartIdx / grBS);
+                    const grEnd = Math.ceil(safeEnd / grBS);
+                    for (let i = grStart; i < grEnd && i < grLevel.length; i++) {
+                        if (grLevel[i] < minGR) minGR = grLevel[i];
+                    }
+
+                    // Mix (absMax from pre-computed mix mipmaps)
+                    if (mmMix && lastPlayedType === 'processed') {
+                        const mixLevel = mmMix.level; const mixBS = mmMix.blockSize;
+                        const mixStart = Math.floor(loopStartIdx / mixBS);
+                        const mixEnd = Math.ceil(safeEnd / mixBS);
+                        for (let i = mixStart; i < mixEnd && i < mixLevel.length; i++) {
+                            const a = Math.abs(mixLevel[i]);
+                            if (a > maxMix) maxMix = a;
+                        }
+                    }
+                } else {
+                    // Fallback: original inner loop
+                    for (let i = loopStartIdx; i < safeEnd; i++) {
+                        const absIn = Math.abs(srcInput[i]); const absOut = Math.abs(srcOutput[i]); const grVal = srcGR[i];
+                        if (absIn > maxIn) maxIn = absIn; if (absOut > maxOut) maxOut = absOut; if (grVal < minGR) minGR = grVal;
+                        if (lastPlayedType === 'processed') { const mixVal = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mixVal > maxMix) maxMix = mixVal; }
+                    }
                 }
             } else {
                 const idx = Math.min(Math.floor(loopStartIdx), srcLength - 1);
@@ -115,16 +177,16 @@ export const drawMainWaveform = ({
         }
 
         // Draw Polygons
-        if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#facc15', width, centerY); }
+        if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
         else {
             const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
-            drawPolygon(ctx, inPoints, '#ef4444', width, centerY, redOpacity);
-            drawPolygon(ctx, mixPoints, '#facc15', width, centerY);
-            drawPolygon(ctx, outPoints, '#38bdf8', width, centerY);
-            const coreColor = isDeltaMode ? '#94a3b8' : '#ffffff';
+            drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
+            drawPolygon(ctx, mixPoints, '#C2A475', width, centerY);
+            drawPolygon(ctx, outPoints, '#7D93B7', width, centerY);
+            const coreColor = isDeltaMode ? '#888' : '#ffffff';
             drawPolygon(ctx, corePoints, coreColor, width, centerY);
         }
-        if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#ef4444');
+        if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 
         // Helper Label
         const drawLabel = (text, x, y, color, align) => {
@@ -140,13 +202,13 @@ export const drawMainWaveform = ({
 
         // Threshold Lines
         const isDry = lastPlayedType === 'original';
-        const inactiveColor = '#475569';
+        const inactiveColor = '#555';
 
         if ((hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) && signalFlowMode !== 'clip') {
             const threshY = Math.pow(10, threshold / 20) * ampScale;
             if (centerY - threshY > -20 && centerY - threshY < height + 20) {
                 const tTop = centerY - threshY;
-                const compColor = isDry || isCompBypass ? inactiveColor : '#22d3ee';
+                const compColor = isDry || isCompBypass ? inactiveColor : '#C2A475';
                 ctx.strokeStyle = compColor; ctx.setLineDash([6, 4]);
                 ctx.lineWidth = (hoverLine === 'comp' || isDraggingLine === 'comp') ? 3 : 2;
                 ctx.beginPath(); ctx.moveTo(0, tTop); ctx.lineTo(width, tTop); ctx.moveTo(0, centerY + threshY); ctx.lineTo(width, centerY + threshY); ctx.stroke();
@@ -157,7 +219,7 @@ export const drawMainWaveform = ({
         const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
         if ((centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) && signalFlowMode !== 'clip') {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-            const gateColor = isDry || isGateBypass ? inactiveColor : '#f97316';
+            const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';
             ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
             ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
             ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
@@ -166,12 +228,12 @@ export const drawMainWaveform = ({
 
         // GR Scale Labels
         if (lastPlayedType === 'processed') {
-            ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.font = 'bold 10px monospace';
+            ctx.fillStyle = '#E05E42'; ctx.textAlign = 'right'; ctx.font = 'bold 10px monospace';
             [-3, -6, -12, -20].forEach(db => {
                 const yVal = (1.0 - Math.pow(10, db / 20)) * grMaxHeight;
                 if (yVal < height / 2) {
                     ctx.fillText(`${db}dB`, width - 5, yVal + 3);
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.5)'; ctx.fillRect(width - 15, yVal, 10, 1); ctx.fillStyle = '#ef4444';
+                    ctx.fillStyle = 'rgba(224, 94, 66, 0.5)'; ctx.fillRect(width - 15, yVal, 10, 1); ctx.fillStyle = '#E05E42';
                 }
             });
         }
@@ -184,7 +246,7 @@ export const drawMainWaveform = ({
             ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx, height - 4, sw, 4);
         }
 
-        // Mouse GR Inspection
+        // Mouse GR Inspection (with mipmap optimization)
         if (mousePos.x >= 0 && lastPlayedType === 'processed' && signalFlowMode !== 'clip') {
             const vX = mousePos.x - panOffset;
             const start = Math.floor(vX * step);
@@ -192,16 +254,26 @@ export const drawMainWaveform = ({
 
             let hoverGR = 0;
             if (start >= 0 && start < srcLength) {
-                hoverGR = srcGR[start];
-                const safeEnd = Math.min(end, srcLength);
-                for (let i = start + 1; i < safeEnd; i++) { if (srcGR[i] < hoverGR) hoverGR = srcGR[i]; }
+                if (useMipmaps) {
+                    const grLevel = mmGR.level; const grBS = mmGR.blockSize;
+                    const grStart = Math.floor(start / grBS);
+                    const grEnd = Math.ceil(Math.min(end, srcLength) / grBS);
+                    hoverGR = grLevel[grStart] || 0;
+                    for (let i = grStart + 1; i < grEnd && i < grLevel.length; i++) {
+                        if (grLevel[i] < hoverGR) hoverGR = grLevel[i];
+                    }
+                } else {
+                    hoverGR = srcGR[start];
+                    const safeEnd = Math.min(end, srcLength);
+                    for (let i = start + 1; i < safeEnd; i++) { if (srcGR[i] < hoverGR) hoverGR = srcGR[i]; }
+                }
             }
 
             if (hoverGrRef) hoverGrRef.current = hoverGR;
 
             // Always show tooltip if in processed mode
             const grY = (1.0 - Math.pow(10, hoverGR / 20)) * grMaxHeight;
-            ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+            ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
 
             // Vertical Line
             ctx.beginPath();
@@ -216,7 +288,7 @@ export const drawMainWaveform = ({
             const bgHeight = 20;
             const bgX = mousePos.x + 8;
 
-            ctx.fillStyle = '#ec4899';
+            ctx.fillStyle = '#C2A475';
             ctx.fillRect(bgX, mousePos.y - bgHeight - 4, bgWidth, bgHeight);
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'left';
@@ -241,7 +313,7 @@ const Waveform = ({
     return (
         <div
             ref={containerRef}
-            className="flex-1 relative bg-[#202020] border-2 border-slate-800 rounded-xl shadow-inner overflow-hidden flex cursor-crosshair select-none touch-none"
+            className="flex-1 relative bg-[#202020] border-2 border-[#2B2B2B] rounded-xl shadow-inner overflow-hidden flex cursor-crosshair select-none touch-none"
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
@@ -249,7 +321,7 @@ const Waveform = ({
             <canvas ref={canvasRef} className="w-full h-full block" />
 
             {/* Playheads */}
-            <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] pointer-events-none z-20" style={{ left: '0%', opacity: 0 }}></div>
+            <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20" style={{ left: '0%', opacity: 0 }}></div>
 
             {/* Draggable Overlays & HUDs passed as children */}
             {children}

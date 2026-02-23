@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    ToggleLeft, ToggleRight, Settings, X, Sliders,
-    Settings2, Download, RotateCcw, FolderOpen, ChevronDown, ChevronUp
+    ToggleLeft, ToggleRight, X,
+    Download, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { AUDIO_SOURCES, APP_VERSION, PRESETS_DATA } from '../../utils/constants';
+import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
@@ -20,8 +20,6 @@ const CUSTOM_ALLOWED_MIME_TYPES = [
 
 const Header = ({
     fileName,
-    resolutionPct,
-    setResolutionPct,
     currentSourceId,
     lastPracticeSourceId,
     handleFileUpload,
@@ -44,13 +42,7 @@ const Header = ({
     stopAudio,
     loadCustomAudio,
 
-    // Presets
-    selectedPresetIdx,
-    isCustomSettings,
-    applyPreset
 }) => {
-    const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-    const optionsRef = useRef(null);
     const [showAbout, setShowAbout] = useState(false);
 
     // Confirmation Modal State
@@ -69,10 +61,11 @@ const Header = ({
     const [canScrollDown, setCanScrollDown] = useState(false);
 
     const updateScrollIndicators = useCallback(() => {
-        if (!customListRef.current) return;
-        const { scrollTop, scrollHeight, clientHeight } = customListRef.current;
-        setCanScrollUp(scrollTop > 5);
-        setCanScrollDown(scrollTop < scrollHeight - clientHeight - 5);
+        if (customListRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = customListRef.current;
+            setCanScrollUp(scrollTop > 5);
+            setCanScrollDown(scrollTop < scrollHeight - clientHeight - 5);
+        }
     }, []);
 
     useEffect(() => {
@@ -83,17 +76,6 @@ const Header = ({
     useEffect(() => {
         loadCustomAudioIndexFromDB().then(setCustomAudioFiles);
     }, []);
-
-    // Click outside to close options panel
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (isOptionsOpen && optionsRef.current && !optionsRef.current.contains(event.target)) {
-                setIsOptionsOpen(false);
-            }
-        };
-        if (isOptionsOpen) window.addEventListener('mousedown', handleClickOutside, true);
-        return () => window.removeEventListener('mousedown', handleClickOutside, true);
-    }, [isOptionsOpen]);
 
     // Click outside to close custom dropdown
     useEffect(() => {
@@ -205,25 +187,26 @@ const Header = ({
             {/* About modal */}
             {showAbout && (
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowAbout(false)}
                 >
                     <div
-                        className="bg-[#202020] border border-white/10 rounded-xl shadow-2xl p-6 min-w-[260px] max-w-sm mx-4 flex flex-col gap-4"
+                        className="bg-[#111111] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-100 animate-in zoom-in-95 duration-200 relative"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#C0A374' }}>
-                                <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
-                                <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />
-                            </svg>
-                            <span className="text-white font-medium text-sm">金耳朵壓縮顯示器</span>
-                        </div>
-                        <div className="border-t border-white/10" />
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs text-slate-400 uppercase tracking-wider">最新更新</span>
-                            <span className="text-sm text-white font-mono">
-                                {(() => {
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setShowAbout(false)}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+
+                        {/* Content */}
+                        <div className="text-center">
+                            <h3 className="text-xl font-bold text-white mb-2">金耳朵壓縮顯示器</h3>
+                            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+                                最新更新：{(() => {
                                     try {
                                         return new Date(__GIT_COMMIT_TIME__).toLocaleString('zh-HK', {
                                             timeZone: 'Asia/Hong_Kong',
@@ -235,34 +218,29 @@ const Header = ({
                                         return __GIT_COMMIT_TIME__;
                                     }
                                 })()}
-                            </span>
+                            </p>
+
+                            {/* Actions */}
+                            <div className="flex flex-col items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowAbout(false);
+                                        stopAudio();
+                                        handleFactoryReset();
+                                    }}
+                                    className="w-full max-w-[240px] px-6 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium text-sm shadow-lg shadow-red-900/50"
+                                >
+                                    還原本程式所有設定
+                                </button>
+                            </div>
                         </div>
-                        <div className="border-t border-white/10" />
-                        <button
-                            onClick={() => {
-                                setShowAbout(false);
-                                stopAudio();
-                                setPendingAction('factoryReset');
-                                setShowConfirmModal(true);
-                            }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all border border-green-500 bg-green-600 text-white hover:bg-green-500"
-                        >
-                            <RotateCcw size={16} />
-                            還原所有設定
-                        </button>
-                        <button
-                            onClick={() => setShowAbout(false)}
-                            className="self-end text-xs text-slate-400 hover:text-white transition-colors px-3 py-1 rounded-md hover:bg-white/10"
-                        >
-                            關閉
-                        </button>
                     </div>
                 </div>
             )}
 
             <div>
                 <h1
-                    className="text-sm font-medium flex items-center gap-2 text-white cursor-pointer hover:opacity-75 transition-opacity select-none"
+                    className="text-xl font-bold flex items-center gap-2 text-white tracking-tight cursor-pointer hover:opacity-75 transition-opacity select-none"
                     onClick={() => setShowAbout(true)}
                     title="點擊查看版本資訊"
                 >
@@ -292,8 +270,8 @@ const Header = ({
                             ${currentSourceId === 'upload' || !currentSourceId
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                                 : isCustomDropdownOpen
-                                    ? 'bg-[#C2A475] border-[#C2A475] text-black z-10'
-                                    : 'bg-[#202020] border-white/30 text-gray-300 opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                                    ? 'bg-[#B54C35] border-[#B54C35] text-black animate-[breathe-mixcheck_2s_ease-in-out_infinite] z-10'
+                                    : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                             }`}
                     >
                         <span className="truncate">{dropdownDisplayName}</span>
@@ -421,104 +399,12 @@ const Header = ({
                     className={`w-8 h-8 flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
                         ${!currentSourceId || isLoading
                             ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : 'bg-[#202020] border-white/30 text-gray-300 opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                            : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                         }`}
                     title="下載壓縮後音檔"
                 >
                     <Download size={16} />
                 </button>
-
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
-                {/* PRESET SELECTOR [FILTERED, STICKY & CATEGORIZED] */}
-                <div className="relative">
-                    <select
-                        value={selectedPresetIdx}
-                        onChange={(e) => applyPreset(parseInt(e.target.value))}
-                        className={`appearance-none bg-slate-800 text-slate-200 text-sm font-bold px-3 py-2 pr-8 rounded-md border border-slate-700 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all cursor-pointer ${isCustomSettings ? 'text-cyan-400 border-cyan-500/50' : ''}`}
-                    >
-                        {/* Group Presets by Category */}
-                        {Object.entries(PRESETS_DATA.reduce((acc, p, idx) => {
-                            if (!acc[p.category]) acc[p.category] = [];
-                            acc[p.category].push({ ...p, originalIdx: idx });
-                            return acc;
-                        }, {})).map(([category, presets]) => {
-                            // Filter logic for this group
-                            const visiblePresets = presets.filter(p => {
-                                // Always show active
-                                if (p.originalIdx === selectedPresetIdx) return true;
-
-                                // Source filter
-                                if (currentSourceId && currentSourceId !== 'upload') {
-                                    const activeSource = AUDIO_SOURCES.find(s => s.id === currentSourceId);
-                                    if (activeSource) {
-                                        if (!activeSource.category.startsWith(p.category)) {
-                                            if (p.category === 'Other' && activeSource.category.includes('Other Drums')) return false;
-                                            if (!activeSource.category.includes(p.category)) return false;
-                                        }
-                                    }
-                                }
-                                return true;
-                            });
-
-                            if (visiblePresets.length === 0) return null;
-
-                            return (
-                                <optgroup key={category} label={category} className="bg-slate-900 text-slate-400 font-bold">
-                                    {visiblePresets.map(p => (
-                                        <option key={p.originalIdx} value={p.originalIdx} className="text-white font-normal">
-                                            {p.name} {p.originalIdx === selectedPresetIdx && isCustomSettings ? '*' : ''}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            );
-                        })}
-                    </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </div>
-                </div>
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
-                {/* OPTIONS BUTTON */}
-                <div className="relative" ref={optionsRef}>
-                    <button
-                        onClick={() => setIsOptionsOpen(!isOptionsOpen)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold transition-all ${isOptionsOpen ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-                        title="設定 / 解析度"
-                    >
-                        <Settings size={16} />
-                    </button>
-
-                    {/* OPTIONS POPUP */}
-                    {isOptionsOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 z-50">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-bold text-white flex items-center gap-2"><Sliders size={12} /> 效能與解析度</span>
-                                <button onClick={() => setIsOptionsOpen(false)}><X size={14} className="text-slate-500 hover:text-white" /></button>
-                            </div>
-                            <div className="mb-4">
-                                <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-                                    <span>流暢 (Low Res)</span>
-                                    <span>精細 (High Res)</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="100"
-                                    value={resolutionPct}
-                                    onChange={(e) => setResolutionPct(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                                />
-                                <div className="text-center text-xs font-mono mt-1 text-cyan-400 font-bold">{resolutionPct}% Resolution</div>
-                            </div>
-                            <p className="text-[10px] text-slate-500 leading-tight mb-4">
-                                調低解析度可提升操作流暢度，但可能丟失極短暫的峰值細節。預設為 100% 以確保準確性。
-                            </p>
-
-                        </div>
-                    )}
-                </div>
 
 
             </div>

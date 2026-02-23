@@ -14,7 +14,7 @@ const usePlayback = ({
     isPlayingRef, rafIdRef, playBufferRef,
 }) => {
     const [playingType, setPlayingType] = useState('none');
-    const [lastPlayedType, setLastPlayedType] = useState('original');
+    const [lastPlayedType, setLastPlayedType] = useState('processed');
     const [isDeltaMode, setIsDeltaMode] = useState(false);
     const [loopStart, setLoopStart] = useState(null);
     const [loopEnd, setLoopEnd] = useState(null);
@@ -77,7 +77,7 @@ const usePlayback = ({
                 source.buffer = targetBuffer;
 
                 if (type === 'processed') {
-                    const scriptNode = audioContext.createScriptProcessor(512, 1, 1);
+                    const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                     const compressor = createRealTimeCompressor(audioContext.sampleRate);
                     scriptNode.onaudioprocess = (e) => {
                         compressor.processBlock(e.inputBuffer, e.outputBuffer, paramsRef.current);

@@ -156,10 +156,10 @@ const ClipGainOverlay = ({
             {/* Handle Button */}
             <div
                 className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 
-                            bg-slate-100/10 backdrop-blur-md border border-white/30 rounded-lg 
+                            bg-slate-100/10 backdrop-blur-md border border-[#C2A475]/30 rounded-lg 
                             shadow-lg flex flex-col items-center justify-center gap-0 
                             cursor-ns-resize pointer-events-auto transition-colors duration-200
-                            ${isDragging ? 'bg-slate-100/20 border-white/50' : 'hover:bg-slate-100/15 hover:border-white/40'}`}
+                            ${isDragging ? 'bg-slate-100/20 border-[#C2A475]/50' : 'hover:bg-slate-100/15 hover:border-[#C2A475]/40'}`}
                 style={{ top: currentY }}
                 onMouseDown={handleMouseDown}
             >

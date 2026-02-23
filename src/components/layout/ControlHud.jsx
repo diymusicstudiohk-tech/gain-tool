@@ -1,8 +1,14 @@
-import React from 'react';
-import { Triangle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Triangle, Power, Play, Pause, ChevronRight, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import RotaryKnob from '../ui/RotaryKnob';
-import PlayBtn from '../ui/PlayBtn';
 import PowerButton from '../ui/PowerButton';
+import { PRESETS_DATA, AUDIO_SOURCES } from '../../utils/constants';
+
+const CATEGORY_ZH = {
+    General: '通用', Bass: '貝斯', 'Acoustic Guitar': '木吉他', 'Electric Guitar': '電吉他',
+    Kick: '大鼓', Snare: '小鼓', 'Other Drums': '其他鼓件', Keys: '鍵盤',
+    'Female Vocal': '女聲', 'Male Vocal': '男聲', Other: '其他',
+};
 
 const ControlHud = ({
     // Gate Params
@@ -23,12 +29,49 @@ const ControlHud = ({
     playingType, lastPlayedType, isDryMode, isDeltaMode,
     handleModeChange, toggleDeltaMode, togglePlayback,
 
+    // Presets
+    selectedPresetIdx, isCustomSettings, applyPreset, currentSourceId,
+
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
     resetAllParams,
-    signalFlowMode // [NEW] Received from App.jsx
+    signalFlowMode
 }) => {
     const isClipMode = signalFlowMode === 'clip';
+    const [expandedModule, setExpandedModule] = useState('comp');
+    const cycleModule = (current) => {
+        const order = ['gate', 'comp'];
+        return order[(order.indexOf(current) + 1) % order.length];
+    };
+
+    // Preset dropdown state
+    const [isPresetOpen, setIsPresetOpen] = useState(false);
+    const presetDropdownRef = useRef(null);
+    const presetListRef = useRef(null);
+    const [presetCanScrollUp, setPresetCanScrollUp] = useState(false);
+    const [presetCanScrollDown, setPresetCanScrollDown] = useState(false);
+
+    const updatePresetScroll = useCallback(() => {
+        if (presetListRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = presetListRef.current;
+            setPresetCanScrollUp(scrollTop > 5);
+            setPresetCanScrollDown(scrollTop < scrollHeight - clientHeight - 5);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isPresetOpen) setTimeout(updatePresetScroll, 50);
+    }, [isPresetOpen, updatePresetScroll]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (isPresetOpen && presetDropdownRef.current && !presetDropdownRef.current.contains(event.target)) {
+                setIsPresetOpen(false);
+            }
+        };
+        if (isPresetOpen) window.addEventListener('mousedown', handleClickOutside, true);
+        return () => window.removeEventListener('mousedown', handleClickOutside, true);
+    }, [isPresetOpen]);
 
     return (
         <>
@@ -36,86 +79,191 @@ const ControlHud = ({
             {/* PRESET SELECTOR: REMOVED (Moved to Header) */}
 
             {/* MAIN HUD */}
-            <div className="absolute bottom-8 left-0 right-0 bg-black/40 backdrop-blur-md border-t border-white/10 z-30 transition-all select-none flex h-[160px]" onMouseDown={e => e.stopPropagation()}>
+            <div className="bg-black/40 backdrop-blur-md border-t border-white/10 z-30 transition-all select-none flex h-[160px] flex-none" onMouseDown={e => e.stopPropagation()}>
 
                 {/* Main Controls Area */}
-                <div className="flex-1 flex items-end justify-between px-4 md:px-8 pb-4 pt-4 hide-scrollbar overflow-x-auto">
-                    {/* GATE MODULE */}
-                    <div className="flex gap-6 relative pt-12">
-                        <div
-                            className="absolute top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 mt-1 cursor-pointer group/label select-none"
-                            onClick={() => setIsGateBypass(!isGateBypass)}
+                <div className="flex-1 flex items-end px-4 md:px-8 pb-4 pt-4">
+                    {/* PLAYBACK CONTROLS */}
+                    <div className="flex gap-2 flex-none items-stretch px-4 relative z-50 self-stretch">
+                        {/* Play/Pause Button */}
+                        <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); togglePlayback(); }}
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border border-[#C2A475]/30 shadow-inner shadow-xl ${
+                                playingType !== 'none'
+                                    ? 'breathe-free-mode'
+                                    : 'bg-[#C2A475] hover:bg-[#d4b98a] shadow-[#C2A475]/30'
+                            }`}
                         >
-                            <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} color="green" className="scale-75" />
-                            <span className="text-sm font-bold text-slate-400 tracking-widest group-hover/label:text-slate-200 transition-colors">GATE</span>
-                        </div>
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="gold" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="gold" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="gold" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={gateRelease} min={10} max={500} step={1} unit="ms" color="gold" onChange={(v) => updateParam('gateRelease', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRelease" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                    </div>
-
-                    <div className="flex-1"></div>
-
-                    {/* GATE & COMP WRAPPER - Dimmed in Clip Mode */}
-                    {isClipMode && <div className="absolute inset-0 z-40 bg-slate-900/60 pointer-events-none backdrop-blur-[1px]"></div>}
-
-                    {/* PLAYBACK CONTROLS - Z-Index raised to stay above overlay */}
-                    <div className="flex gap-2 pb-2 flex-none items-center px-4 relative z-50">
-                        <div className={`flex gap-2 items-center ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-                            <PlayBtn label="Dry" selected={lastPlayedType === 'original'} onClick={() => handleModeChange(lastPlayedType === 'original' ? 'processed' : 'original')} color="yellow" />
-                            <PlayBtn label="Wet" selected={lastPlayedType === 'processed'} onClick={() => handleModeChange(lastPlayedType === 'processed' ? 'original' : 'processed')} color="red" />
-                            <button onMouseDown={(e) => e.stopPropagation()} onClick={toggleDeltaMode} disabled={isDryMode} className={`h-8 w-8 flex items-center justify-center rounded border transition-all ${isDryMode ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed' : isDeltaMode ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)] animate-pulse' : 'bg-slate-800 border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700'} ${isDryMode ? 'cursor-not-allowed opacity-50' : ''}`} title="Delta Monitoring">
-                                <Triangle size={14} fill={isDeltaMode ? "currentColor" : "none"} />
+                            {playingType !== 'none'
+                                ? <Pause size={20} fill="white" className="relative z-10 text-white" />
+                                : <Play size={20} fill="white" className="relative z-10 text-white" />
+                            }
+                        </button>
+                        {/* Bypass Button */}
+                        <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={() => handleModeChange(isDryMode ? 'processed' : 'original')}
+                            title={isDryMode ? "關閉 Bypass" : "開啟 Bypass"}
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''} ${
+                                isDryMode
+                                    ? 'breathe-brick-red border-[#B54C35]'
+                                    : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                            }`}
+                        >
+                            <Power size={18} className="relative z-10 text-white" strokeWidth={2.5} />
+                        </button>
+                        {/* Delta Button */}
+                        <button
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={toggleDeltaMode}
+                            disabled={isDryMode}
+                            title="Delta Monitoring"
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''} ${
+                                isDryMode
+                                    ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
+                                    : isDeltaMode
+                                        ? 'breathe-blue border-[#2563eb]'
+                                        : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                            }`}
+                        >
+                            <Triangle size={14} fill={isDeltaMode ? "white" : "none"} className="relative z-10 text-white" />
+                        </button>
+                        {/* Comp Preset Button */}
+                        <div className={`relative ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`} ref={presetDropdownRef}>
+                            <button
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={() => setIsPresetOpen(o => !o)}
+                                title={PRESETS_DATA[selectedPresetIdx]?.name || '選擇預設'}
+                                className={`w-8 h-full rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
+                                    isPresetOpen
+                                        ? 'bg-[#C2A475] border-[#C2A475]'
+                                        : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                                }`}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="relative z-10 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                                </svg>
                             </button>
+                            {isPresetOpen && (
+                                <div
+                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-black/90 border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)] z-[9999] overflow-hidden glass-scrollbar"
+                                    style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                                >
+                                    <div ref={presetListRef} className="max-h-[400px] overflow-y-auto glass-scrollbar" onScroll={updatePresetScroll}>
+                                        {Object.entries(PRESETS_DATA.reduce((acc, p, idx) => {
+                                            if (!acc[p.category]) acc[p.category] = [];
+                                            acc[p.category].push({ ...p, originalIdx: idx });
+                                            return acc;
+                                        }, {})).map(([category, presets]) => {
+                                            const visiblePresets = presets.filter(p => {
+                                                if (p.originalIdx === selectedPresetIdx) return true;
+                                                if (p.category === 'General') return true;
+                                                if (currentSourceId && currentSourceId !== 'upload') {
+                                                    const activeSource = AUDIO_SOURCES.find(s => s.id === currentSourceId);
+                                                    if (activeSource) {
+                                                        if (!activeSource.category.startsWith(p.category)) {
+                                                            if (p.category === 'Other' && activeSource.category.includes('Other Drums')) return false;
+                                                            if (!activeSource.category.includes(p.category)) return false;
+                                                        }
+                                                    }
+                                                }
+                                                return true;
+                                            });
+                                            if (visiblePresets.length === 0) return null;
+                                            return (
+                                                <div key={category}>
+                                                    <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                                        {CATEGORY_ZH[category] || category}
+                                                    </div>
+                                                    {visiblePresets.map(p => {
+                                                        const isActive = p.originalIdx === selectedPresetIdx;
+                                                        return (
+                                                            <button
+                                                                key={p.originalIdx}
+                                                                onClick={() => { applyPreset(p.originalIdx); setIsPresetOpen(false); }}
+                                                                className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-[#C2A475] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                            >
+                                                                {p.name}{isActive && isCustomSettings ? ' *' : ''}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    {presetCanScrollUp && (
+                                        <div className="absolute top-0 right-2 pointer-events-none">
+                                            <div className="bg-gray-700/90 rounded-full p-0.5 mt-1"><ChevronUp size={12} className="text-[#C2A475]" /></div>
+                                        </div>
+                                    )}
+                                    {presetCanScrollDown && (
+                                        <div className="absolute bottom-0 right-2 pointer-events-none">
+                                            <div className="bg-gray-700/90 rounded-full p-0.5 mb-1"><ChevronDown size={12} className="text-[#C2A475]" /></div>
+                                        </div>
+                                    )}
+                                    <div className="px-3 py-2 border-t border-white/10 text-center text-xs font-semibold text-white tracking-wider">壓縮器預設集</div>
+                                </div>
+                            )}
                         </div>
-                        <div className="w-px h-8 bg-white/10 mx-2"></div>
-                        <PlayBtn label={playingType !== 'none' ? "PAUSE" : "PLAY"} active={playingType !== 'none'} onClick={togglePlayback} color="green" isPlayButton />
+                        {/* Vertical Divider */}
+                        <div className="w-px self-stretch my-2 bg-white/10"></div>
+
+                        {/* OUTPUT MODULE - always open, no title/collapse */}
+                        <div className={`flex items-center gap-4 flex-none ${isClipMode ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={-60} max={6} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                        </div>
                     </div>
 
-                    <div className="flex-1"></div>
+                    {/* MODULES WRAPPER - Dimmed in Clip Mode */}
+                    <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
+                        {isClipMode && <div className="absolute inset-0 z-40 bg-slate-900/60 pointer-events-none backdrop-blur-[1px] rounded-xl"></div>}
 
-                    {/* COMPRESSOR MODULE */}
-                    <div className="flex flex-col items-center gap-2 bg-white/5 rounded-xl p-2 border border-white/5 flex-none relative pt-12 transition-colors hover:bg-white/10" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                        <div
-                            className="absolute top-0 left-1/2 -translate-x-1/2 flex items-center gap-2 mt-1 cursor-pointer group/label select-none"
-                            onClick={() => setIsCompBypass(!isCompBypass)}
-                        >
-                            <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} color="green" className="scale-75" />
-                            <span className="text-sm font-bold text-slate-400 tracking-widest group-hover/label:text-slate-200 transition-colors">COMPRESSOR</span>
+                        {/* GATE MODULE */}
+                        <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10">
+                            <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
+                                <span className={`text-xs font-bold tracking-widest group-hover/label:text-slate-200 transition-colors ${isGateBypass ? 'text-slate-600' : 'text-slate-400'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
+                                <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
+                                {expandedModule === 'gate'
+                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                }
+                            </div>
+                            <div className={`flex gap-6 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'gate' ? 'max-w-[600px] opacity-100' : 'max-w-0 opacity-0'}`}>
+                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="gold" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="gold" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="gold" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={gateRelease} min={10} max={500} step={1} unit="ms" color="gold" onChange={(v) => updateParam('gateRelease', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRelease" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                            </div>
                         </div>
-                        <div className="flex gap-4">
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={ratioControl} displayValue={ratio.toFixed(1)} min={0} max={100} step={0.5} unit=":1" color="gold" onChange={updateRatio} onDragStateChange={handleCompDragState} tooltipKey="ratio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={attack} min={0.1} max={100} step={0.1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('attack', v)} onDragStateChange={handleCompDragState} tooltipKey="attack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={release} min={10} max={500} step={1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('release', v)} onDragStateChange={handleCompDragState} tooltipKey="release" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <div className="w-px h-8 bg-white/10"></div>
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="KNEE" value={knee} min={0} max={30} step={1} unit="dB" color="gold" onChange={(v) => handleCompKnobChange('knee', v)} onDragStateChange={handleCompDragState} tooltipKey="knee" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" value={lookahead} min={0} max={100} step={1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                        </div>
-                    </div>
 
-                    <div className="flex-1"></div>
+                        {/* COMPRESSOR MODULE */}
+                        <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
+                            <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
+                                <span className={`text-xs font-bold tracking-widest group-hover/label:text-slate-200 transition-colors ${isCompBypass ? 'text-slate-600' : 'text-slate-400'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
+                                <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
+                                {expandedModule === 'comp'
+                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                }
+                            </div>
+                            <div className={`flex gap-4 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'comp' ? 'max-w-[800px] opacity-100' : 'max-w-0 opacity-0'}`}>
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={ratioControl} displayValue={ratio.toFixed(1)} min={0} max={100} step={0.5} unit=":1" color="gold" onChange={updateRatio} onDragStateChange={handleCompDragState} tooltipKey="ratio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={attack} min={0.1} max={100} step={0.1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('attack', v)} onDragStateChange={handleCompDragState} tooltipKey="attack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={release} min={10} max={500} step={1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('release', v)} onDragStateChange={handleCompDragState} tooltipKey="release" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
 
-                    {/* OUTPUT MODULE */}
-                    <div className="flex flex-col items-center gap-2 flex-none pt-12 relative">
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 text-sm font-bold text-slate-500 tracking-widest mt-1">OUTPUT</div>
-                        <div className="flex gap-4">
-                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" subLabel="(MAKEUP)" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="emerald" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                            <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={-60} max={6} step={0.5} unit="dB" color="yellow" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="KNEE" value={knee} min={0} max={30} step={1} unit="dB" color="gold" onChange={(v) => handleCompKnobChange('knee', v)} onDragStateChange={handleCompDragState} tooltipKey="knee" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" value={lookahead} min={0} max={100} step={1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* RESET BUTTON */}
-                <button
-                    onClick={resetAllParams}
-                    className="w-12 h-full bg-[#ef4444]/70 hover:bg-[#dc2626]/80 backdrop-blur-md text-white font-bold text-xs flex flex-col items-center justify-center border-l border-white/20 shadow-[-4px_0_15px_rgba(0,0,0,0.5)] active:translate-x-[2px] active:shadow-none transition-all gap-1.5 tracking-widest flex-none z-50"
-                    title="Reset All Parameters"
-                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-                >
-                    <span>R</span><span>E</span><span>S</span><span>E</span><span>T</span>
-                </button>
             </div>
         </>
     );

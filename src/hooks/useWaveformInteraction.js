@@ -132,7 +132,7 @@ const useWaveformInteraction = ({
                     playBufferRef.current?.(originalBuffer, currentPlayingType, seekTime);
                 } else {
                     if (playheadRef.current && waveformCanvasRef.current) {
-                        const width = waveformCanvasRef.current.width;
+                        const width = waveformCanvasRef.current.clientWidth;
                         const tw = width * zoomX;
                         const p = seekTime / originalBuffer.duration;
                         const screenPct = (((p * tw) + panOffset) / width) * 100;
