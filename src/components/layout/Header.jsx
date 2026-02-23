@@ -180,7 +180,7 @@ const Header = ({
     };
 
     return (
-        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-[#111111] rounded-xl px-4 py-3">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-[#111111] px-4 py-3 -mx-4 -mt-4 pr-8">
 
             <ConfirmationModal
                 isOpen={showConfirmModal}
