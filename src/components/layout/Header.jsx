@@ -414,7 +414,7 @@ const Header = ({
                 <div className="w-px self-stretch bg-white/10"></div>
 
                 {/* WET/DRY GAIN Knobs */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 pr-4">
                     <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                     <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={-60} max={6} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                 </div>

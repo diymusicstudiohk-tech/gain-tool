@@ -275,7 +275,7 @@ const App = () => {
                 handleKnobLeave={() => view.setHoveredKnob(null)}
             />
 
-            <div className="flex-1 flex min-h-0 relative z-0">
+            <div className="flex-1 flex min-h-0 relative z-0 pr-4">
                 <Waveform
                     canvasRef={waveformCanvasRef}
                     containerRef={containerRef}
