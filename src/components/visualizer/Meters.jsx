@@ -133,12 +133,13 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const PADDING = 24; const maxPixelHeight = (height / 2) - PADDING;
     const grMaxPixelHeight = maxPixelHeight * 0.5;
 
-    // 3 bars equally spaced
+    // 3 bars with custom margins (left=22, right=16)
     const barWidth = width / 8;
-    const centerSpacing = width / 4;
-    const grCenterX = width / 4;
-    const dryCenterX = width / 2;
-    const outCenterX = 3 * width / 4;
+    const leftMargin = 22;
+    const rightMargin = 16;
+    const grCenterX = leftMargin + barWidth / 2;
+    const outCenterX = width - rightMargin - barWidth / 2;
+    const dryCenterX = (grCenterX + outCenterX) / 2;
     const grX = grCenterX - (barWidth / 2);
     const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
