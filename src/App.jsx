@@ -49,7 +49,8 @@ const App = () => {
         dryPeakLevel: 0, dryHoldPeakLevel: 0, dryHoldTimer: 0,
         grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
         dryRmsLevel: 0, outRmsLevel: 0, crestFactor: 0,
-        outClipping: false
+        outClipping: false,
+        cfHeatArray: new Float32Array(50),
     });
 
     // Ref-based callbacks (break circular deps)
