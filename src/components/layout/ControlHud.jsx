@@ -73,10 +73,10 @@ const ControlHud = ({
             {/* PRESET SELECTOR: REMOVED (Moved to Header) */}
 
             {/* MAIN HUD */}
-            <div className="bg-black/40 backdrop-blur-md border-t border-white/10 z-30 transition-all select-none flex h-[160px] flex-none" onMouseDown={e => e.stopPropagation()}>
+            <div className="z-30 transition-all select-none flex h-[160px] flex-none" onMouseDown={e => e.stopPropagation()}>
 
                 {/* Main Controls Area */}
-                <div className="flex-1 flex items-end gap-2 px-4 md:px-8 pb-4 pt-4">
+                <div className="flex-1 flex items-end justify-center gap-2 px-4 md:px-8 pb-4 pt-4">
                     {/* PLAYBACK CONTROLS */}
                     <div className="flex gap-2 flex-none items-stretch pl-4 relative z-50 self-stretch">
                         {/* Play/Pause Button */}
