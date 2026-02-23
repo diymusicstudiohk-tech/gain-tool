@@ -124,12 +124,8 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
     if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = 60; }
     else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= 0.95; }
 
-    ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#202020'; ctx.fillRect(4, 0, w - 8, h);
+    ctx.clearRect(0, 0, w, h);
     const PADDING = 24; const maxPixelHeight = ((h / 2) - PADDING) * 0.5;
-
-    ctx.strokeStyle = '#2B2B2B'; ctx.lineWidth = 1; ctx.beginPath();
-    [-3, -6, -12, -24, -48].forEach(db => { const y = (1 - Math.pow(10, db / 20)) * maxPixelHeight; if (y < h) { ctx.moveTo(4, y); ctx.lineTo(w - 4, y); } });
-    ctx.stroke();
 
     if (meterState.grPeakLevel > 0.001) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = '#E05E42'; ctx.fillRect(6, 0, w - 12, barHeight); ctx.fillStyle = '#fff'; ctx.fillRect(6, barHeight - 2, w - 12, 2); }
     if (meterState.grHoldPeakLevel > 0.001) {
