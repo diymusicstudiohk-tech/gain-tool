@@ -62,7 +62,6 @@ export const drawMainWaveform = ({
 
         // Grid
         ctx.strokeStyle = '#2B2B2B'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
-        const gridX = width / 4; for (let x = panOffset % gridX; x < width; x += gridX) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
         ctx.stroke();
 
         const inPoints = []; const outPoints = []; const corePoints = []; const mixPoints = []; const grPoints = [];
