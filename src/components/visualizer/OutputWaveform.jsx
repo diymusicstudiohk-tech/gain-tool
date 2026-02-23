@@ -66,7 +66,7 @@ const OutputWaveform = ({
     return (
         <div
             ref={containerRef}
-            className="h-[80px] flex-shrink-0 relative bg-[#202020] border-2 border-[#2B2B2B] rounded-xl shadow-inner overflow-hidden cursor-crosshair select-none touch-none"
+            className="h-[80px] flex-shrink-0 relative overflow-hidden cursor-crosshair select-none touch-none"
             onMouseDown={handleMouseDown}
         >
             <canvas ref={canvasRef} className="w-full h-full block" />
