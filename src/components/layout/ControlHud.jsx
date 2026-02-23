@@ -214,8 +214,8 @@ const ControlHud = ({
                         {/* GATE MODULE */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10">
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
                                 <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
+                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
                                 {expandedModule === 'gate'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -232,8 +232,8 @@ const ControlHud = ({
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-center gap-2 bg-white/5 rounded-xl px-2 border border-white/5 flex-none transition-colors hover:bg-white/10" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
                                 <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
+                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
                                 {expandedModule === 'comp'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
