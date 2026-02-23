@@ -8,7 +8,7 @@ import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
 import Meters from './components/visualizer/Meters';
-import { DraggableViewControls, DraggableLegend } from './components/ui/Draggables';
+import { DraggableLegend } from './components/ui/Draggables';
 import SignalFlow from './components/ui/SignalFlow';
 import ClipGainOverlay from './components/visualizer/ClipGainOverlay';
 
@@ -105,10 +105,6 @@ const App = () => {
         sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
         setPlayingType: playback.setPlayingType,
         setLastPlayedType: playback.setLastPlayedType,
-        setLoopStart: playback.setLoopStart,
-        setLoopEnd: playback.setLoopEnd,
-        setZoomX: view.setZoomX, setZoomY: view.setZoomY,
-        setPanOffset: view.setPanOffset, setPanOffsetY: view.setPanOffsetY,
         currentParams: comp.currentParams,
         dryGain: comp.dryGain,
         logAction,
@@ -125,8 +121,6 @@ const App = () => {
         playingTypeRef: playback.playingTypeRef,
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
         playBufferRef, playheadRef, startOffsetRef, isPlayingRef,
-        setLoopStart: playback.setLoopStart, setLoopEnd: playback.setLoopEnd,
-        setZoomX: view.setZoomX, setPanOffset: view.setPanOffset,
         setIsCustomSettings: comp.setIsCustomSettings,
         setIsProcessing: comp.setIsProcessing,
         setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
@@ -158,8 +152,6 @@ const App = () => {
         dryGain: comp.dryGain,
         threshold: comp.threshold,
         gateThreshold: comp.gateThreshold,
-        loopStart: playback.loopStart,
-        loopEnd: playback.loopEnd,
         mousePos: waveform.mousePos,
         hoverLine: waveform.hoverLine,
         isDraggingLineRef: waveform.isDraggingLineRef,
@@ -209,9 +201,6 @@ const App = () => {
         const timer = setTimeout(() => {
             saveAppStateToStorage({
                 currentSourceId: engine.currentSourceId,
-                zoomX: view.zoomX, zoomY: view.zoomY,
-                panOffset: view.panOffset, panOffsetY: view.panOffsetY,
-                loopStart: playback.loopStart, loopEnd: playback.loopEnd,
                 lastPlayedType: playback.lastPlayedType,
                 isInfoPanelEnabled: view.isInfoPanelEnabled,
                 signalFlowMode: view.signalFlowMode,
@@ -219,8 +208,7 @@ const App = () => {
         }, 1000);
         return () => clearTimeout(timer);
     }, [engine.currentSourceId,
-        view.zoomX, view.zoomY, view.panOffset, view.panOffsetY,
-        playback.loopStart, playback.loopEnd, playback.lastPlayedType,
+        playback.lastPlayedType,
         view.isInfoPanelEnabled, view.signalFlowMode]);
 
     // --- Info Panel Content ---
@@ -272,7 +260,6 @@ const App = () => {
                 resetAllParams={() => {
                     comp.resetAllParams();
                     view.resetView();
-                    playback.setLoopStart(null); playback.setLoopEnd(null);
                     playback.setIsDeltaMode(false);
                 }}
                 makeupGain={comp.makeupGain} dryGain={comp.dryGain}
@@ -344,41 +331,6 @@ const App = () => {
                         </button>
                     </div>
 
-                    <DraggableViewControls
-                        zoomX={view.zoomX} setZoomX={(z) => {
-                            view.setZoomX(z);
-                            if (waveformCanvasRef.current && originalBuffer) {
-                                const w = view.canvasDims.width;
-                                const cr = view.cuePoint / originalBuffer.duration;
-                                let nP = (w / 3) - (cr * w * z);
-                                const mP = w - (w * z);
-                                if (nP > 0) nP = 0; if (nP < mP) nP = mP;
-                                view.setPanOffset(nP);
-                            }
-                        }}
-                        zoomY={view.zoomY} setZoomY={view.setZoomY}
-                        onReset={view.resetView}
-                        containerHeight={view.canvasDims.height}
-                        loopStart={playback.loopStart} loopEnd={playback.loopEnd}
-                        panOffset={view.panOffset} setPanOffset={view.setPanOffset}
-                        originalBuffer={originalBuffer}
-                        canvasDims={view.canvasDims}
-                    />
-
-                    {playback.loopStart !== null && playback.loopEnd !== null && originalBuffer && (
-                        <div
-                            className="absolute top-0 flex items-center justify-center bg-[#C2A475]/90 text-white hover:bg-[#D4B686] cursor-pointer shadow-lg z-30 transition-colors"
-                            style={{
-                                left: `calc(${((playback.loopEnd / originalBuffer.duration) * view.zoomX * 100) + ((view.panOffset / view.canvasDims.width) * 100)}% - 24px)`,
-                                width: '24px', height: '24px',
-                                borderRadius: '0 0 0 6px', fontSize: '14px', fontWeight: 'bold'
-                            }}
-                            onClick={(e) => { e.stopPropagation(); playback.handleLoopClear(); }}
-                            title="Clear Loop"
-                        >
-                            ×
-                        </div>
-                    )}
                 </Waveform>
 
                 <Meters
@@ -428,7 +380,6 @@ const App = () => {
                 resetAllParams={() => {
                     comp.resetAllParams();
                     view.resetView();
-                    playback.setLoopStart(null); playback.setLoopEnd(null);
                     playback.setIsDeltaMode(false);
                 }}
             />

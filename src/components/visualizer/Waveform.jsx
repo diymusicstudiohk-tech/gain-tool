@@ -25,7 +25,6 @@ export const drawMainWaveform = ({
     zoomX, zoomY, panOffset, panOffsetY,
     playingType, lastPlayedType, isDeltaMode, dryGain,
     threshold, gateThreshold,
-    loopStart, loopEnd,
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
     isGateBypass, isCompBypass,
@@ -57,22 +56,6 @@ export const drawMainWaveform = ({
         const step = srcLength / (width * zoomX);
 
         if (!Number.isFinite(step) || step <= 0) return;
-
-        // Draw Loop Region
-        if (loopStart !== null && loopEnd !== null && originalBuffer) {
-            const totalWidth = width * zoomX;
-            const startX = (loopStart / originalBuffer.duration) * totalWidth + panOffset;
-            const endX = (loopEnd / originalBuffer.duration) * totalWidth + panOffset;
-            const loopW = endX - startX;
-
-            if (loopW > 0) {
-                ctx.fillStyle = 'rgba(193, 164, 117, 0.2)';
-                ctx.fillRect(startX, 0, loopW, height);
-                ctx.fillStyle = 'rgba(193, 164, 117, 0.5)';
-                ctx.fillRect(startX, 0, 1, height);
-                ctx.fillRect(endX, 0, 1, height);
-            }
-        }
 
         const PADDING = 24; const centerY = (height / 2) + panOffsetY;
         const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;

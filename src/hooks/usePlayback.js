@@ -102,7 +102,7 @@ const usePlayback = ({
                 isPlayingRef.current = false;
             }
         }
-    }, [audioContext, originalBuffer, dryGain, isDeltaMode, loopStart, loopEnd, paramsRef,
+    }, [audioContext, originalBuffer, dryGain, isDeltaMode, paramsRef,
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, animateRef]);
 
@@ -120,15 +120,12 @@ const usePlayback = ({
             isPlayingRef.current = false;
             if (meterStateRef?.current) meterStateRef.current.outClipping = false;
         } else {
-            if (loopStart !== null && loopEnd !== null) {
-                startOffsetRef.current = loopStart;
-            }
             if (originalBuffer) {
                 isPlayingRef.current = true;
                 playBuffer(originalBuffer, lastPlayedType, startOffsetRef.current);
             }
         }
-    }, [playingType, lastPlayedType, originalBuffer, playBuffer, audioContext, loopStart, loopEnd,
+    }, [playingType, lastPlayedType, originalBuffer, playBuffer, audioContext,
         logAction, sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef]);
 
     const handleModeChange = useCallback((type) => {
@@ -140,13 +137,6 @@ const usePlayback = ({
             const elapsed = audioContext.currentTime - startTimeRef.current;
             let currentPos = startOffsetRef.current + elapsed;
 
-            if (loopStart !== null && loopEnd !== null && loopEnd > loopStart) {
-                if (currentPos >= loopEnd) {
-                    const loopDur = loopEnd - loopStart;
-                    currentPos = loopStart + ((currentPos - loopStart) % loopDur);
-                }
-            }
-
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none');
             isPlayingRef.current = false;
@@ -155,7 +145,7 @@ const usePlayback = ({
                 playBuffer(originalBuffer, type, currentPos);
             }, 50);
         }
-    }, [playingType, audioContext, originalBuffer, playBuffer, loopStart, loopEnd,
+    }, [playingType, audioContext, originalBuffer, playBuffer,
         logAction, handleModeDryGainSync, sourceNodeRef, drySourceNodeRef, startTimeRef,
         startOffsetRef, isPlayingRef]);
 
@@ -164,19 +154,6 @@ const usePlayback = ({
         if (lastPlayedType === 'original') return;
         setIsDeltaMode(prev => !prev);
     }, [lastPlayedType]);
-
-    const handleLoopClear = useCallback(() => {
-        stopCurrentSource(sourceNodeRef, drySourceNodeRef);
-        setLoopStart(null);
-        setLoopEnd(null);
-
-        if (isPlayingRef.current && playingType !== 'none') {
-            const elapsed = audioContext.currentTime - startTimeRef.current;
-            const currentPos = startOffsetRef.current + elapsed;
-            setTimeout(() => { playBuffer(originalBuffer, playingType, currentPos); }, 10);
-        }
-    }, [playingType, audioContext, originalBuffer, playBuffer,
-        sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef]);
 
     const stopAudio = useCallback(() => {
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
@@ -191,12 +168,10 @@ const usePlayback = ({
         playingType, setPlayingType,
         lastPlayedType, setLastPlayedType,
         isDeltaMode, setIsDeltaMode,
-        loopStart, setLoopStart,
-        loopEnd, setLoopEnd,
         isDryMode,
         playingTypeRef, lastPlayedTypeRef,
         playBuffer, togglePlayback, handleModeChange,
-        toggleDeltaMode, handleLoopClear, stopAudio,
+        toggleDeltaMode, stopAudio,
     };
 };
 

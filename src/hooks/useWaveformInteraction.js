@@ -17,7 +17,6 @@ const useWaveformInteraction = ({
     zoomX, zoomY, panOffset, panOffsetY, signalFlowMode,
     playingTypeRef, lastPlayedTypeRef, playBufferRef, playheadRef,
     startOffsetRef, isPlayingRef,
-    setLoopStart, setLoopEnd, setZoomX, setPanOffset,
     setIsCustomSettings, setIsProcessing,
     setHasThresholdBeenAdjusted, setHasGateBeenAdjusted,
     isCompBypass, setIsCompBypass, isGateBypass, setIsGateBypass,
@@ -31,9 +30,9 @@ const useWaveformInteraction = ({
     const [isGateAdjusting, setIsGateAdjusting] = useState(false);
 
     const isDraggingLineRef = useRef(null);
-    const isCreatingLoopRef = useRef(false);
     const isDraggingRef = useRef(false);
-    const dragStartXRef = useRef(0);
+    const isSeeking = useRef(false);
+    const seekStartXRef = useRef(0);
     const hoverGrRef = useRef(0);
     // Holds the latest touchstart handler so the passive:false DOM listener
     // always calls the current closure without re-registering.
@@ -74,26 +73,9 @@ const useWaveformInteraction = ({
             if (lastPlayedType === 'original') handleModeChange('processed');
             return;
         }
-        if (isCreatingLoopRef.current && waveformCanvasRef.current && originalBuffer) {
-            const rect = waveformCanvasRef.current.getBoundingClientRect();
-            if (Math.abs(clientX - dragStartXRef.current) > 5) {
-                document.body.style.cursor = 'col-resize';
-                const totalWidth = rect.width * zoomX;
-                const pixelToTime = (px) => {
-                    const relX = px - panOffset;
-                    let pct = relX / totalWidth;
-                    if (pct < 0) pct = 0; if (pct > 1) pct = 1;
-                    return pct * originalBuffer.duration;
-                };
-                const t1 = pixelToTime(dragStartXRef.current - rect.left);
-                const t2 = pixelToTime(clientX - rect.left);
-                setLoopStart(Math.min(t1, t2));
-                setLoopEnd(Math.max(t1, t2));
-            }
-        }
-    }, [zoomY, panOffsetY, lastPlayedType, originalBuffer, panOffset, zoomX,
+    }, [zoomY, panOffsetY, lastPlayedType,
         setThreshold, setGateThreshold, setHasThresholdBeenAdjusted, setHasGateBeenAdjusted,
-        setIsCustomSettings, setIsProcessing, setLoopStart, setLoopEnd, handleModeChange,
+        setIsCustomSettings, setIsProcessing, handleModeChange,
         waveformCanvasRef]);
 
     const onWaveformGlobalUp = useCallback((e) => {
@@ -112,12 +94,11 @@ const useWaveformInteraction = ({
             document.body.style.cursor = 'default';
             return;
         }
-        if (isCreatingLoopRef.current) {
-            isCreatingLoopRef.current = false;
+        if (isSeeking.current) {
+            isSeeking.current = false;
             document.body.style.cursor = 'default';
-            const dragDist = Math.abs(clientX - dragStartXRef.current);
-            if (dragDist < 5 && waveformCanvasRef.current && originalBuffer) {
-                // Tap / click — seek
+            if (waveformCanvasRef.current && originalBuffer) {
+                // Click — seek
                 const rect = waveformCanvasRef.current.getBoundingClientRect();
                 const clickX = clientX - rect.left;
                 const totalWidth = rect.width * zoomX;
@@ -140,57 +121,11 @@ const useWaveformInteraction = ({
                         playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
                     }
                 }
-            } else if (waveformCanvasRef.current && originalBuffer) {
-                // Drag finished — Auto Zoom
-                const rect = waveformCanvasRef.current.getBoundingClientRect();
-                const totalWidth = rect.width * zoomX;
-                const pixelToTime = (px) => {
-                    const relX = px - panOffset;
-                    let pct = relX / totalWidth;
-                    if (pct < 0) pct = 0; if (pct > 1) pct = 1;
-                    return pct * originalBuffer.duration;
-                };
-                const t1 = pixelToTime(dragStartXRef.current - rect.left);
-                const t2 = pixelToTime(clientX - rect.left);
-                const loopDur = Math.abs(t2 - t1);
-
-                if (loopDur > 0.01) {
-                    const totalDur = originalBuffer.duration;
-                    let newZoom = (totalDur * 0.8) / loopDur;
-                    if (newZoom < 1) newZoom = 1;
-                    if (newZoom > 50) newZoom = 50;
-
-                    const width = rect.width;
-                    const newTotalWidth = width * newZoom;
-                    const loopMidTime = (t1 + t2) / 2;
-                    const loopMidPx = (loopMidTime / totalDur) * newTotalWidth;
-
-                    let newPan = (width / 2) - loopMidPx;
-                    const minPan = width - newTotalWidth;
-                    if (newPan > 0) newPan = 0;
-                    if (newPan < minPan) newPan = minPan;
-
-                    setZoomX(newZoom);
-                    setPanOffset(newPan);
-
-                    const loopStartTime = Math.min(t1, t2);
-                    startOffsetRef.current = loopStartTime;
-                    const typeToPlay = lastPlayedTypeRef.current;
-
-                    if (originalBuffer) {
-                        playBufferRef.current?.(originalBuffer, typeToPlay, loopStartTime);
-                    } else if (playheadRef.current && waveformCanvasRef.current) {
-                        const pct = loopStartTime / originalBuffer.duration;
-                        const screenPct = (((pct * newTotalWidth) + newPan) / width) * 100;
-                        playheadRef.current.style.left = `${screenPct}%`;
-                        playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
-                    }
-                }
             }
         }
     }, [originalBuffer, onWaveformGlobalMove, panOffset, zoomX,
-        startOffsetRef, playingTypeRef, lastPlayedTypeRef, playBufferRef, playheadRef,
-        setZoomX, setPanOffset, waveformCanvasRef]);
+        startOffsetRef, playingTypeRef, playBufferRef, playheadRef,
+        waveformCanvasRef]);
 
     const handleWaveformMouseDown = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -210,8 +145,8 @@ const useWaveformInteraction = ({
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'row-resize';
         } else {
-            isCreatingLoopRef.current = true;
-            dragStartXRef.current = e.clientX;
+            isSeeking.current = true;
+            seekStartXRef.current = e.clientX;
         }
 
         window.addEventListener('mousemove', onWaveformGlobalMove);
@@ -269,8 +204,8 @@ const useWaveformInteraction = ({
             isDraggingLineRef.current = touchHoverLine;
             setHoverLine(touchHoverLine);
         } else {
-            isCreatingLoopRef.current = true;
-            dragStartXRef.current = clientX;
+            isSeeking.current = true;
+            seekStartXRef.current = clientX;
         }
 
         window.addEventListener('touchmove', onWaveformGlobalMove, { passive: false });
@@ -296,7 +231,7 @@ const useWaveformInteraction = ({
     }, [containerRef]); // only re-register if the container element changes
 
     const handleLocalMouseMove = useCallback((e) => {
-        if (isDraggingRef.current || isDraggingLineRef.current || isCreatingLoopRef.current) return;
+        if (isDraggingRef.current || isDraggingLineRef.current || isSeeking.current) return;
         if (isDraggingKnobRef.current || !waveformCanvasRef.current) return;
 
         const rect = waveformCanvasRef.current.getBoundingClientRect();

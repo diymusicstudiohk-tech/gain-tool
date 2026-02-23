@@ -14,8 +14,6 @@ const useVisualizerLoop = ({
     dryGain,
     threshold,
     gateThreshold,
-    loopStart,
-    loopEnd,
     mousePos,
     hoverLine,
     isDraggingLineRef,
@@ -60,16 +58,6 @@ const useVisualizerLoop = ({
         const elapsed = audioContext.currentTime - startTimeRef.current;
         let currentPosition = elapsed + startOffsetRef.current;
 
-        // Visual Loop Correction
-        if (loopStart !== null && loopEnd !== null && isPlayingRef.current) {
-            if (currentPosition >= loopEnd) {
-                // Calculate relative position within the loop
-                const loopDuration = loopEnd - loopStart;
-                const timeSinceLoopStart = currentPosition - loopStart;
-                // Wrap around
-                currentPosition = loopStart + (timeSinceLoopStart % loopDuration);
-            }
-        }
         const duration = originalBuffer.duration;
 
         // Update Playhead Position
@@ -179,7 +167,6 @@ const useVisualizerLoop = ({
                     zoomX, zoomY, panOffset, panOffsetY,
                     playingType, lastPlayedType, isDeltaMode, dryGain,
                     threshold, gateThreshold,
-                    loopStart, loopEnd,
                     mousePos, hoverLine,
                     isDraggingLine: isDraggingLineRef.current,
                     isCompAdjusting, hasThresholdBeenAdjusted,
@@ -192,20 +179,14 @@ const useVisualizerLoop = ({
             }
         }
 
-        // Loop & Playback Logic
-        if (loopStart !== null && loopEnd !== null) {
-            // Native looping handles the audio. Visual playhead wraps above.
-        } else if (currentPosition >= duration) {
+        // Playback Logic — restart from beginning when reaching end
+        if (currentPosition >= duration) {
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
 
                 if (targetBuffer) {
-                    if (loopStart !== null && loopEnd !== null) {
-                        playBufferRef.current(targetBuffer, playingType, loopStart);
-                    } else {
-                        playBufferRef.current(targetBuffer, playingType, 0);
-                    }
+                    playBufferRef.current(targetBuffer, playingType, 0);
                 }
             }
         }
@@ -214,7 +195,7 @@ const useVisualizerLoop = ({
         return () => cancelAnimationFrame(rafIdRef.current);
     }, [
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, dryGain, isDeltaMode,
-        visualStep, mipmaps, mixMipmaps, loopStart, loopEnd, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
+        visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
@@ -257,7 +238,7 @@ const useVisualizerLoop = ({
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
-        lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold, loopStart, loopEnd,
+        lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
         isGateBypass, isCompBypass, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
         signalFlowMode, mipmaps, mixMipmaps

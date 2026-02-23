@@ -26,9 +26,7 @@ const useAudioEngine = ({
     // Shared refs
     sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
     // Playback setters (from usePlayback, wired via App)
-    setPlayingType, setLastPlayedType, setLoopStart, setLoopEnd,
-    // View setters (from useViewState, wired via App)
-    setZoomX, setZoomY, setPanOffset, setPanOffsetY,
+    setPlayingType, setLastPlayedType,
     currentParams, dryGain, logAction,
 }) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +69,7 @@ const useAudioEngine = ({
             setIsLoading(true); setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
-            setOriginalBuffer(null); setLoopStart(null); setLoopEnd(null);
+            setOriginalBuffer(null);
             startOffsetRef.current = 0;
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
             setFileName(preset.name);
@@ -97,7 +95,7 @@ const useAudioEngine = ({
             setIsLoading(false);
         }
     }, [audioContext, handleDecodedBuffer, applyPreset, sourceNodeRef, drySourceNodeRef,
-        isPlayingRef, startOffsetRef, setPlayingType, setLoopStart, setLoopEnd, setOriginalBuffer]);
+        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const handleFileUpload = useCallback(async (e) => {
         const file = e.target.files[0];
@@ -121,7 +119,7 @@ const useAudioEngine = ({
             setIsLoading(true); setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
-            setLoopStart(null); setLoopEnd(null);
+
             startOffsetRef.current = 0;
             setCurrentSourceId('upload'); setFileName(file.name);
             setOriginalBuffer(null);
@@ -138,7 +136,7 @@ const useAudioEngine = ({
             setIsLoading(false);
         }
     }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef, isPlayingRef,
-        startOffsetRef, setPlayingType, setLoopStart, setLoopEnd, setOriginalBuffer]);
+        startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const saveSessionState = useCallback((mode) => {
         const snapshot = getCurrentStateSnapshot();
@@ -150,13 +148,12 @@ const useAudioEngine = ({
         if (!userBufferRef.current || !audioContext) return;
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
-        setLoopStart(null); setLoopEnd(null);
         startOffsetRef.current = 0;
         setCurrentSourceId('upload');
         setFileName(userFileNameRef.current);
         handleDecodedBuffer(userBufferRef.current);
     }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef, isPlayingRef,
-        startOffsetRef, setPlayingType, setLoopStart, setLoopEnd]);
+        startOffsetRef, setPlayingType]);
 
     const switchToPractice = useCallback(() => {
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
@@ -240,10 +237,8 @@ const useAudioEngine = ({
                 }
             }
             if (savedState.lastPlayedType) setLastPlayedType(savedState.lastPlayedType);
-            if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
-            if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
         }
-    }, [setLastPlayedType, setLoopStart, setLoopEnd]);
+    }, [setLastPlayedType]);
 
     // Audio Restoration on Mount
     useEffect(() => {
@@ -261,10 +256,6 @@ const useAudioEngine = ({
                         userFileNameRef.current = record.name;
                         setFileName(record.name);
                         handleDecodedBuffer(decoded);
-                        if (savedState) {
-                            if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
-                            if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
-                        }
                     } else {
                         setCurrentSourceId(null);
                     }
@@ -275,14 +266,6 @@ const useAudioEngine = ({
                 const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
                 if (source) {
                     await loadAudio(source, { autoMatchPreset: false });
-                    if (savedState) {
-                        if (savedState.loopStart !== undefined) setLoopStart(savedState.loopStart);
-                        if (savedState.loopEnd !== undefined) setLoopEnd(savedState.loopEnd);
-                        if (savedState.zoomX) setZoomX(savedState.zoomX);
-                        if (savedState.zoomY) setZoomY(savedState.zoomY);
-                        if (savedState.panOffset) setPanOffset(savedState.panOffset);
-                        if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
-                    }
                 }
             }
             hasInitialLoadRun.current = true;
@@ -311,8 +294,6 @@ const useAudioEngine = ({
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none');
             isPlayingRef.current = false;
-            setLoopStart(null);
-            setLoopEnd(null);
             startOffsetRef.current = 0;
             setCurrentSourceId(`custom_${id}`);
             setFileName(name);
@@ -329,7 +310,7 @@ const useAudioEngine = ({
             setIsLoading(false);
         }
     }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef,
-        isPlayingRef, startOffsetRef, setPlayingType, setLoopStart, setLoopEnd, setOriginalBuffer]);
+        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {
         isLoading, errorMsg,

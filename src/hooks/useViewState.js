@@ -21,10 +21,6 @@ const useViewState = ({ containerRef }) => {
     useEffect(() => {
         const savedState = loadAppStateFromStorage();
         if (savedState) {
-            if (savedState.zoomX) setZoomX(savedState.zoomX);
-            if (savedState.zoomY) setZoomY(savedState.zoomY);
-            if (savedState.panOffset) setPanOffset(savedState.panOffset);
-            if (savedState.panOffsetY) setPanOffsetY(savedState.panOffsetY);
             if (savedState.isInfoPanelEnabled !== undefined) setIsInfoPanelEnabled(savedState.isInfoPanelEnabled);
             if (savedState.signalFlowMode) setSignalFlowMode(savedState.signalFlowMode);
         }
