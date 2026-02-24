@@ -358,7 +358,9 @@ export const drawMainWaveform = ({
 
     // Mouse GR Inspection + Hover Layers
     if (mousePos.x >= 0 && lastPlayedType === 'processed') {
-        // --- Detect hover on white waveform area or brick-red area ---
+        // --- Detect hover on wet area, dry-contribution area, or brick-red area ---
+        let isHoveringOnWetArea = false;
+        let isHoveringOnDryArea = false;
         let isHoveringOnWaveform = false;
         let isHoveringOnBrickRed = false;
         const srcOutput = visualResult.outputData;
@@ -370,6 +372,7 @@ export const drawMainWaveform = ({
             const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
             if (hStart >= 0 && hStart < srcLength) {
                 let maxMix = 0;
+                let maxOut = 0;
                 let maxIn = 0;
                 if (useMipmaps && mixMipmaps) {
                     const mm = selectMipmapLevel(mixMipmaps, step, mipmapBias);
@@ -380,6 +383,17 @@ export const drawMainWaveform = ({
                     for (let i = hStart; i < hEnd; i++) {
                         const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear));
                         if (v > maxMix) maxMix = v;
+                    }
+                }
+                if (useMipmaps && mipmaps && mipmaps.output) {
+                    const mmO = selectMipmapLevel(mipmaps.output, step, mipmapBias);
+                    const oLv = mmO.level; const oBs = mmO.blockSize;
+                    const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
+                    for (let i = oS; i < oE && i < oLv.length; i++) { const a = Math.abs(oLv[i]); if (a > maxOut) maxOut = a; }
+                } else {
+                    for (let i = hStart; i < hEnd; i++) {
+                        const a = Math.abs(srcOutput[i]);
+                        if (a > maxOut) maxOut = a;
                     }
                 }
                 if (useMipmaps && mipmaps && mipmaps.input) {
@@ -394,8 +408,13 @@ export const drawMainWaveform = ({
                     }
                 }
                 const hMix = displayAmp(maxMix) * ampScale;
+                const hOut = displayAmp(maxOut) * ampScale;
                 const hIn = displayAmp(maxIn) * ampScale;
-                if (mousePos.y >= centerY - hMix && mousePos.y <= centerY + hMix) {
+                if (mousePos.y >= centerY - hOut && mousePos.y <= centerY + hOut) {
+                    isHoveringOnWetArea = true;
+                    isHoveringOnWaveform = true;
+                } else if (mousePos.y >= centerY - hMix && mousePos.y <= centerY + hMix) {
+                    isHoveringOnDryArea = true;
                     isHoveringOnWaveform = true;
                 } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
                     isHoveringOnBrickRed = true;
@@ -552,15 +571,15 @@ export const drawMainWaveform = ({
         }
 
         // Legend box above GR label (only when hovering on waveform)
-        if (isHoveringOnWaveform) {
-            const legendLine1 = '金色實色 = 壓縮後訊號';
-            const legendLine2 = '金色斜線 = 額外補回的乾訊號';
+        if (isHoveringOnWetArea || isHoveringOnDryArea) {
+            const legendText = isHoveringOnWetArea
+                ? '金色實色 = 壓縮後訊號'
+                : '金色斜線 = 額外補回的乾訊號';
             ctx.font = 'bold 11px sans-serif';
-            const lw1 = ctx.measureText(legendLine1).width;
-            const lw2 = ctx.measureText(legendLine2).width;
+            const lw = ctx.measureText(legendText).width;
             const legendPadX = 10;
-            const legendW = Math.max(lw1, lw2) + legendPadX * 2;
-            const legendH = 44;
+            const legendW = lw + legendPadX * 2;
+            const legendH = 28;
             const grBoxTop = mousePos.y - bgHeight - 4;
             let legendX = bgX;
             let legendY = grBoxTop - legendH - 4;
@@ -570,8 +589,7 @@ export const drawMainWaveform = ({
             ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             ctx.fillRect(legendX, legendY, legendW, legendH);
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendLine1, legendX + legendPadX, legendY + 18);
-            ctx.fillText(legendLine2, legendX + legendPadX, legendY + 34);
+            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
         }
 
         // Legend for brick-red hover
