@@ -12,6 +12,46 @@ const drawPolygon = (ctx, points, color, width, centerY, opacity = 1.0) => {
     ctx.closePath(); ctx.fill(); ctx.restore();
 };
 
+const drawHatchedPolygon = (ctx, points, color, width, centerY, spacing = 6, lineWidth = 1.5, opacity = 1.0) => {
+    if (points.length === 0) return;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+
+    // Build clip path from polygon
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    for (let i = 0; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yTop);
+    ctx.lineTo(points[points.length - 1].x, centerY);
+    for (let i = points.length - 1; i >= 0; i--) ctx.lineTo(points[i].x, points[i].yBot);
+    ctx.closePath();
+    ctx.clip();
+
+    // Find bounding box
+    let minY = centerY, maxY = centerY;
+    for (let i = 0; i < points.length; i++) {
+        if (points[i].yTop < minY) minY = points[i].yTop;
+        if (points[i].yBot > maxY) maxY = points[i].yBot;
+    }
+    const minX = points[0].x;
+    const maxX = points[points.length - 1].x;
+
+    // Draw diagonal lines (top-right to bottom-left)
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    const totalSpan = (maxX - minX) + (maxY - minY);
+    for (let d = 0; d < totalSpan; d += spacing) {
+        const x1 = minX + d;
+        const y1 = minY;
+        const x2 = minX + d - (maxY - minY);
+        const y2 = maxY;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+    }
+    ctx.stroke();
+    ctx.restore();
+};
+
 const drawGRLine = (ctx, points, color) => {
     if (points.length === 0) return;
     ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
@@ -189,8 +229,8 @@ export const drawMainWaveform = ({
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 if (showAllLayers) {
-                    // Gold (output mix) + Grey (wet)
-                    drawPolygon(ctx, mixPoints, '#C2A475', width, centerY);
+                    // Gold hatched (output mix) + Grey (wet)
+                    drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                     drawPolygon(ctx, outPoints, '#888888', width, centerY);
                 } else {
                     // White (output mix) only
