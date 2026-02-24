@@ -701,7 +701,7 @@ export const drawMainWaveform = ({
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
             const tBot = centerY + threshY;
-            const compColor = isDry || isCompBypass ? inactiveColor : '#6E7F9E';
+            const compColor = isDry || isCompBypass ? inactiveColor : '#9AB2DD';
             const isCompHighlight = hoverLine === 'comp' || isDraggingLine === 'comp';
 
             // Parse color to RGB for gradient
