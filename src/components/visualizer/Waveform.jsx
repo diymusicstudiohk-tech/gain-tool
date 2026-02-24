@@ -87,6 +87,7 @@ export const drawMainWaveform = ({
     hoverGrRef, // ref object
     isGateBypass, isCompBypass,
     isGainKnobActive,
+    isGainKnobDragging,
     mipmaps, mixMipmaps, // mipmap data
     waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
     interactionDPR,     // number | null — force lower DPR during interaction
@@ -114,7 +115,8 @@ export const drawMainWaveform = ({
     const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}`;
 
     const cache = waveformCacheRef?.current;
-    const cacheHit = isDraggingLine && cache?.key === cacheKey && cache?.imageData;
+    const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
+    const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
 
     // ── PHASE 1: Waveform background (skip when cache hit) ────────────────────
     if (!cacheHit) {

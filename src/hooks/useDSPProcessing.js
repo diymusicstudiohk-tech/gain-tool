@@ -13,15 +13,19 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     const fullResCacheRef = useRef(null);
     const interactionCacheRef = useRef(null);
 
-    // Adaptive debounce: immediate when not dragging, 150ms when dragging
+    // Defer param updates entirely during drag — only apply on mouse release
+    const [debouncedDryGain, setDebouncedDryGain] = useState(dryGain);
     useEffect(() => {
-        if (!isDraggingKnobRef?.current) {
+        if (!isAnyKnobDragging) {
             setDebouncedParams(currentParams);
-            return;
         }
-        const timer = setTimeout(() => setDebouncedParams(currentParams), 150);
-        return () => clearTimeout(timer);
-    }, [currentParams, isDraggingKnobRef]);
+    }, [currentParams, isAnyKnobDragging]);
+
+    useEffect(() => {
+        if (!isAnyKnobDragging) {
+            setDebouncedDryGain(dryGain);
+        }
+    }, [dryGain, isAnyKnobDragging]);
 
     // Downsampling for Visuals — build both full-res and interaction caches
     useEffect(() => {
@@ -58,11 +62,9 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         setVisualSourceCache(fullRes);
     }, [originalBuffer]);
 
-    // Switch visual source cache based on knob dragging state
+    // Switch visual source cache — always use full-res (DSP is deferred during drag)
     useEffect(() => {
-        if (isAnyKnobDragging && interactionCacheRef.current) {
-            setVisualSourceCache(interactionCacheRef.current);
-        } else if (!isAnyKnobDragging && fullResCacheRef.current) {
+        if (!isAnyKnobDragging && fullResCacheRef.current) {
             setVisualSourceCache(fullResCacheRef.current);
         }
     }, [isAnyKnobDragging]);
@@ -83,18 +85,18 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         };
     }, [visualResult]);
 
-    // Build mix mipmaps (depends on dryGain)
+    // Build mix mipmaps (uses debouncedDryGain to avoid recompute during drag)
     const mixMipmaps = useMemo(() => {
         if (!visualResult) return null;
         const src = visualResult;
-        const dryLinear = Math.pow(10, dryGain / 20);
+        const dryLinear = Math.pow(10, debouncedDryGain / 20);
         const len = src.outputData.length;
         const mixData = new Float32Array(len);
         for (let i = 0; i < len; i++) {
             mixData[i] = Math.abs(src.outputData[i] + (src.visualInput[i] * dryLinear));
         }
         return buildMipmaps(mixData, 'absMax');
-    }, [visualResult, dryGain]);
+    }, [visualResult, debouncedDryGain]);
 
     // visualStep = original samples per visual cache sample
     const visualStep = visualSourceCache.step;
