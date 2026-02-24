@@ -300,9 +300,13 @@ export const drawMainWaveform = ({
                 drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY);
 
                 if (showAllLayers) {
-                    // Gold hatched (output mix) + Grey (wet) on top
+                    // Gold hatched (output mix) + wet on top
                     drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                    drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
+                    if (isGainKnobActive) {
+                        drawPolygon(ctx, outPoints, '#C2A475', width, centerY);
+                    } else {
+                        drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
+                    }
                 }
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
@@ -443,9 +447,9 @@ export const drawMainWaveform = ({
                 outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
                 mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
-            // Gold hatching on mix area (dry contribution), solid blue on wet area
+            // Gold hatching on mix area (dry contribution), solid gold on wet area
             drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
-            drawPolygon(ctx, outPts, '#7D93B7', width, centerY);
+            drawPolygon(ctx, outPts, '#C2A475', width, centerY);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
@@ -546,7 +550,7 @@ export const drawMainWaveform = ({
 
         // Legend box above GR label (only when hovering on waveform)
         if (isHoveringOnWaveform) {
-            const legendLine1 = '藍色 = 壓縮後訊號';
+            const legendLine1 = '金色 = 壓縮後訊號';
             const legendLine2 = '金色斜線 = 額外補回的乾訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw1 = ctx.measureText(legendLine1).width;
