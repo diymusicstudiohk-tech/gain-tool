@@ -203,13 +203,6 @@ export const drawMainWaveform = ({
                 });
             }
 
-            // Minimap
-            const totalWidth = width * zoomX;
-            if (zoomX > 1) {
-                const sw = (width / totalWidth) * width; const sx = (-panOffset / totalWidth) * width;
-                ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(0, height - 4, width, 4);
-                ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(sx, height - 4, sw, 4);
-            }
 
             // ── Save background to cache (before threshold lines / mouse overlay) ──
             if (waveformCacheRef) {
