@@ -472,70 +472,6 @@ export const drawMainWaveform = ({
             drawPolygon(ctx, mxPts, '#ffffff', width, centerY);
         }
 
-        // --- Threshold Lines (drawn above hover waveform layers) ---
-        const isDry = lastPlayedType === 'original';
-        const inactiveColor = '#555';
-
-        if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
-            const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
-            if (centerY - threshY > -20 && centerY - threshY < height + 20) {
-                const tTop = centerY - threshY;
-                const tBot = centerY + threshY;
-                const compColor = isDry || isCompBypass ? inactiveColor : '#C2A475';
-                const isCompHighlight = hoverLine === 'comp' || isDraggingLine === 'comp';
-
-                // Parse color to RGB for gradient
-                const cResult = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(compColor);
-                const cR = cResult ? parseInt(cResult[1], 16) : 85;
-                const cG = cResult ? parseInt(cResult[2], 16) : 85;
-                const cB = cResult ? parseInt(cResult[3], 16) : 85;
-
-                // Gradient fill between the two threshold lines (fades toward center)
-                const fillAlpha = isCompHighlight ? 0.18 : 0.10;
-                const fillGrad = ctx.createLinearGradient(0, tTop, 0, tBot);
-                fillGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${fillAlpha})`);
-                fillGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, 0)`);
-                fillGrad.addColorStop(1, `rgba(${cR}, ${cG}, ${cB}, ${fillAlpha})`);
-                ctx.fillStyle = fillGrad;
-                ctx.fillRect(0, tTop, width, tBot - tTop);
-
-                // Horizontal gradient for line stroke (fades at left/right edges, opaque at center)
-                const baseAlpha = isCompHighlight ? 1.0 : 0.9;
-                const edgeAlpha = 0.05;
-                const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
-                strokeGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
-                strokeGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, ${baseAlpha})`);
-                strokeGrad.addColorStop(1, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
-
-                // Draw solid lines with glow on hover
-                ctx.setLineDash([]);
-                if (isCompHighlight) {
-                    ctx.save();
-                    ctx.shadowColor = `rgba(${cR}, ${cG}, ${cB}, 0.8)`;
-                    ctx.shadowBlur = 12;
-                }
-                ctx.strokeStyle = strokeGrad;
-                ctx.lineWidth = isCompHighlight ? 3 : 2;
-                ctx.beginPath();
-                ctx.moveTo(0, tTop); ctx.lineTo(width, tTop);
-                ctx.moveTo(0, tBot); ctx.lineTo(width, tBot);
-                ctx.stroke();
-                if (isCompHighlight) ctx.restore();
-            }
-        }
-
-        const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
-        if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
-            const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-            const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';
-            ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
-            ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
-            ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
-            drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, gateColor, 'left');
-        }
-        ctx.setLineDash([]);
-
         // --- GR value computation ---
         const srcGR = visualResult.grCurve;
         const vX = mousePos.x - panOffset;
@@ -633,6 +569,70 @@ export const drawMainWaveform = ({
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(text, bgX + 6, mousePos.y - bgHeight - 4 + 14);
     }
+
+    // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
+    const isDry = lastPlayedType === 'original';
+    const inactiveColor = '#555';
+
+    if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
+        const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
+        if (centerY - threshY > -20 && centerY - threshY < height + 20) {
+            const tTop = centerY - threshY;
+            const tBot = centerY + threshY;
+            const compColor = isDry || isCompBypass ? inactiveColor : '#C2A475';
+            const isCompHighlight = hoverLine === 'comp' || isDraggingLine === 'comp';
+
+            // Parse color to RGB for gradient
+            const cResult = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(compColor);
+            const cR = cResult ? parseInt(cResult[1], 16) : 85;
+            const cG = cResult ? parseInt(cResult[2], 16) : 85;
+            const cB = cResult ? parseInt(cResult[3], 16) : 85;
+
+            // Gradient fill between the two threshold lines (fades toward center)
+            const fillAlpha = isCompHighlight ? 0.18 : 0.10;
+            const fillGrad = ctx.createLinearGradient(0, tTop, 0, tBot);
+            fillGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${fillAlpha})`);
+            fillGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, 0)`);
+            fillGrad.addColorStop(1, `rgba(${cR}, ${cG}, ${cB}, ${fillAlpha})`);
+            ctx.fillStyle = fillGrad;
+            ctx.fillRect(0, tTop, width, tBot - tTop);
+
+            // Horizontal gradient for line stroke (fades at left/right edges, opaque at center)
+            const baseAlpha = isCompHighlight ? 1.0 : 0.9;
+            const edgeAlpha = 0.05;
+            const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
+            strokeGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
+            strokeGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, ${baseAlpha})`);
+            strokeGrad.addColorStop(1, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
+
+            // Draw solid lines with glow on hover
+            ctx.setLineDash([]);
+            if (isCompHighlight) {
+                ctx.save();
+                ctx.shadowColor = `rgba(${cR}, ${cG}, ${cB}, 0.8)`;
+                ctx.shadowBlur = 12;
+            }
+            ctx.strokeStyle = strokeGrad;
+            ctx.lineWidth = isCompHighlight ? 3 : 2;
+            ctx.beginPath();
+            ctx.moveTo(0, tTop); ctx.lineTo(width, tTop);
+            ctx.moveTo(0, tBot); ctx.lineTo(width, tBot);
+            ctx.stroke();
+            if (isCompHighlight) ctx.restore();
+        }
+    }
+
+    const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
+    if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
+        const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
+        const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';
+        ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
+        ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
+        ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
+        drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, gateColor, 'left');
+    }
+    ctx.setLineDash([]);
 };
 
 // --- Component ---
