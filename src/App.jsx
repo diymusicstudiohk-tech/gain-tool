@@ -9,7 +9,6 @@ import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
 import Meters from './components/visualizer/Meters';
 import OutputWaveform from './components/visualizer/OutputWaveform';
-import { DraggableLegend } from './components/ui/Draggables';
 
 import useDebug from './hooks/useDebug';
 import useViewState from './hooks/useViewState';
@@ -358,8 +357,6 @@ const App = () => {
                             </div>
                         </div>
                     ) : null}
-
-                    <DraggableLegend />
 
                     <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2 items-end">
                         <button
