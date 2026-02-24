@@ -52,6 +52,7 @@ const useVisualizerLoop = ({
 
     const waveformFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
+    const lastWaveformDrawKeyRef = useRef(null);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -98,7 +99,7 @@ const useVisualizerLoop = ({
 
             const isProcessed = currentType === 'processed' || (currentType !== 'original' && lastType === 'processed');
 
-            const dryLinear = dryGain <= -60 ? 0 : Math.exp(dryGain * LN10_OVER_20);
+            const dryLinear = Math.exp(dryGain * LN10_OVER_20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;
@@ -163,24 +164,37 @@ const useVisualizerLoop = ({
 
             // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting
             waveformFrameRef.current = (waveformFrameRef.current + 1) % 2;
-            if (waveformFrameRef.current === 0 || isDraggingLineRef.current || isCompAdjusting || isGateAdjusting) {
-                drawMainWaveform({
-                    canvas: waveformCanvasRef.current,
-                    canvasDims,
-                    visualResult,
-                    originalBuffer,
-                    zoomX, zoomY, panOffset, panOffsetY,
-                    playingType, lastPlayedType, isDeltaMode, dryGain,
-                    threshold, gateThreshold,
-                    mousePos, hoverLine,
-                    isDraggingLine: isDraggingLineRef.current,
-                    isCompAdjusting, hasThresholdBeenAdjusted,
-                    isGateAdjusting, hasGateBeenAdjusted,
-                    hoverGrRef,
-                    isGateBypass, isCompBypass,
-                    mipmaps, mixMipmaps,
-                    waveformCacheRef,
-                });
+            const isInteracting = isDraggingLineRef.current || isCompAdjusting || isGateAdjusting;
+            if (waveformFrameRef.current === 0 || isInteracting) {
+                // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
+                let shouldDraw = true;
+                if (!isInteracting) {
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${zoomX}_${zoomY}_${panOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${dryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}`;
+                    if (drawKey === lastWaveformDrawKeyRef.current) {
+                        shouldDraw = false;
+                    } else {
+                        lastWaveformDrawKeyRef.current = drawKey;
+                    }
+                }
+                if (shouldDraw) {
+                    drawMainWaveform({
+                        canvas: waveformCanvasRef.current,
+                        canvasDims,
+                        visualResult,
+                        originalBuffer,
+                        zoomX, zoomY, panOffset, panOffsetY,
+                        playingType, lastPlayedType, isDeltaMode, dryGain,
+                        threshold, gateThreshold,
+                        mousePos, hoverLine,
+                        isDraggingLine: isDraggingLineRef.current,
+                        isCompAdjusting, hasThresholdBeenAdjusted,
+                        isGateAdjusting, hasGateBeenAdjusted,
+                        hoverGrRef,
+                        isGateBypass, isCompBypass,
+                        mipmaps, mixMipmaps,
+                        waveformCacheRef,
+                    });
+                }
             }
         }
 

@@ -180,8 +180,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const handleModeDryGainSync = useCallback((type) => {
         if (!gainAdjustedRef.current) {
-            if (type === 'original') setDryGain(0);
-            else setDryGain(-60);
+            setDryGain(0);
         }
     }, []);
 
