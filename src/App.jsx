@@ -220,6 +220,7 @@ const App = () => {
         waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef,
         playheadRef, meterStateRef,
         hoverGrRef: waveform.hoverGrRef,
+        isHoveringGRAreaRef: waveform.isHoveringGRAreaRef,
         canvasDims: view.canvasDims,
         zoomX: view.zoomX, zoomY: view.zoomY,
         panOffset: view.panOffset, panOffsetY: view.panOffsetY,

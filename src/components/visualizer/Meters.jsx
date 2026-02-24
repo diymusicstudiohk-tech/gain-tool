@@ -99,7 +99,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -166,8 +166,18 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     }
     if (hoverGrDbVal !== null && hoverGrDbVal < -0.1) {
         const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
-        ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(grX, hoverY); ctx.lineTo(grX + barWidth, hoverY); ctx.stroke();
+        if (isHoveringGRArea) {
+            // Brick red filled bar from top to hover Y
+            ctx.fillStyle = '#B54C35';
+            ctx.fillRect(grX, 0, barWidth, hoverY);
+            // Gold dB text below the bar
+            const dbText = hoverGrDbVal.toFixed(1);
+            ctx.fillStyle = '#C2A475'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+            ctx.fillText(dbText, grCenterX, hoverY + 12);
+        } else {
+            ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(grX, hoverY); ctx.lineTo(grX + barWidth, hoverY); ctx.stroke();
+        }
     }
 
     // --- Dry Bar (center-outward) ---

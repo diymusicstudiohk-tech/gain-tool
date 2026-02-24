@@ -42,6 +42,7 @@ const useVisualizerLoop = ({
     playheadRef,
     meterStateRef,
     hoverGrRef,
+    isHoveringGRAreaRef,
     canvasDims,
     zoomX,
     zoomY,
@@ -188,9 +189,9 @@ const useVisualizerLoop = ({
 
             // Draw Meters
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current);
             }
 
             // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting or hovering
@@ -224,6 +225,7 @@ const useVisualizerLoop = ({
                         isCompAdjusting, hasThresholdBeenAdjusted,
                         isGateAdjusting, hasGateBeenAdjusted,
                         hoverGrRef,
+                        isHoveringGRAreaRef,
                         isGateBypass, isCompBypass,
                         isGainKnobActive,
                         isGainKnobDragging,
@@ -256,7 +258,7 @@ const useVisualizerLoop = ({
         visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
     // --- Static Draw for Initial State ---
@@ -277,6 +279,7 @@ const useVisualizerLoop = ({
                 isCompAdjusting, hasThresholdBeenAdjusted,
                 isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
+                isHoveringGRAreaRef,
                 isGateBypass, isCompBypass,
                 isGainKnobActive,
                 isGainKnobDragging,
@@ -287,13 +290,13 @@ const useVisualizerLoop = ({
         }
 
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isDraggingLineRef,
+        isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps, mixMipmaps
     ]);
 

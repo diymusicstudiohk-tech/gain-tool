@@ -129,6 +129,7 @@ export const drawMainWaveform = ({
     threshold, gateThreshold,
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
+    isHoveringGRAreaRef, // ref object — true when mouse is in GR curve area
     isGateBypass, isCompBypass,
     isGainKnobActive,
     isGainKnobDragging,
@@ -339,6 +340,9 @@ export const drawMainWaveform = ({
     }
 
     // ── PHASE 2: Overlay — always drawn (threshold lines + mouse inspection) ──
+    // Reset GR area hover state each frame
+    if (isHoveringGRAreaRef) isHoveringGRAreaRef.current = false;
+
     // Re-derive geometry constants needed for overlay drawing
     const srcLength = visualResult.visualInput.length;
     const step = srcLength / (width * zoomX);
@@ -554,6 +558,54 @@ export const drawMainWaveform = ({
             }
         }
         if (hoverGrRef) hoverGrRef.current = hoverGR;
+
+        // --- GR Area Hover Detection + Gradient Fill ---
+        if (isHoveringGRAreaRef && playingType === 'none' && lastPlayedType === 'processed' && hoverGR < -0.1) {
+            const grCurveY = (1.0 - Math.pow(10, hoverGR / 20)) * grMaxHeight;
+            if (mousePos.y >= 0 && mousePos.y <= grCurveY) {
+                isHoveringGRAreaRef.current = true;
+
+                // Draw gradient fill from top to GR curve
+                const grFillStartX = Math.max(0, Math.floor(panOffset) - 1);
+                const grFillEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
+
+                ctx.save();
+                ctx.beginPath();
+                // Top edge left to right
+                ctx.moveTo(grFillStartX, 0);
+                ctx.lineTo(grFillEndX, 0);
+
+                // Trace GR curve right to left
+                for (let x = grFillEndX - 1; x >= grFillStartX; x--) {
+                    const vx = x - panOffset;
+                    const s = Math.floor(vx * step);
+                    const e = Math.floor((vx + 1) * step);
+                    if (s < 0 || s >= srcLength) { ctx.lineTo(x, 0); continue; }
+                    const se = Math.min(srcLength, e);
+                    let minGR = 0;
+                    const ls = Math.max(s, 0);
+                    if (useMipmaps && mmGR) {
+                        const grLevel = mmGR.level; const grBS = mmGR.blockSize;
+                        const grStart = Math.floor(ls / grBS); const grEnd = Math.ceil(se / grBS);
+                        for (let i = grStart; i < grEnd && i < grLevel.length; i++) { if (grLevel[i] < minGR) minGR = grLevel[i]; }
+                    } else {
+                        const srcGRArr = visualResult.grCurve;
+                        for (let i = ls; i < se; i++) { if (srcGRArr[i] < minGR) minGR = srcGRArr[i]; }
+                    }
+                    const yPos = minGR < 0 ? (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight : 0;
+                    ctx.lineTo(x, yPos);
+                }
+                ctx.closePath();
+
+                // Vertical gradient: transparent at top → 50% brick red at grMaxHeight
+                const grGrad = ctx.createLinearGradient(0, 0, 0, grMaxHeight);
+                grGrad.addColorStop(0, 'rgba(181, 76, 53, 0)');
+                grGrad.addColorStop(1, 'rgba(181, 76, 53, 0.5)');
+                ctx.fillStyle = grGrad;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
 
         // --- Crosshair ---
         ctx.save();

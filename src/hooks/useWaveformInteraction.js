@@ -40,6 +40,7 @@ const useWaveformInteraction = ({
     const isDraggingLineRef = useRef(null);
     const isDraggingRef = useRef(false);
     const hoverGrRef = useRef(0);
+    const isHoveringGRAreaRef = useRef(false);
     // Holds the latest touchstart handler so the passive:false DOM listener
     // always calls the current closure without re-registering.
     const touchStartHandlerRef = useRef(null);
@@ -280,7 +281,7 @@ const useWaveformInteraction = ({
         isGainKnobDragging, setIsGainKnobDragging,
         isCompAdjusting, setIsCompAdjusting,
         isGateAdjusting, setIsGateAdjusting,
-        isDraggingLineRef, isDraggingRef, hoverGrRef,
+        isDraggingLineRef, isDraggingRef, hoverGrRef, isHoveringGRAreaRef,
         handleWaveformMouseDown, handleLocalMouseMove,
     };
 };
