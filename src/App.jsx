@@ -176,6 +176,7 @@ const App = () => {
     });
 
     // --- 7. DSP Processing ---
+    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isGainKnobDragging || waveform.isCompAdjusting || waveform.isGateAdjusting;
     const dsp = useDSPProcessing({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
@@ -185,6 +186,7 @@ const App = () => {
         setIsProcessing: comp.setIsProcessing,
         fullAudioDataRef,
         isDraggingKnobRef,
+        isAnyKnobDragging,
     });
 
     // --- 8. Visualizer Loop ---

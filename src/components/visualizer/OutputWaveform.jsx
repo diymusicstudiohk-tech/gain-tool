@@ -20,6 +20,7 @@ const HandleDots = () => (
 
 const OutputWaveform = ({
     outputData,
+    outputMipmaps,
     originalBuffer,
     audioContext,
     startTimeRef,
@@ -40,7 +41,7 @@ const OutputWaveform = ({
     const hoverZoneRef = useRef('outside');
     const [isOverRegion, setIsOverRegion] = useState(false);
 
-    useOutputWaveformDrawer(canvasRef, outputData);
+    useOutputWaveformDrawer(canvasRef, outputData, outputMipmaps);
 
     // ── Stable refs so touch effect (registered once) always gets fresh values ──
     const regionRef = useRef({ start: regionStart, end: regionEnd });

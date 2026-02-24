@@ -1,6 +1,11 @@
 import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 
+// Display compression: exponent < 1 pushes waveform towards edges.
+// 0.43 halves the gap between -5dB and the border vs linear display.
+const DISPLAY_EXP = 0.43;
+const displayAmp = (lin) => lin > 0 ? Math.pow(lin, DISPLAY_EXP) : 0;
+
 // --- Helper Drawing Functions ---
 
 const drawPolygon = (ctx, points, color, width, centerY, opacity = 1.0) => {
@@ -84,11 +89,12 @@ export const drawMainWaveform = ({
     isGainKnobActive,
     mipmaps, mixMipmaps, // mipmap data
     waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
+    interactionDPR,     // number | null — force lower DPR during interaction
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const { width, height } = canvasDims;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = interactionDPR || (window.devicePixelRatio || 1);
     const physW = Math.round(width * dpr);
     const physH = Math.round(height * dpr);
     if (canvas.width !== physW) canvas.width = physW;
@@ -148,7 +154,7 @@ export const drawMainWaveform = ({
 
             for (let db = -5; db >= -60; db -= 5) {
                 const linAmp = Math.pow(10, db / 20);
-                const yOff = linAmp * ampScale;
+                const yOff = displayAmp(linAmp) * ampScale;
                 const yTop = centerY - yOff;
                 const yBot = centerY + yOff;
                 const topFade = Math.min(1, yTop / FADE_DISTANCE);
@@ -163,19 +169,24 @@ export const drawMainWaveform = ({
             const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = [];
             const dryLinear = Math.pow(10, dryGain / 20);
 
+            // Determine which channels are needed before the loop
+            const showAllLayers = isGainKnobActive || isDeltaMode;
+            const needsOutChannel = showAllLayers;
+
             // Viewport culling
             const loopStartX = Math.max(0, Math.floor(panOffset) - 1);
             const loopEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
 
             // Select mipmap levels
             const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
+            const mipmapBias = interactionDPR ? 1 : 0;
             let mmIn, mmOut, mmGR, mmMix;
             if (useMipmaps) {
-                mmIn = selectMipmapLevel(mipmaps.input, step);
-                mmOut = selectMipmapLevel(mipmaps.output, step);
-                mmGR = selectMipmapLevel(mipmaps.gr, step);
+                mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
+                if (needsOutChannel) mmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
+                mmGR = selectMipmapLevel(mipmaps.gr, step, mipmapBias);
                 if (mixMipmaps && lastPlayedType === 'processed') {
-                    mmMix = selectMipmapLevel(mixMipmaps, step);
+                    mmMix = selectMipmapLevel(mixMipmaps, step, mipmapBias);
                 }
             }
 
@@ -196,9 +207,11 @@ export const drawMainWaveform = ({
                         const inStart = Math.floor(loopStartIdx / inBS); const inEnd = Math.ceil(safeEnd / inBS);
                         for (let i = inStart; i < inEnd && i < inLevel.length; i++) { const a = Math.abs(inLevel[i]); if (a > maxIn) maxIn = a; }
 
-                        const outLevel = mmOut.level; const outBS = mmOut.blockSize;
-                        const outStart = Math.floor(loopStartIdx / outBS); const outEnd = Math.ceil(safeEnd / outBS);
-                        for (let i = outStart; i < outEnd && i < outLevel.length; i++) { const a = Math.abs(outLevel[i]); if (a > maxOut) maxOut = a; }
+                        if (needsOutChannel) {
+                            const outLevel = mmOut.level; const outBS = mmOut.blockSize;
+                            const outStart = Math.floor(loopStartIdx / outBS); const outEnd = Math.ceil(safeEnd / outBS);
+                            for (let i = outStart; i < outEnd && i < outLevel.length; i++) { const a = Math.abs(outLevel[i]); if (a > maxOut) maxOut = a; }
+                        }
 
                         const grLevel = mmGR.level; const grBS = mmGR.blockSize;
                         const grStart = Math.floor(loopStartIdx / grBS); const grEnd = Math.ceil(safeEnd / grBS);
@@ -211,22 +224,24 @@ export const drawMainWaveform = ({
                         }
                     } else {
                         for (let i = loopStartIdx; i < safeEnd; i++) {
-                            const absIn = Math.abs(srcInput[i]); const absOut = Math.abs(srcOutput[i]); const grVal = srcGR[i];
-                            if (absIn > maxIn) maxIn = absIn; if (absOut > maxOut) maxOut = absOut; if (grVal < minGR) minGR = grVal;
+                            const absIn = Math.abs(srcInput[i]); const grVal = srcGR[i];
+                            if (absIn > maxIn) maxIn = absIn; if (grVal < minGR) minGR = grVal;
+                            if (needsOutChannel) { const absOut = Math.abs(srcOutput[i]); if (absOut > maxOut) maxOut = absOut; }
                             if (lastPlayedType === 'processed') { const mixVal = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mixVal > maxMix) maxMix = mixVal; }
                         }
                     }
                 } else {
                     const idx = Math.min(Math.floor(loopStartIdx), srcLength - 1);
                     if (idx >= 0) {
-                        maxIn = Math.abs(srcInput[idx]); maxOut = Math.abs(srcOutput[idx]); minGR = srcGR[idx];
+                        maxIn = Math.abs(srcInput[idx]); minGR = srcGR[idx];
+                        if (needsOutChannel) maxOut = Math.abs(srcOutput[idx]);
                         if (lastPlayedType === 'processed') maxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
                     }
                 }
 
-                const hIn = maxIn * ampScale; const hOut = maxOut * ampScale; const hMix = maxMix * ampScale;
+                const hIn = displayAmp(maxIn) * ampScale; const hMix = displayAmp(maxMix) * ampScale;
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
-                outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut });
+                if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
                 if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
@@ -235,7 +250,6 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
             else {
-                const showAllLayers = isGainKnobActive || isDeltaMode;
                 const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
@@ -292,7 +306,8 @@ export const drawMainWaveform = ({
     const grMaxHeight = maxPixelHeight * 0.5;
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
-    const mmGR = useMipmaps ? selectMipmapLevel(mipmaps.gr, step) : null;
+    const mipmapBias = interactionDPR ? 1 : 0;
+    const mmGR = useMipmaps ? selectMipmapLevel(mipmaps.gr, step, mipmapBias) : null;
 
     // Helper Label
     const drawLabel = (text, x, y, color, align) => {
@@ -309,7 +324,7 @@ export const drawMainWaveform = ({
     const inactiveColor = '#555';
 
     if (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp' || isCompBypass) {
-        const threshY = Math.pow(10, threshold / 20) * ampScale;
+        const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
             const compColor = isDry || isCompBypass ? inactiveColor : '#C2A475';
@@ -320,7 +335,7 @@ export const drawMainWaveform = ({
         }
     }
 
-    const gateThreshY = Math.pow(10, gateThreshold / 20) * ampScale;
+    const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
     if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
         const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
         const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';

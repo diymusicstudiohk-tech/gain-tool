@@ -1,5 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+// Display compression (must match Waveform.jsx)
+const DISPLAY_EXP = 0.43;
+const displayAmp = (lin) => lin > 0 ? Math.pow(lin, DISPLAY_EXP) : 0;
+const linearFromDisplay = (disp) => disp > 0 ? Math.pow(disp, 1 / DISPLAY_EXP) : 0;
+
 // Extract clientX/clientY from mouse or touch events
 const getEventCoords = (e) => {
     if (e.touches && e.touches.length > 0) {
@@ -55,7 +60,8 @@ const useWaveformInteraction = ({
             const ampScale = maxH * zoomY;
             const centerY = (height / 2) + panOffsetY;
             const distFromCenter = Math.abs(relY - centerY);
-            const linearAmp = distFromCenter / ampScale;
+            const displayVal = distFromCenter / ampScale;
+            const linearAmp = linearFromDisplay(Math.min(displayVal, 1));
             let newDb = linearAmp > 0.000001 ? 20 * Math.log10(linearAmp) : -100;
             if (newDb > 0) newDb = 0;
 
@@ -178,8 +184,8 @@ const useWaveformInteraction = ({
             const centerY = (height / 2) + panOffsetY;
             const HIT_TOLERANCE = 20;
 
-            const compThreshPx = Math.pow(10, threshold / 20) * ampScale;
-            const gateThreshPx = Math.pow(10, gateThreshold / 20) * ampScale;
+            const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
+            const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
 
             const distToCompTop = Math.abs(relY - (centerY - compThreshPx));
             const distToCompBot = Math.abs(relY - (centerY + compThreshPx));
@@ -246,8 +252,8 @@ const useWaveformInteraction = ({
         setMousePos({ x: relX, y: relY });
 
         const HIT_TOLERANCE = 8;
-        const compThreshPx = Math.pow(10, threshold / 20) * ampScale;
-        const gateThreshPx = Math.pow(10, gateThreshold / 20) * ampScale;
+        const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
+        const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
 
         const distToCompTop = Math.abs(relY - (centerY - compThreshPx));
         const distToCompBot = Math.abs(relY - (centerY + compThreshPx));

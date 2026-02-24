@@ -69,7 +69,7 @@ export const buildMipmaps = (data, mode = 'absMax') => {
  * @param {number} step - samples per pixel (srcLength / visiblePixelWidth)
  * @returns {{ level: Float32Array, blockSize: number, levelIdx: number }}
  */
-export const selectMipmapLevel = (levels, step) => {
+export const selectMipmapLevel = (levels, step, bias = 0) => {
     let chosen = 0;
     for (let i = 1; i < levels.length; i++) {
         if (BLOCK_SIZES[i] <= step) {
@@ -77,6 +77,9 @@ export const selectMipmapLevel = (levels, step) => {
         } else {
             break;
         }
+    }
+    if (bias > 0) {
+        chosen = Math.min(chosen + bias, levels.length - 1);
     }
     return {
         level: levels[chosen],

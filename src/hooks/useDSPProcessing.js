@@ -4,11 +4,14 @@ import { toMono } from '../utils/audioHelper';
 import { buildMipmaps } from '../utils/mipmapCache';
 
 const MAX_SMOOTH_POINTS = 250000;
+const MAX_INTERACTION_POINTS = 50000;
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef }) => {
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
+    const fullResCacheRef = useRef(null);
+    const interactionCacheRef = useRef(null);
 
     // Adaptive debounce: immediate when not dragging, 150ms when dragging
     useEffect(() => {
@@ -20,34 +23,49 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         return () => clearTimeout(timer);
     }, [currentParams, isDraggingKnobRef]);
 
-    // Downsampling for Visuals — always auto-cap to MAX_SMOOTH_POINTS
+    // Downsampling for Visuals — build both full-res and interaction caches
     useEffect(() => {
         if (!originalBuffer) return;
         const length = originalBuffer.length;
         const monoData = toMono(originalBuffer);
 
-        let targetStep = 1;
-        if (length > MAX_SMOOTH_POINTS) {
-            targetStep = Math.ceil(length / MAX_SMOOTH_POINTS);
-        }
-
-        const cacheLength = Math.floor(length / targetStep);
-        const cacheData = new Float32Array(cacheLength);
-
-        for (let i = 0; i < cacheLength; i++) {
-            const start = i * targetStep;
-            const end = Math.min(start + targetStep, length);
-            let chunkVal = 0;
-            let maxAbs = 0;
-            for (let j = start; j < end; j++) {
-                const val = monoData[j];
-                const abs = Math.abs(val);
-                if (abs > maxAbs) { maxAbs = abs; chunkVal = val; }
+        const buildCache = (maxPoints) => {
+            let targetStep = 1;
+            if (length > maxPoints) {
+                targetStep = Math.ceil(length / maxPoints);
             }
-            cacheData[i] = chunkVal;
-        }
-        setVisualSourceCache({ data: cacheData, step: targetStep });
+            const cacheLength = Math.floor(length / targetStep);
+            const cacheData = new Float32Array(cacheLength);
+            for (let i = 0; i < cacheLength; i++) {
+                const start = i * targetStep;
+                const end = Math.min(start + targetStep, length);
+                let chunkVal = 0;
+                let maxAbs = 0;
+                for (let j = start; j < end; j++) {
+                    const val = monoData[j];
+                    const abs = Math.abs(val);
+                    if (abs > maxAbs) { maxAbs = abs; chunkVal = val; }
+                }
+                cacheData[i] = chunkVal;
+            }
+            return { data: cacheData, step: targetStep };
+        };
+
+        const fullRes = buildCache(MAX_SMOOTH_POINTS);
+        const interaction = buildCache(MAX_INTERACTION_POINTS);
+        fullResCacheRef.current = fullRes;
+        interactionCacheRef.current = interaction;
+        setVisualSourceCache(fullRes);
     }, [originalBuffer]);
+
+    // Switch visual source cache based on knob dragging state
+    useEffect(() => {
+        if (isAnyKnobDragging && interactionCacheRef.current) {
+            setVisualSourceCache(interactionCacheRef.current);
+        } else if (!isAnyKnobDragging && fullResCacheRef.current) {
+            setVisualSourceCache(fullResCacheRef.current);
+        }
+    }, [isAnyKnobDragging]);
 
     // Visual Result Memo — uses debouncedParams to avoid recomputing during fast knob drags
     const visualResult = useMemo(() => {
