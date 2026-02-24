@@ -303,7 +303,7 @@ export const drawMainWaveform = ({
     const step = srcLength / (width * zoomX);
     if (!Number.isFinite(step) || step <= 0) return;
 
-    const PADDING = 0; const centerY = (height / 2) + panOffsetY;
+    const PADDING = height * 0.05; const centerY = (height / 2) + panOffsetY;
     const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;
     const grMaxHeight = maxPixelHeight * 0.5;
 
