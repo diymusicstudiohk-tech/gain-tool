@@ -169,6 +169,10 @@ const App = () => {
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
+        // Seek-related refs
+        startOffsetRef, playingTypeRef: playback.playingTypeRef, playBufferRef,
+        playheadRef, outputPlayheadRef,
+        zoomX: view.zoomX, panOffset: view.panOffset,
     });
 
     // --- 7. DSP Processing ---
