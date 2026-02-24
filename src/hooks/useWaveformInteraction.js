@@ -155,7 +155,7 @@ const useWaveformInteraction = ({
             }
 
             isDraggingLineRef.current = hoverLine;
-            document.body.style.cursor = 'row-resize';
+            document.body.style.cursor = 'ns-resize';
 
             window.addEventListener('mousemove', onWaveformGlobalMove);
             window.addEventListener('mouseup', onWaveformGlobalUp);
@@ -268,8 +268,8 @@ const useWaveformInteraction = ({
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE) { newHoverLine = 'gate'; cursor = 'row-resize'; }
-        if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) { newHoverLine = 'comp'; cursor = 'row-resize'; }
+        if (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
+        if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
