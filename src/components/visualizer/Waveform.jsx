@@ -554,7 +554,7 @@ export const drawMainWaveform = ({
 
         // Legend box above GR label (only when hovering on waveform)
         if (isHoveringOnWaveform) {
-            const legendLine1 = '金色 = 壓縮後訊號';
+            const legendLine1 = '金色實色 = 壓縮後訊號';
             const legendLine2 = '金色斜線 = 額外補回的乾訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw1 = ctx.measureText(legendLine1).width;
