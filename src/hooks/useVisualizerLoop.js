@@ -78,12 +78,19 @@ const useVisualizerLoop = ({
 
         const duration = originalBuffer.duration;
 
+        // Compute live viewport from region refs (bypasses React state delay for instant gold-box response)
+        const liveRegionStart = regionStartRef?.current ?? 0;
+        const liveRegionEnd = regionEndRef?.current ?? 1;
+        const liveRegionWidth = liveRegionEnd - liveRegionStart;
+        const liveZoomX = liveRegionWidth >= 0.01 ? 1 / liveRegionWidth : zoomX;
+        const livePanOffset = liveRegionWidth >= 0.01 ? -liveRegionStart * canvasDims.width / liveRegionWidth : panOffset;
+
         // Update Playhead Position
         if (waveformCanvasRef.current && playheadRef.current) {
             const width = canvasDims.width;
-            const totalWidth = width * zoomX;
+            const totalWidth = width * liveZoomX;
             const pct = currentPosition / duration;
-            const screenPct = (((pct * totalWidth) + panOffset) / width) * 100;
+            const screenPct = (((pct * totalWidth) + livePanOffset) / width) * 100;
             playheadRef.current.style.left = `${screenPct}%`;
             playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
         }
@@ -186,7 +193,7 @@ const useVisualizerLoop = ({
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${zoomX}_${zoomY}_${panOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -199,7 +206,7 @@ const useVisualizerLoop = ({
                         canvasDims,
                         visualResult,
                         originalBuffer,
-                        zoomX, zoomY, panOffset, panOffsetY,
+                        zoomX: liveZoomX, zoomY, panOffset: livePanOffset, panOffsetY,
                         playingType, lastPlayedType, isDeltaMode, dryGain: currentDryGain,
                         threshold, gateThreshold,
                         mousePos, hoverLine,

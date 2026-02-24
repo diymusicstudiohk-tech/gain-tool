@@ -80,6 +80,9 @@ const App = () => {
     const handleRegionChange = useCallback((s, e) => {
         setRegionStart(s);
         setRegionEnd(e);
+        // Synchronously update refs so the rAF animation loop picks up changes immediately
+        regionStartRef.current = s;
+        regionEndRef.current = e;
     }, []);
 
     // Keep refs in sync with state
