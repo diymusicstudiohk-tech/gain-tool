@@ -500,11 +500,8 @@ export const drawMainWaveform = ({
         ctx.beginPath(); ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height); ctx.stroke();
         ctx.restore();
 
-        // --- GR label + legend ---
-        const text = `GR: ${hoverGR.toFixed(1)}dB`;
-        ctx.font = 'bold 12px sans-serif';
-        const metrics = ctx.measureText(text);
-        const bgWidth = metrics.width + 12; const bgHeight = 20;
+        // --- Positioning for legend + threshold tooltip ---
+        const bgHeight = 20;
         const bgX = mousePos.x + 8;
 
         // Threshold block above GR label when adjusting comp threshold
@@ -562,12 +559,6 @@ export const drawMainWaveform = ({
             ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
         }
 
-        // GR label (drawn last — on top of all layers)
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillStyle = '#C2A475';
-        ctx.fillRect(bgX, mousePos.y - bgHeight - 4, bgWidth, bgHeight);
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-        ctx.fillText(text, bgX + 6, mousePos.y - bgHeight - 4 + 14);
     }
 
     // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
