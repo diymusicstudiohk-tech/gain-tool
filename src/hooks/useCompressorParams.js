@@ -83,9 +83,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setRatioControl(calculateControlFromRatio(savedParams.ratio));
             setAttack(savedParams.attack); setRelease(savedParams.release);
             setKnee(savedParams.knee); setLookahead(savedParams.lookahead);
-            const clampedMakeup = Math.max(-200, Math.min(5, savedParams.makeupGain));
-            setMakeupGain(clampedMakeup);
-            setWetGainControl(wetGainDbToControl(clampedMakeup));
+            // Always start wet gain at 0dB on load
+            setMakeupGain(0);
+            setWetGainControl(50);
             setDryGain(savedParams.dryGain);
             setDryGainControl(dryGainDbToControl(savedParams.dryGain));
             setGateThreshold(savedParams.gateThreshold); setGateRatio(savedParams.gateRatio);
