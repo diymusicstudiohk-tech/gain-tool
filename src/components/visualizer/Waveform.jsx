@@ -295,8 +295,11 @@ export const drawMainWaveform = ({
 
         if (hoverGrRef) hoverGrRef.current = hoverGR;
 
-        ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 1.5;
+        ctx.save();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+        ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
         ctx.beginPath(); ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height); ctx.stroke();
+        ctx.restore();
 
         const text = `GR: ${hoverGR.toFixed(1)}dB`;
         ctx.font = 'bold 12px sans-serif';
