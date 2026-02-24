@@ -364,7 +364,7 @@ export const drawMainWaveform = ({
                 ctx.shadowBlur = 12;
             }
             ctx.strokeStyle = strokeGrad;
-            ctx.lineWidth = isCompHighlight ? 2 : 1;
+            ctx.lineWidth = isCompHighlight ? 3 : 2;
             ctx.beginPath();
             ctx.moveTo(0, tTop); ctx.lineTo(width, tTop);
             ctx.moveTo(0, tBot); ctx.lineTo(width, tBot);
