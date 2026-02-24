@@ -30,6 +30,45 @@ const drawPolygonWithStroke = (ctx, points, fillColor, strokeColor, width, cente
     ctx.restore();
 };
 
+const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1.0, fadeAmount = 0.2) => {
+    if (points.length === 0) return;
+    ctx.save();
+
+    // Find vertical extent of the waveform
+    let minY = centerY, maxY = centerY;
+    for (let i = 0; i < points.length; i++) {
+        if (points[i].yTop < minY) minY = points[i].yTop;
+        if (points[i].yBot > maxY) maxY = points[i].yBot;
+    }
+
+    // Parse hex color
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+
+    const peakAlpha = opacity * (1 - fadeAmount);
+    const centerAlpha = opacity;
+    const range = maxY - minY;
+
+    if (range > 0) {
+        const grad = ctx.createLinearGradient(0, minY, 0, maxY);
+        const centerStop = (centerY - minY) / range;
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
+        grad.addColorStop(Math.max(0, Math.min(1, centerStop)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
+        ctx.fillStyle = grad;
+    } else {
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = color;
+    }
+
+    ctx.beginPath(); ctx.moveTo(0, centerY);
+    for (let i = 0; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yTop);
+    ctx.lineTo(points[points.length - 1].x, centerY);
+    for (let i = points.length - 1; i >= 0; i--) ctx.lineTo(points[i].x, points[i].yBot);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+};
+
 const drawHatchedPolygon = (ctx, points, color, width, centerY, spacing = 6, lineWidth = 1.5, opacity = 1.0) => {
     if (points.length === 0) return;
     ctx.save();
@@ -250,12 +289,12 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
-                drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
+                drawPolygonWithPeakFade(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 // Output mix — always visible (dark when delta mode hides it behind background)
                 drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY);
@@ -404,9 +443,9 @@ export const drawMainWaveform = ({
                 outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
                 mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
-            // Gold hatching on mix area (dry contribution), blue hatching on wet area
+            // Gold hatching on mix area (dry contribution), solid blue on wet area
             drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
-            drawHatchedPolygon(ctx, outPts, '#7D93B7', width, centerY, 60, 15);
+            drawPolygon(ctx, outPts, '#7D93B7', width, centerY);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
@@ -457,7 +496,7 @@ export const drawMainWaveform = ({
                 mxPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
             // Bright red input, then white mix on top to mask center
-            drawPolygon(ctx, inPts, '#E15D42', width, centerY);
+            drawPolygonWithPeakFade(ctx, inPts, '#E15D42', width, centerY);
             drawPolygon(ctx, mxPts, '#ffffff', width, centerY);
         }
 
