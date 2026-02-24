@@ -133,7 +133,6 @@ export const drawMainWaveform = ({
 
             const centerY = (height / 2) + panOffsetY;
             const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
-            const grMaxHeight = maxPixelHeight * 0.5;
 
             // Grid — horizontal dB lines with gradient fade
             const FADE_DISTANCE = 160;
@@ -245,7 +244,7 @@ export const drawMainWaveform = ({
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
                 if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
-                if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
+                if (minGR < 0 && lastPlayedType === 'processed') { const yPos = displayAmp(1.0 - Math.pow(10, minGR / 20)) * ampScale; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
             }
 
@@ -268,17 +267,6 @@ export const drawMainWaveform = ({
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 
-            // GR Scale Labels
-            if (lastPlayedType === 'processed') {
-                ctx.fillStyle = '#E05E42'; ctx.textAlign = 'right'; ctx.font = 'bold 10px monospace';
-                [-3, -6, -12, -20].forEach(db => {
-                    const yVal = (1.0 - Math.pow(10, db / 20)) * grMaxHeight;
-                    if (yVal < height / 2) {
-                        ctx.fillText(`${db}dB`, width - 5, yVal + 3);
-                        ctx.fillStyle = 'rgba(224, 94, 66, 0.5)'; ctx.fillRect(width - 15, yVal, 10, 1); ctx.fillStyle = '#E05E42';
-                    }
-                });
-            }
 
 
             // ── Save background to cache (before threshold lines / mouse overlay) ──
@@ -305,7 +293,6 @@ export const drawMainWaveform = ({
 
     const centerY = (height / 2) + panOffsetY;
     const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
-    const grMaxHeight = maxPixelHeight * 0.5;
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
     const mipmapBias = interactionDPR ? 1 : 0;
