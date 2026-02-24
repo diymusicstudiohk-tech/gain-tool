@@ -12,6 +12,8 @@ const usePlayback = ({
     // Shared refs from App
     sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
     isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
+    // Region bounds (normalized 0-1)
+    regionStartRef, regionEndRef,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
@@ -121,12 +123,24 @@ const usePlayback = ({
             if (meterStateRef?.current) meterStateRef.current.outClipping = false;
         } else {
             if (originalBuffer) {
+                const duration = originalBuffer.duration;
+                const rStart = (regionStartRef?.current ?? 0) * duration;
+                const rEnd = (regionEndRef?.current ?? 1) * duration;
+                let offset = startOffsetRef.current;
+
+                // If playhead is outside the golden box region, snap to region start
+                if (offset < rStart || offset >= rEnd) {
+                    offset = rStart;
+                    startOffsetRef.current = offset;
+                }
+
                 isPlayingRef.current = true;
-                playBuffer(originalBuffer, lastPlayedType, startOffsetRef.current);
+                playBuffer(originalBuffer, lastPlayedType, offset);
             }
         }
     }, [playingType, lastPlayedType, originalBuffer, playBuffer, audioContext,
-        logAction, sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef]);
+        logAction, sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
+        regionStartRef, regionEndRef]);
 
     const handleModeChange = useCallback((type) => {
         logAction(`SET_MODE: ${type}`);

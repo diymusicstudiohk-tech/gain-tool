@@ -50,6 +50,8 @@ const useVisualizerLoop = ({
     playingTypeRef,
     lastPlayedTypeRef,
     outputPlayheadRef,
+    regionStartRef,
+    regionEndRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
@@ -206,14 +208,16 @@ const useVisualizerLoop = ({
             }
         }
 
-        // Playback Logic — restart from beginning when reaching end
-        if (currentPosition >= duration) {
+        // Playback Logic — loop within golden box region
+        const regionEndTime = (regionEndRef?.current ?? 1) * duration;
+        const regionStartTime = (regionStartRef?.current ?? 0) * duration;
+        if (currentPosition >= regionEndTime) {
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
 
                 if (targetBuffer) {
-                    playBufferRef.current(targetBuffer, playingType, 0);
+                    playBufferRef.current(targetBuffer, playingType, regionStartTime);
                 }
             }
         }

@@ -75,10 +75,17 @@ const App = () => {
     const [regionStart, setRegionStart] = useState(0);
     const [regionEnd, setRegionEnd] = useState(1);
 
+    const regionStartRef = useRef(0);
+    const regionEndRef = useRef(1);
+
     const handleRegionChange = useCallback((s, e) => {
         setRegionStart(s);
         setRegionEnd(e);
     }, []);
+
+    // Keep refs in sync with state
+    useEffect(() => { regionStartRef.current = regionStart; }, [regionStart]);
+    useEffect(() => { regionEndRef.current = regionEnd; }, [regionEnd]);
 
     // When a new audio file loads, default region to 2-second window centred at midpoint
     useEffect(() => {
@@ -125,6 +132,7 @@ const App = () => {
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
         isPlayingRef, rafIdRef, playBufferRef,
         meterStateRef,
+        regionStartRef, regionEndRef,
     });
 
     // Wire ref-based callbacks
@@ -150,11 +158,8 @@ const App = () => {
         waveformCanvasRef, containerRef, originalBuffer,
         threshold: comp.threshold, gateThreshold: comp.gateThreshold,
         setThreshold: comp.setThreshold, setGateThreshold: comp.setGateThreshold,
-        zoomX: view.zoomX, zoomY: view.zoomY,
-        panOffset: view.panOffset, panOffsetY: view.panOffsetY,
-        playingTypeRef: playback.playingTypeRef,
-        lastPlayedTypeRef: playback.lastPlayedTypeRef,
-        playBufferRef, playheadRef, startOffsetRef, isPlayingRef,
+        zoomY: view.zoomY,
+        panOffsetY: view.panOffsetY,
         setIsCustomSettings: comp.setIsCustomSettings,
         setIsProcessing: comp.setIsProcessing,
         setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
@@ -164,7 +169,6 @@ const App = () => {
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
-        outputPlayheadRef,
     });
 
     // --- 7. DSP Processing ---
@@ -214,6 +218,7 @@ const App = () => {
         playingTypeRef: playback.playingTypeRef,
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
         outputPlayheadRef,
+        regionStartRef, regionEndRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)
