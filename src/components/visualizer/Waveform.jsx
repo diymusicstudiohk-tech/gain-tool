@@ -406,7 +406,7 @@ export const drawMainWaveform = ({
             }
             // Gold hatching on mix area (dry contribution), blue hatching on wet area
             drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
-            drawHatchedPolygon(ctx, outPts, '#7D93B7', width, centerY);
+            drawHatchedPolygon(ctx, outPts, '#7D93B7', width, centerY, 60, 15);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
