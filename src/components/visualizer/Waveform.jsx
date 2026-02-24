@@ -530,7 +530,7 @@ export const drawMainWaveform = ({
                 mxPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
             // Bright red input, then white mix on top to mask center
-            drawPolygon(ctx, inPts, '#FF2222', width, centerY);
+            drawPolygon(ctx, inPts, '#E15D42', width, centerY);
             drawPolygon(ctx, mxPts, '#ffffff', width, centerY);
         }
 
