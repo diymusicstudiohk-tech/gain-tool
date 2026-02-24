@@ -60,6 +60,13 @@ const useVisualizerLoop = ({
     const dryGainRef = useRef(dryGain);
     useEffect(() => { dryGainRef.current = dryGain; }, [dryGain]);
 
+    // Use refs for mousePos/hoverLine so animate() reads the latest values
+    // without being recreated on every mouse move (which would restart the RAF loop).
+    const mousePosRef = useRef(mousePos);
+    useEffect(() => { mousePosRef.current = mousePos; }, [mousePos]);
+    const hoverLineRef = useRef(hoverLine);
+    useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
+
     const isGainKnobActive = isGainKnobDragging || hoveredKnob === 'makeup' || hoveredKnob === 'dryGain';
     const interactionDPR = null; // Always full DPR — cache handles performance during drag
 
@@ -186,14 +193,17 @@ const useVisualizerLoop = ({
                 drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor);
             }
 
-            // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting
+            // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting or hovering
             waveformFrameRef.current = (waveformFrameRef.current + 1) % 2;
+            const liveMousePos = mousePosRef.current;
+            const liveHoverLine = hoverLineRef.current;
+            const isHovering = liveMousePos.x >= 0;
             const isInteracting = isDraggingLineRef.current || isCompAdjusting || isGateAdjusting;
-            if (waveformFrameRef.current === 0 || isInteracting) {
+            if (waveformFrameRef.current === 0 || isInteracting || isHovering) {
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -209,7 +219,7 @@ const useVisualizerLoop = ({
                         zoomX: liveZoomX, zoomY, panOffset: livePanOffset, panOffsetY,
                         playingType, lastPlayedType, isDeltaMode, dryGain: currentDryGain,
                         threshold, gateThreshold,
-                        mousePos, hoverLine,
+                        mousePos: liveMousePos, hoverLine: liveHoverLine,
                         isDraggingLine: isDraggingLineRef.current,
                         isCompAdjusting, hasThresholdBeenAdjusted,
                         isGateAdjusting, hasGateBeenAdjusted,
@@ -243,7 +253,7 @@ const useVisualizerLoop = ({
         return () => cancelAnimationFrame(rafIdRef.current);
     }, [
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
-        visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
+        visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isDraggingLineRef,
