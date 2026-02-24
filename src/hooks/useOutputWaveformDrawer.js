@@ -51,16 +51,16 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
 
             if (end - start > 0) {
                 if (mm) {
-                    // Fast path: use mipmap (absMax stores signed peak)
+                    // Fast path: use mipmap (absMax stores signed peak — take abs for symmetric draw)
                     const mmLevel = mm.level;
                     const bs = mm.blockSize;
                     const mStart = Math.floor(start / bs);
                     const mEnd = Math.ceil(end / bs);
                     for (let i = mStart; i < mEnd && i < mmLevel.length; i++) {
-                        const v = mmLevel[i];
-                        if (v > maxVal) maxVal = v;
-                        if (v < minVal) minVal = v;
+                        const a = Math.abs(mmLevel[i]);
+                        if (a > maxVal) maxVal = a;
                     }
+                    minVal = -maxVal;
                 } else {
                     // Fallback: iterate raw samples
                     for (let i = start; i < end; i++) {
