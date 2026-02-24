@@ -228,13 +228,13 @@ export const drawMainWaveform = ({
                 // Bottom: Brick Red (dry input)
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
+                // White (output mix) — always visible
+                drawPolygon(ctx, mixPoints, '#ffffff', width, centerY);
+
                 if (showAllLayers) {
-                    // Gold hatched (output mix) + Grey (wet)
+                    // Gold hatched (output mix) + Grey (wet) on top
                     drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                     drawPolygon(ctx, outPoints, '#888888', width, centerY);
-                } else {
-                    // White (output mix) only
-                    drawPolygon(ctx, mixPoints, '#ffffff', width, centerY);
                 }
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
