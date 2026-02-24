@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Gauge, Info, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Gauge, Info } from 'lucide-react';
 
 import { PRESETS_DATA, TOOLTIPS } from './utils/constants';
 import { saveAppStateToStorage, softReset } from './utils/storage';
@@ -250,13 +250,11 @@ const App = () => {
             saveAppStateToStorage({
                 currentSourceId: engine.currentSourceId,
                 lastPlayedType: playback.lastPlayedType,
-                isInfoPanelEnabled: view.isInfoPanelEnabled,
             });
         }, 1000);
         return () => clearTimeout(timer);
     }, [engine.currentSourceId,
-        playback.lastPlayedType,
-        view.isInfoPanelEnabled]);
+        playback.lastPlayedType]);
 
     // --- Info Panel Content ---
     const getActiveInfo = () => {
@@ -302,7 +300,7 @@ const App = () => {
                 handleDownload={engine.handleDownload} isLoading={engine.isLoading}
                 loadPreset={engine.loadAudio}
                 loadCustomAudio={engine.loadCustomAudio}
-                isInfoPanelEnabled={view.isInfoPanelEnabled} setIsInfoPanelEnabled={view.setIsInfoPanelEnabled}
+
                 fileInputRef={engine.fileInputRef}
                 resetAllParams={() => {
                     comp.resetAllParams();
@@ -336,7 +334,7 @@ const App = () => {
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleLocalMouseMove}
                 >
-                    {view.hoveredKnob && activeInfo && activeInfo.isKnob && view.isInfoPanelEnabled ? (
+                    {view.hoveredKnob && activeInfo && activeInfo.isKnob ? (
                         <div
                             className="absolute bottom-4 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
                             style={{
@@ -346,7 +344,7 @@ const App = () => {
                             <div className="flex items-center gap-2 text-cyan-400 font-bold mb-2 text-lg"><Info size={20} /> {activeInfo.title}</div>
                             <div className="text-sm text-slate-200 leading-relaxed font-medium">{activeInfo.content}</div>
                         </div>
-                    ) : (view.isInfoPanelEnabled && PRESETS_DATA[comp.selectedPresetIdx]) ? (
+                    ) : (PRESETS_DATA[comp.selectedPresetIdx]) ? (
                         <div className="absolute top-4 right-4 z-30 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-72 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
                             <div className="flex items-center gap-2 text-green-400 font-bold mb-2 text-base border-b border-white/10 pb-2">
                                 <Info size={18} />
@@ -358,15 +356,6 @@ const App = () => {
                         </div>
                     ) : null}
 
-                    <div className="absolute bottom-4 right-4 z-40 flex flex-col gap-2 items-end">
-                        <button
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); view.setIsInfoPanelEnabled(!view.isInfoPanelEnabled); }}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-bold transition-all shadow-lg border backdrop-blur-md ${view.isInfoPanelEnabled ? 'bg-green-500 text-white border-green-400 shadow-green-500/30 hover:bg-green-400' : 'bg-slate-800/80 text-slate-400 border-white/10 hover:bg-slate-700 hover:text-white'}`}
-                        >
-                            {view.isInfoPanelEnabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />} 彈出說明視窗
-                        </button>
-                    </div>
 
                 </Waveform>
 

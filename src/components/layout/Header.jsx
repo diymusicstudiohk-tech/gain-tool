@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    ToggleLeft, ToggleRight, X,
+    X,
     Download, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
@@ -35,8 +35,6 @@ const Header = ({
     handleDownload,
     isLoading,
     loadPreset,
-    isInfoPanelEnabled,
-    setIsInfoPanelEnabled,
     fileInputRef,
     resetAllParams,
 
