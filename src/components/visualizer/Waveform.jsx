@@ -131,8 +131,8 @@ export const drawMainWaveform = ({
 
             if (!Number.isFinite(step) || step <= 0) return;
 
-            const PADDING = height * 0.05; const centerY = (height / 2) + panOffsetY;
-            const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;
+            const centerY = (height / 2) + panOffsetY;
+            const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
             const grMaxHeight = maxPixelHeight * 0.5;
 
             // Grid — horizontal dB lines with gradient fade
@@ -303,8 +303,8 @@ export const drawMainWaveform = ({
     const step = srcLength / (width * zoomX);
     if (!Number.isFinite(step) || step <= 0) return;
 
-    const PADDING = height * 0.05; const centerY = (height / 2) + panOffsetY;
-    const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;
+    const centerY = (height / 2) + panOffsetY;
+    const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
     const grMaxHeight = maxPixelHeight * 0.5;
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
@@ -500,19 +500,74 @@ export const drawMainWaveform = ({
         ctx.beginPath(); ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height); ctx.stroke();
         ctx.restore();
 
-        // --- Threshold label when adjusting comp threshold ---
+        // --- GR label + legend ---
+        const text = `GR: ${hoverGR.toFixed(1)}dB`;
+        ctx.font = 'bold 12px sans-serif';
+        const metrics = ctx.measureText(text);
+        const bgWidth = metrics.width + 12; const bgHeight = 20;
+        const bgX = mousePos.x + 8;
+
+        // Threshold block above GR label when adjusting comp threshold
         if (isDraggingLine === 'comp') {
             const threshText = `${threshold}dB`;
-            ctx.font = 'bold 12px sans-serif';
             const threshMetrics = ctx.measureText(threshText);
             const tBgW = threshMetrics.width + 12; const tBgH = 20;
-            const tBgX = mousePos.x + 8;
-            const tBgY = mousePos.y - tBgH - 4;
+            const tBgY = mousePos.y - bgHeight - 4 - tBgH - 4;
             ctx.fillStyle = '#C2A475';
-            ctx.fillRect(tBgX, tBgY, tBgW, tBgH);
+            ctx.fillRect(bgX, tBgY, tBgW, tBgH);
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(threshText, tBgX + 6, tBgY + 14);
+            ctx.fillText(threshText, bgX + 6, tBgY + 14);
         }
+
+        // Legend box above GR label (only when hovering on waveform)
+        if (isHoveringOnWaveform) {
+            const legendLine1 = '藍色 = 壓縮後訊號';
+            const legendLine2 = '金色斜線 = 額外補回的乾訊號';
+            ctx.font = 'bold 11px sans-serif';
+            const lw1 = ctx.measureText(legendLine1).width;
+            const lw2 = ctx.measureText(legendLine2).width;
+            const legendPadX = 10;
+            const legendW = Math.max(lw1, lw2) + legendPadX * 2;
+            const legendH = 44;
+            const grBoxTop = mousePos.y - bgHeight - 4;
+            let legendX = bgX;
+            let legendY = grBoxTop - legendH - 4;
+            if (legendX + legendW > width) legendX = width - legendW - 2;
+            if (legendY < 2) legendY = mousePos.y + 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+            ctx.fillText(legendLine1, legendX + legendPadX, legendY + 18);
+            ctx.fillText(legendLine2, legendX + legendPadX, legendY + 34);
+        }
+
+        // Legend for brick-red hover
+        if (isHoveringOnBrickRed) {
+            const legendText = '紅色 = 被壓縮處理減少了的訊號';
+            ctx.font = 'bold 11px sans-serif';
+            const lw = ctx.measureText(legendText).width;
+            const legendPadX = 10;
+            const legendW = lw + legendPadX * 2;
+            const legendH = 28;
+            const grBoxTop = mousePos.y - bgHeight - 4;
+            let legendX = bgX;
+            let legendY = grBoxTop - legendH - 4;
+            if (legendX + legendW > width) legendX = width - legendW - 2;
+            if (legendY < 2) legendY = mousePos.y + 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
+        }
+
+        // GR label (drawn last — on top of all layers)
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#C2A475';
+        ctx.fillRect(bgX, mousePos.y - bgHeight - 4, bgWidth, bgHeight);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+        ctx.fillText(text, bgX + 6, mousePos.y - bgHeight - 4 + 14);
     }
 
     // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
