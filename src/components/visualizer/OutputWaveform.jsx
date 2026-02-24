@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import useOutputWaveformDrawer from '../../hooks/useOutputWaveformDrawer';
 
 const HANDLE_PX = 14;    // hit-zone half-width in px (comfortable for both mouse & touch)
@@ -39,7 +39,6 @@ const OutputWaveform = ({
 
     // Track hover zone for overlay styling — only re-render when zone category changes
     const hoverZoneRef = useRef('outside');
-    const [isOverRegion, setIsOverRegion] = useState(false);
 
     useOutputWaveformDrawer(canvasRef, outputData, outputMipmaps);
 
@@ -156,15 +155,7 @@ const OutputWaveform = ({
     const handleLocalMouseMove = useCallback((e) => {
         if (!containerRef.current) return;
         const zone = getHitZone(e.clientX);
-
-        // Update overlay state only when category (inside/outside) changes
-        const nowOver = zone !== 'outside';
-        if (nowOver !== (hoverZoneRef.current !== 'outside')) {
-            hoverZoneRef.current = zone;
-            setIsOverRegion(nowOver);
-        } else {
-            hoverZoneRef.current = zone;
-        }
+        hoverZoneRef.current = zone;
 
         if (dragRef.current) return;
         containerRef.current.style.cursor =
@@ -174,10 +165,7 @@ const OutputWaveform = ({
     }, [getHitZone]);
 
     const handleMouseLeave = useCallback(() => {
-        if (hoverZoneRef.current !== 'outside') {
-            hoverZoneRef.current = 'outside';
-            setIsOverRegion(false);
-        }
+        hoverZoneRef.current = 'outside';
         if (!dragRef.current && containerRef.current) {
             containerRef.current.style.cursor = 'crosshair';
         }
@@ -255,24 +243,22 @@ const OutputWaveform = ({
                     {/* Bottom border */}
                     <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: '#D4A017' }} />
 
-                    {/* Left handle bar — thin by default, thick + dots on hover */}
+                    {/* Left handle bar — always thick with grip dots */}
                     <div style={{
                         position: 'absolute', top: 0, bottom: 0, left: 0,
-                        width: isOverRegion ? 7 : 2,
+                        width: 7,
                         background: '#D4A017',
-                        transition: 'width 0.12s ease',
                     }}>
-                        {isOverRegion && <HandleDots />}
+                        <HandleDots />
                     </div>
 
                     {/* Right handle bar */}
                     <div style={{
                         position: 'absolute', top: 0, bottom: 0, right: 0,
-                        width: isOverRegion ? 7 : 2,
+                        width: 7,
                         background: '#D4A017',
-                        transition: 'width 0.12s ease',
                     }}>
-                        {isOverRegion && <HandleDots />}
+                        <HandleDots />
                     </div>
                 </div>
             )}
