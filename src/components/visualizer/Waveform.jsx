@@ -12,6 +12,19 @@ const drawPolygon = (ctx, points, color, width, centerY, opacity = 1.0) => {
     ctx.closePath(); ctx.fill(); ctx.restore();
 };
 
+const drawPolygonWithStroke = (ctx, points, fillColor, strokeColor, width, centerY, strokeWidth = 1.5, opacity = 1.0) => {
+    if (points.length === 0) return;
+    ctx.save(); ctx.globalAlpha = opacity;
+    ctx.beginPath(); ctx.moveTo(0, centerY);
+    for (let i = 0; i < points.length; i++) ctx.lineTo(points[i].x, points[i].yTop);
+    ctx.lineTo(points[points.length - 1].x, centerY);
+    for (let i = points.length - 1; i >= 0; i--) ctx.lineTo(points[i].x, points[i].yBot);
+    ctx.closePath();
+    ctx.fillStyle = fillColor; ctx.fill();
+    ctx.strokeStyle = strokeColor; ctx.lineWidth = strokeWidth; ctx.stroke();
+    ctx.restore();
+};
+
 const drawHatchedPolygon = (ctx, points, color, width, centerY, spacing = 6, lineWidth = 1.5, opacity = 1.0) => {
     if (points.length === 0) return;
     ctx.save();
@@ -234,7 +247,7 @@ export const drawMainWaveform = ({
                 if (showAllLayers) {
                     // Gold hatched (output mix) + Grey (wet) on top
                     drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                    drawPolygon(ctx, outPoints, '#888888', width, centerY);
+                    drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
                 }
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
