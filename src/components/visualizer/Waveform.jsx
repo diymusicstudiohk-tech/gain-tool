@@ -404,9 +404,9 @@ export const drawMainWaveform = ({
                 outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
                 mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
-            // Gold hatching on mix area (dry contribution), solid blue on wet area
+            // Gold hatching on mix area (dry contribution), blue hatching on wet area
             drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
-            drawPolygon(ctx, outPts, '#7D93B7', width, centerY);
+            drawHatchedPolygon(ctx, outPts, '#7D93B7', width, centerY);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
