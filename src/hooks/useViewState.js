@@ -4,7 +4,7 @@ import { loadAppStateFromStorage } from '../utils/storage';
 
 const useViewState = ({ containerRef }) => {
     const [zoomX, setZoomX] = useState(1);
-    const [zoomY, setZoomY] = useState(0.8);
+    const [zoomY, setZoomY] = useState(1);
     const [panOffset, setPanOffset] = useState(0);
     const [panOffsetY, setPanOffsetY] = useState(0);
     const [cuePoint, setCuePoint] = useState(0);
@@ -37,7 +37,7 @@ const useViewState = ({ containerRef }) => {
     }, [containerRef]);
 
     const resetView = useCallback(() => {
-        setPanOffsetY(0); setZoomY(0.8); setPanOffset(0); setZoomX(1);
+        setPanOffsetY(0); setZoomY(1); setPanOffset(0); setZoomX(1);
     }, []);
 
     const getInfoPanelContent = useCallback((hoveredKnob, isCustomSettings, selectedPresetIdx) => {
