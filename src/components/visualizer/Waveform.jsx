@@ -70,7 +70,7 @@ export const drawMainWaveform = ({
 
             if (!Number.isFinite(step) || step <= 0) return;
 
-            const PADDING = 24; const centerY = (height / 2) + panOffsetY;
+            const PADDING = 0; const centerY = (height / 2) + panOffsetY;
             const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;
             const grMaxHeight = maxPixelHeight * 0.5;
 
@@ -189,9 +189,9 @@ export const drawMainWaveform = ({
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 if (showAllLayers) {
-                    // Gold (output mix) + Blue (wet)
+                    // Gold (output mix) + Grey (wet)
                     drawPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                    drawPolygon(ctx, outPoints, '#7D93B7', width, centerY);
+                    drawPolygon(ctx, outPoints, '#888888', width, centerY);
                 } else {
                     // White (output mix) only
                     drawPolygon(ctx, mixPoints, '#ffffff', width, centerY);
@@ -234,7 +234,7 @@ export const drawMainWaveform = ({
     const step = srcLength / (width * zoomX);
     if (!Number.isFinite(step) || step <= 0) return;
 
-    const PADDING = 24; const centerY = (height / 2) + panOffsetY;
+    const PADDING = 0; const centerY = (height / 2) + panOffsetY;
     const maxPixelHeight = ((height / 2) - PADDING); const ampScale = maxPixelHeight * zoomY;
     const grMaxHeight = maxPixelHeight * 0.5;
 
