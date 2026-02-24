@@ -183,7 +183,7 @@ export const drawMainWaveform = ({
             if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
             else {
                 const showAllLayers = isGainKnobActive || isDeltaMode;
-                const redOpacity = (isCompAdjusting || isGateAdjusting || showAllLayers) ? 1.0 : 0.5;
+                const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
