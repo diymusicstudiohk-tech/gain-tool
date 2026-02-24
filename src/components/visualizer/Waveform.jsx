@@ -28,6 +28,7 @@ export const drawMainWaveform = ({
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
     hoverGrRef, // ref object
     isGateBypass, isCompBypass,
+    isGainKnobActive,
     mipmaps, mixMipmaps, // mipmap data
     waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
 }) => {
@@ -51,7 +52,7 @@ export const drawMainWaveform = ({
     // Excludes: threshold, gateThreshold, mousePos, hoverLine, isDraggingLine
     // (those only affect the overlay drawn in Phase 2)
     const adjustBit = (isCompAdjusting || isGateAdjusting) ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}`;
 
     const cache = waveformCacheRef?.current;
     const cacheHit = isDraggingLine && cache?.key === cacheKey && cache?.imageData;
@@ -106,7 +107,7 @@ export const drawMainWaveform = ({
             }
             ctx.globalAlpha = 1;
 
-            const inPoints = []; const outPoints = []; const corePoints = []; const mixPoints = []; const grPoints = [];
+            const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = [];
             const dryLinear = Math.pow(10, dryGain / 20);
 
             // Viewport culling
@@ -170,10 +171,9 @@ export const drawMainWaveform = ({
                     }
                 }
 
-                const hIn = maxIn * ampScale; const hOut = maxOut * ampScale; const hCore = Math.min(hIn, hOut); const hMix = maxMix * ampScale;
+                const hIn = maxIn * ampScale; const hOut = maxOut * ampScale; const hMix = maxMix * ampScale;
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
                 outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut });
-                corePoints.push({ x, yTop: centerY - hCore, yBot: centerY + hCore });
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
                 if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
@@ -182,12 +182,20 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
             else {
-                const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
+                const showAllLayers = isGainKnobActive || isDeltaMode;
+                const redOpacity = (isCompAdjusting || isGateAdjusting || showAllLayers) ? 1.0 : 0.5;
+
+                // Bottom: Brick Red (dry input)
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
-                drawPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                drawPolygon(ctx, outPoints, '#7D93B7', width, centerY);
-                const coreColor = isDeltaMode ? '#888' : '#ffffff';
-                drawPolygon(ctx, corePoints, coreColor, width, centerY);
+
+                if (showAllLayers) {
+                    // Gold (output mix) + Blue (wet)
+                    drawPolygon(ctx, mixPoints, '#C2A475', width, centerY);
+                    drawPolygon(ctx, outPoints, '#7D93B7', width, centerY);
+                } else {
+                    // White (output mix) only
+                    drawPolygon(ctx, mixPoints, '#ffffff', width, centerY);
+                }
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 

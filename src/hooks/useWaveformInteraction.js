@@ -27,6 +27,7 @@ const useWaveformInteraction = ({
     const [hoverLine, setHoverLine] = useState(null);
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const [isKnobDragging, setIsKnobDragging] = useState(false);
+    const [isGainKnobDragging, setIsGainKnobDragging] = useState(false);
     const [isCompAdjusting, setIsCompAdjusting] = useState(false);
     const [isGateAdjusting, setIsGateAdjusting] = useState(false);
 
@@ -272,6 +273,7 @@ const useWaveformInteraction = ({
     return {
         hoverLine, mousePos,
         isKnobDragging, setIsKnobDragging,
+        isGainKnobDragging, setIsGainKnobDragging,
         isCompAdjusting, setIsCompAdjusting,
         isGateAdjusting, setIsGateAdjusting,
         isDraggingLineRef, isDraggingRef, hoverGrRef,

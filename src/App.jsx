@@ -197,6 +197,8 @@ const App = () => {
         hasGateBeenAdjusted: comp.hasGateBeenAdjusted,
         isGateBypass: comp.isGateBypass,
         isCompBypass: comp.isCompBypass,
+        hoveredKnob: view.hoveredKnob,
+        isGainKnobDragging: waveform.isGainKnobDragging,
         visualResult: dsp.visualResult,
         visualStep: dsp.visualStep,
         mipmaps: dsp.mipmaps,
@@ -303,7 +305,10 @@ const App = () => {
                 handleGainChange={comp.handleGainChange}
                 isDryMode={playback.isDryMode}
                 isDraggingKnobRef={isDraggingKnobRef}
-                handleNormalDragState={waveform.setIsKnobDragging}
+                handleNormalDragState={(isActive) => {
+                    waveform.setIsKnobDragging(isActive);
+                    waveform.setIsGainKnobDragging(isActive);
+                }}
                 handleKnobEnter={(k, e) => {
                     view.setHoveredKnob(k);
                     if (e) view.setHoveredKnobPos({ x: e.clientX, y: e.clientY });
