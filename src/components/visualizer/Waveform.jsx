@@ -248,7 +248,7 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#ffffff', width, centerY, 0.2); }
+            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); drawPolygon(ctx, inPoints, '#ffffff', width, centerY, 0.2); }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
