@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Gauge, Info } from 'lucide-react';
 
-import { PRESETS_DATA, TOOLTIPS } from './utils/constants';
+import { PRESETS_DATA } from './utils/constants';
 import { saveAppStateToStorage, softReset } from './utils/storage';
 
 import Header from './components/layout/Header';
@@ -255,42 +255,12 @@ const App = () => {
             saveAppStateToStorage({
                 currentSourceId: engine.currentSourceId,
                 lastPlayedType: playback.lastPlayedType,
-                isInfoPanelEnabled: view.isInfoPanelEnabled,
             });
         }, 1000);
         return () => clearTimeout(timer);
     }, [engine.currentSourceId,
-        playback.lastPlayedType,
-        view.isInfoPanelEnabled]);
+        playback.lastPlayedType]);
 
-    // --- Info Panel Content ---
-    const getActiveInfo = () => {
-        if (view.hoveredKnob && TOOLTIPS[view.hoveredKnob]) {
-            const t = TOOLTIPS[view.hoveredKnob];
-            return {
-                title: t.title,
-                content: (
-                    <>
-                        <div className="mb-3 text-slate-300 font-medium">{t.desc}</div>
-                        <div className="text-yellow-400 font-bold mb-1.5 text-xs uppercase tracking-wide">💡 調整效果</div>
-                        <div className="text-slate-400 text-sm leading-relaxed mb-3">{t.setting}</div>
-                        <div className="text-cyan-400 font-bold mb-1.5 text-xs uppercase tracking-wide">⚙️ 常用參數參考</div>
-                        <div className="text-slate-300 text-sm font-mono bg-black/30 p-2 rounded border border-white/10">{t.common}</div>
-                    </>
-                ),
-                isKnob: true
-            };
-        }
-        if (!comp.isCustomSettings && comp.selectedPresetIdx !== 0 && PRESETS_DATA[comp.selectedPresetIdx]) {
-            return {
-                title: `設定思路: ${PRESETS_DATA[comp.selectedPresetIdx].name.split('(')[0]}`,
-                content: PRESETS_DATA[comp.selectedPresetIdx].explanation,
-                isPreset: true
-            };
-        }
-        return null;
-    };
-    const activeInfo = getActiveInfo();
 
     // --- Render ---
     return (
@@ -325,10 +295,8 @@ const App = () => {
                     waveform.setIsGainKnobDragging(isActive);
                     waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
                 }}
-                handleKnobEnter={(k, e) => {
+                handleKnobEnter={(k) => {
                     view.setHoveredKnob(k);
-                    if (e) view.setHoveredKnobPos({ x: e.clientX, y: e.clientY });
-                    view.setShowInfoPanel(true);
                 }}
                 handleKnobLeave={() => view.setHoveredKnob(null)}
             />
@@ -342,17 +310,7 @@ const App = () => {
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleLocalMouseMove}
                 >
-                    {view.isInfoPanelEnabled && view.hoveredKnob && activeInfo && activeInfo.isKnob ? (
-                        <div
-                            className="absolute bottom-4 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
-                            style={{
-                                left: Math.max(10, Math.min(view.canvasDims.width - 270, view.hoveredKnobPos.x - (containerRef.current?.getBoundingClientRect().left || 0) - 128))
-                            }}
-                        >
-                            <div className="flex items-center gap-2 text-cyan-400 font-bold mb-2 text-lg"><Info size={20} /> {activeInfo.title}</div>
-                            <div className="text-sm text-slate-200 leading-relaxed font-medium">{activeInfo.content}</div>
-                        </div>
-                    ) : (!comp.isCustomSettings && comp.selectedPresetIdx !== 0 && PRESETS_DATA[comp.selectedPresetIdx]) ? (
+                    {(!comp.isCustomSettings && comp.selectedPresetIdx !== 0 && PRESETS_DATA[comp.selectedPresetIdx]) ? (
                         <div className="absolute top-4 right-4 z-30 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-72 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
                             <div className="flex items-center gap-2 text-green-400 font-bold mb-2 text-base border-b border-white/10 pb-2">
                                 <Info size={18} />
@@ -420,10 +378,8 @@ const App = () => {
                 currentSourceId={engine.currentSourceId}
                 isDraggingKnobRef={isDraggingKnobRef}
                 handleNormalDragState={waveform.setIsKnobDragging}
-                handleKnobEnter={(k, e) => {
+                handleKnobEnter={(k) => {
                     view.setHoveredKnob(k);
-                    if (e) view.setHoveredKnobPos({ x: e.clientX, y: e.clientY });
-                    view.setShowInfoPanel(true);
                 }}
                 handleKnobLeave={() => view.setHoveredKnob(null)}
                 resetAllParams={() => {
