@@ -71,7 +71,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const paramsRef = useRef({ ...currentParams, dryGain, isDeltaMode: false });
     useEffect(() => {
-        paramsRef.current = { ...currentParams, dryGain, isDeltaMode: false };
+        paramsRef.current = { ...currentParams, dryGain, isDeltaMode: paramsRef.current?.isDeltaMode ?? false };
     }, [currentParams, dryGain]);
 
     // Load from localStorage on mount

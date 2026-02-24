@@ -27,6 +27,13 @@ const usePlayback = ({
 
     const isDryMode = lastPlayedType === 'original';
 
+    // Sync isDeltaMode into paramsRef so ScriptProcessor reads the correct value
+    useEffect(() => {
+        if (paramsRef.current) {
+            paramsRef.current = { ...paramsRef.current, isDeltaMode };
+        }
+    }, [isDeltaMode, paramsRef]);
+
     // Sync Delta Mode
     useEffect(() => {
         if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) return;
