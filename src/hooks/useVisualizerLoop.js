@@ -25,6 +25,7 @@ const useVisualizerLoop = ({
     isCompBypass,
     hoveredKnob,
     isGainKnobDragging,
+    draggingGainKnob,
     visualResult,
     visualStep,
     mipmaps,
@@ -68,7 +69,8 @@ const useVisualizerLoop = ({
     const hoverLineRef = useRef(hoverLine);
     useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
 
-    const isGainKnobActive = isGainKnobDragging || hoveredKnob === 'makeup' || hoveredKnob === 'dryGain';
+    const activeGainKnob = draggingGainKnob || ((hoveredKnob === 'makeup' || hoveredKnob === 'dryGain') ? hoveredKnob : null);
+    const isGainKnobActive = !!activeGainKnob;
     const interactionDPR = null; // Always full DPR — cache handles performance during drag
 
     // Invalidate draw key + waveform cache when DSP data changes (e.g. after mouseup)
@@ -204,7 +206,7 @@ const useVisualizerLoop = ({
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -228,6 +230,7 @@ const useVisualizerLoop = ({
                         isHoveringGRAreaRef,
                         isGateBypass, isCompBypass,
                         isGainKnobActive,
+                        activeGainKnob,
                         isGainKnobDragging,
                         mipmaps, mixMipmaps,
                         waveformCacheRef,
@@ -257,7 +260,7 @@ const useVisualizerLoop = ({
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
         visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
-        isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
+        isGateBypass, isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
@@ -282,6 +285,7 @@ const useVisualizerLoop = ({
                 isHoveringGRAreaRef,
                 isGateBypass, isCompBypass,
                 isGainKnobActive,
+                activeGainKnob,
                 isGainKnobDragging,
                 mipmaps, mixMipmaps,
                 waveformCacheRef,
@@ -296,7 +300,7 @@ const useVisualizerLoop = ({
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        isGateBypass, isCompBypass, isGainKnobActive, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        isGateBypass, isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps, mixMipmaps
     ]);
 

@@ -132,6 +132,7 @@ export const drawMainWaveform = ({
     isHoveringGRAreaRef, // ref object — true when mouse is in GR curve area
     isGateBypass, isCompBypass,
     isGainKnobActive,
+    activeGainKnob, // 'makeup' | 'dryGain' | null
     isGainKnobDragging,
     mipmaps, mixMipmaps, // mipmap data
     waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
@@ -157,7 +158,7 @@ export const drawMainWaveform = ({
     // Excludes: threshold, gateThreshold, mousePos, hoverLine, isDraggingLine
     // (those only affect the overlay drawn in Phase 2)
     const adjustBit = (isCompAdjusting || isGateAdjusting) ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}`;
 
     const cache = waveformCacheRef?.current;
     const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
@@ -310,11 +311,16 @@ export const drawMainWaveform = ({
                 }
 
                 if (showAllLayers) {
-                    // Gold hatched (output mix) + wet on top
-                    drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                    if (isGainKnobActive) {
+                    if (activeGainKnob === 'makeup') {
+                        // Wet knob: solid gold for wet only, no hatching
                         drawPolygon(ctx, outPoints, '#C2A475', width, centerY);
+                    } else if (activeGainKnob === 'dryGain') {
+                        // Dry knob: gold hatched for dry, white for wet on top
+                        drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
+                        drawPolygon(ctx, outPoints, '#ffffff', width, centerY);
                     } else {
+                        // Delta mode or other: original behavior
+                        drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                         drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
                     }
                 }
