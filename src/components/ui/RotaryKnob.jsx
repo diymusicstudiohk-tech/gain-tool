@@ -33,6 +33,7 @@ const RotaryKnob = ({
     const callbacksRef = useRef({ onChange, onDragStateChange });
     const lastMoveTimeRef = useRef(0);
     const lastClientYRef = useRef(0);
+    const handleEndRef = useRef(null); // ref to avoid circular dep with handleGlobalMouseMove
 
     // 每次 Render 更新 Params Ref 和 Callbacks Ref
     useEffect(() => {
@@ -77,9 +78,9 @@ const RotaryKnob = ({
     const handleGlobalMouseMove = useCallback((e) => {
         e.preventDefault();
         // If button was released outside the browser window, treat as mouseup
-        if (e.buttons === 0) { handleEnd(); return; }
+        if (e.buttons === 0) { handleEndRef.current?.(); return; }
         handleMove(e.clientY);
-    }, [handleMove, handleEnd]);
+    }, [handleMove]);
 
     const handleGlobalTouchMove = useCallback((e) => {
         e.preventDefault();
@@ -101,6 +102,7 @@ const RotaryKnob = ({
         window.removeEventListener('touchmove', handleGlobalTouchMove);
         window.removeEventListener('touchend', handleEnd);
     }, [applyMove, dragLockRef, handleGlobalMouseMove, handleGlobalTouchMove]);
+    handleEndRef.current = handleEnd;
 
     const handleStart = (clientY, isTouch = false) => {
         if (disabled) return;
