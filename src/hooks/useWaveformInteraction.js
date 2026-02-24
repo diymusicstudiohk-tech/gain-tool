@@ -14,15 +14,12 @@ const getEventCoords = (e) => {
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
     threshold, gateThreshold, setThreshold, setGateThreshold,
-    zoomX, zoomY, panOffset, panOffsetY,
-    playingTypeRef, lastPlayedTypeRef, playBufferRef, playheadRef,
-    startOffsetRef, isPlayingRef,
+    zoomY, panOffsetY,
     setIsCustomSettings, setIsProcessing,
     setHasThresholdBeenAdjusted, setHasGateBeenAdjusted,
     isCompBypass, setIsCompBypass, isGateBypass, setIsGateBypass,
     lastPlayedType, handleModeChange,
     isDraggingKnobRef,
-    outputPlayheadRef,
 }) => {
     const [hoverLine, setHoverLine] = useState(null);
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
@@ -33,8 +30,6 @@ const useWaveformInteraction = ({
 
     const isDraggingLineRef = useRef(null);
     const isDraggingRef = useRef(false);
-    const isSeeking = useRef(false);
-    const seekStartXRef = useRef(0);
     const hoverGrRef = useRef(0);
     // Holds the latest touchstart handler so the passive:false DOM listener
     // always calls the current closure without re-registering.
@@ -51,7 +46,7 @@ const useWaveformInteraction = ({
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relY = clientY - rect.top;
             const height = rect.height;
-            const PADDING = 24;
+            const PADDING = 0;
             const maxH = (height / 2) - PADDING;
             const ampScale = maxH * zoomY;
             const centerY = (height / 2) + panOffsetY;
@@ -86,8 +81,6 @@ const useWaveformInteraction = ({
         window.removeEventListener('touchmove', onWaveformGlobalMove);
         window.removeEventListener('touchend', onWaveformGlobalUp);
 
-        const { clientX } = getEventCoords(e);
-
         if (isDraggingLineRef.current) {
             isDraggingLineRef.current = null;
             setIsCompAdjusting(false);
@@ -96,42 +89,7 @@ const useWaveformInteraction = ({
             document.body.style.cursor = 'default';
             return;
         }
-        if (isSeeking.current) {
-            isSeeking.current = false;
-            document.body.style.cursor = 'default';
-            if (waveformCanvasRef.current && originalBuffer) {
-                // Click — seek
-                const rect = waveformCanvasRef.current.getBoundingClientRect();
-                const clickX = clientX - rect.left;
-                const totalWidth = rect.width * zoomX;
-                const relX = clickX - panOffset;
-                let pct = relX / totalWidth;
-                if (pct < 0) pct = 0; if (pct > 1) pct = 1;
-                const seekTime = pct * originalBuffer.duration;
-                startOffsetRef.current = seekTime;
-
-                const currentPlayingType = playingTypeRef.current;
-                if (currentPlayingType !== 'none') {
-                    playBufferRef.current?.(originalBuffer, currentPlayingType, seekTime);
-                } else {
-                    if (playheadRef.current && waveformCanvasRef.current) {
-                        const width = waveformCanvasRef.current.clientWidth;
-                        const tw = width * zoomX;
-                        const p = seekTime / originalBuffer.duration;
-                        const screenPct = (((p * tw) + panOffset) / width) * 100;
-                        playheadRef.current.style.left = `${screenPct}%`;
-                        playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
-                    }
-                    if (outputPlayheadRef?.current) {
-                        outputPlayheadRef.current.style.left = `${(seekTime / originalBuffer.duration) * 100}%`;
-                        outputPlayheadRef.current.style.opacity = 1;
-                    }
-                }
-            }
-        }
-    }, [originalBuffer, onWaveformGlobalMove, panOffset, zoomX,
-        startOffsetRef, playingTypeRef, playBufferRef, playheadRef,
-        waveformCanvasRef, outputPlayheadRef]);
+    }, [onWaveformGlobalMove]);
 
     const handleWaveformMouseDown = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -150,13 +108,11 @@ const useWaveformInteraction = ({
 
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'row-resize';
-        } else {
-            isSeeking.current = true;
-            seekStartXRef.current = e.clientX;
-        }
 
-        window.addEventListener('mousemove', onWaveformGlobalMove);
-        window.addEventListener('mouseup', onWaveformGlobalUp);
+            window.addEventListener('mousemove', onWaveformGlobalMove);
+            window.addEventListener('mouseup', onWaveformGlobalUp);
+        }
+        // No seeking — playhead cannot be placed on the main waveform
     }, [originalBuffer, hoverLine, isCompBypass, isGateBypass, lastPlayedType,
         setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, isDraggingKnobRef]);
@@ -178,7 +134,7 @@ const useWaveformInteraction = ({
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relY = clientY - rect.top;
             const height = rect.height;
-            const PADDING = 24;
+            const PADDING = 0;
             const maxH = (height / 2) - PADDING;
             const ampScale = maxH * zoomY;
             const centerY = (height / 2) + panOffsetY;
@@ -209,13 +165,11 @@ const useWaveformInteraction = ({
             }
             isDraggingLineRef.current = touchHoverLine;
             setHoverLine(touchHoverLine);
-        } else {
-            isSeeking.current = true;
-            seekStartXRef.current = clientX;
-        }
 
-        window.addEventListener('touchmove', onWaveformGlobalMove, { passive: false });
-        window.addEventListener('touchend', onWaveformGlobalUp);
+            window.addEventListener('touchmove', onWaveformGlobalMove, { passive: false });
+            window.addEventListener('touchend', onWaveformGlobalUp);
+        }
+        // No seeking — playhead cannot be placed on the main waveform
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomY, panOffsetY,
         threshold, gateThreshold,
         isCompBypass, isGateBypass, lastPlayedType,
@@ -237,14 +191,14 @@ const useWaveformInteraction = ({
     }, [containerRef]); // only re-register if the container element changes
 
     const handleLocalMouseMove = useCallback((e) => {
-        if (isDraggingRef.current || isDraggingLineRef.current || isSeeking.current) return;
+        if (isDraggingRef.current || isDraggingLineRef.current) return;
         if (isDraggingKnobRef.current || !waveformCanvasRef.current) return;
 
         const rect = waveformCanvasRef.current.getBoundingClientRect();
         const relX = e.clientX - rect.left;
         const relY = e.clientY - rect.top;
         const height = rect.height;
-        const PADDING = 24;
+        const PADDING = 0;
         const maxH = (height / 2) - PADDING;
         const ampScale = maxH * zoomY;
         const centerY = (height / 2) + panOffsetY;

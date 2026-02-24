@@ -1,9 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { selectMipmapLevel } from '../utils/mipmapCache';
 
-const useOutputWaveformDrawer = (canvasRef, outputData) => {
+const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels) => {
     const dimsRef = useRef({ width: 0, height: 0 });
 
-    const drawOutputWaveform = useCallback((canvas, data) => {
+    const drawOutputWaveform = useCallback((canvas, data, levels) => {
         if (!canvas || !data || data.length === 0) return;
         const ctx = canvas.getContext('2d');
         const { width, height } = dimsRef.current;
@@ -19,11 +20,15 @@ const useOutputWaveformDrawer = (canvasRef, outputData) => {
         ctx.clearRect(0, 0, width, height);
 
         const centerY = height / 2;
-        const ampScale = centerY - 2; // 2px padding
+        const ampScale = centerY; // 0dB touches edge
         const len = data.length;
         const step = len / width;
 
         ctx.fillStyle = '#ffffff';
+
+        // Use mipmaps when available for faster peak lookup
+        const useMipmaps = levels && levels.length > 1;
+        const mm = useMipmaps ? selectMipmapLevel(levels, step) : null;
 
         for (let x = 0; x < width; x++) {
             const start = Math.floor(x * step);
@@ -33,10 +38,24 @@ const useOutputWaveformDrawer = (canvasRef, outputData) => {
             let minVal = 0;
 
             if (end - start > 0) {
-                for (let i = start; i < end; i++) {
-                    const v = data[i];
-                    if (v > maxVal) maxVal = v;
-                    if (v < minVal) minVal = v;
+                if (mm) {
+                    // Fast path: use mipmap (absMax stores signed peak)
+                    const mmLevel = mm.level;
+                    const bs = mm.blockSize;
+                    const mStart = Math.floor(start / bs);
+                    const mEnd = Math.ceil(end / bs);
+                    for (let i = mStart; i < mEnd && i < mmLevel.length; i++) {
+                        const v = mmLevel[i];
+                        if (v > maxVal) maxVal = v;
+                        if (v < minVal) minVal = v;
+                    }
+                } else {
+                    // Fallback: iterate raw samples
+                    for (let i = start; i < end; i++) {
+                        const v = data[i];
+                        if (v > maxVal) maxVal = v;
+                        if (v < minVal) minVal = v;
+                    }
                 }
             } else {
                 const idx = Math.min(start, len - 1);
@@ -65,13 +84,13 @@ const useOutputWaveformDrawer = (canvasRef, outputData) => {
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
                 dimsRef.current = { width, height };
-                drawOutputWaveform(canvas, outputData);
+                drawOutputWaveform(canvas, outputData, mipmapLevels);
             }
         });
 
         observer.observe(container);
         return () => observer.disconnect();
-    }, [canvasRef, outputData, drawOutputWaveform]);
+    }, [canvasRef, outputData, mipmapLevels, drawOutputWaveform]);
 
     // Redraw when data changes
     useEffect(() => {
@@ -87,8 +106,8 @@ const useOutputWaveformDrawer = (canvasRef, outputData) => {
             }
         }
 
-        drawOutputWaveform(canvas, outputData);
-    }, [canvasRef, outputData, drawOutputWaveform]);
+        drawOutputWaveform(canvas, outputData, mipmapLevels);
+    }, [canvasRef, outputData, mipmapLevels, drawOutputWaveform]);
 
     return { dimsRef };
 };
