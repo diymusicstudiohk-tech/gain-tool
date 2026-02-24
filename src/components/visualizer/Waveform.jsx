@@ -485,11 +485,13 @@ export const drawMainWaveform = ({
                 outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
                 mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
-            // Wet hover: only solid gold; Dry hover: hatched dry + solid wet on top
+            // Wet hover: only solid gold; Dry hover: hatched dry, wet turns white
             if (isHoveringOnDryArea) {
                 drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
+                drawPolygon(ctx, outPts, '#ffffff', width, centerY);
+            } else {
+                drawPolygon(ctx, outPts, '#C2A475', width, centerY);
             }
-            drawPolygon(ctx, outPts, '#C2A475', width, centerY);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
