@@ -256,7 +256,8 @@ export const drawMainWaveform = ({
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 // Output mix — always visible (dark when delta mode hides it behind background)
-                drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY);
+                const mixBypassed = isCompBypass && isGateBypass;
+                drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY, mixBypassed ? 0.2 : 1.0);
 
                 if (showAllLayers) {
                     // Gold hatched (output mix) + Grey (wet) on top
