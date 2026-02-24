@@ -52,9 +52,13 @@ const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1
 
     if (range > 0) {
         const grad = ctx.createLinearGradient(0, minY, 0, maxY);
-        const centerStop = (centerY - minY) / range;
+        const cs = (centerY - minY) / range; // center position (≈0.5)
+        // Keep full alpha for the middle 60%, then steep fade in the outer 20% each side
+        const fadeStart = 0.2; // fade zone: 0→fadeStart on each side
         grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
-        grad.addColorStop(Math.max(0, Math.min(1, centerStop)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
+        grad.addColorStop(Math.max(0, Math.min(cs, fadeStart)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
+        grad.addColorStop(Math.max(0, Math.min(1, cs)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
+        grad.addColorStop(Math.min(1, Math.max(cs, 1 - fadeStart)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
         grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
         ctx.fillStyle = grad;
     } else {
