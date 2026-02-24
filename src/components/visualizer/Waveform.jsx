@@ -248,7 +248,7 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#ffffff', width, centerY, 0.2); }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
@@ -256,8 +256,7 @@ export const drawMainWaveform = ({
                 drawPolygon(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 // Output mix — always visible (dark when delta mode hides it behind background)
-                const mixBypassed = isCompBypass && isGateBypass;
-                drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY, mixBypassed ? 0.2 : 1.0);
+                drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY);
 
                 if (showAllLayers) {
                     // Gold hatched (output mix) + Grey (wet) on top
