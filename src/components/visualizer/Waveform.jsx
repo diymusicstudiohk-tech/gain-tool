@@ -605,12 +605,22 @@ export const drawMainWaveform = ({
                 }
                 ctx.closePath();
 
-                // Vertical gradient: 80% at GR curve → 0% at top
+                // Vertical gradient: 0% at top → 100% at GR curve
                 const grGrad = ctx.createLinearGradient(0, 0, 0, grMaxHeight);
                 grGrad.addColorStop(0, 'rgba(181, 76, 53, 0)');
-                grGrad.addColorStop(1, 'rgba(181, 76, 53, 0.8)');
+                grGrad.addColorStop(1, 'rgba(181, 76, 53, 1.0)');
                 ctx.fillStyle = grGrad;
                 ctx.fill();
+
+                // Horizontal dotted line from GR curve at mouse X to right border
+                ctx.beginPath();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = '#E05E42';
+                ctx.lineWidth = 1.5;
+                ctx.moveTo(mousePos.x, grCurveY);
+                ctx.lineTo(width, grCurveY);
+                ctx.stroke();
+                ctx.setLineDash([]);
                 ctx.restore();
             }
         }
