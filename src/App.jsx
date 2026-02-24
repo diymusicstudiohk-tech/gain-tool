@@ -253,11 +253,13 @@ const App = () => {
             saveAppStateToStorage({
                 currentSourceId: engine.currentSourceId,
                 lastPlayedType: playback.lastPlayedType,
+                isInfoPanelEnabled: view.isInfoPanelEnabled,
             });
         }, 1000);
         return () => clearTimeout(timer);
     }, [engine.currentSourceId,
-        playback.lastPlayedType]);
+        playback.lastPlayedType,
+        view.isInfoPanelEnabled]);
 
     // --- Info Panel Content ---
     const getActiveInfo = () => {
@@ -326,6 +328,8 @@ const App = () => {
                     view.setShowInfoPanel(true);
                 }}
                 handleKnobLeave={() => view.setHoveredKnob(null)}
+                isInfoPanelEnabled={view.isInfoPanelEnabled}
+                setIsInfoPanelEnabled={view.setIsInfoPanelEnabled}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
@@ -337,7 +341,7 @@ const App = () => {
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleLocalMouseMove}
                 >
-                    {view.hoveredKnob && activeInfo && activeInfo.isKnob ? (
+                    {view.isInfoPanelEnabled && view.hoveredKnob && activeInfo && activeInfo.isKnob ? (
                         <div
                             className="absolute bottom-4 z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-64 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none"
                             style={{
