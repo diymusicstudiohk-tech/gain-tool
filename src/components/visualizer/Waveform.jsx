@@ -53,12 +53,14 @@ const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1
     if (range > 0) {
         const grad = ctx.createLinearGradient(0, minY, 0, maxY);
         const cs = (centerY - minY) / range; // center position (≈0.5)
-        // Full alpha at center, fade to peakAlpha at the outer edges
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
-        grad.addColorStop(Math.max(0.01, cs * 0.5), `rgba(${r}, ${g}, ${b}, ${centerAlpha * 0.7})`);
+        // 100% → 85% → 70% alpha from center to peak
+        const midAlpha = opacity * 0.85;
+        const peakA = opacity * 0.70;
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakA})`);
+        grad.addColorStop(Math.max(0.01, cs * 0.5), `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
         grad.addColorStop(Math.max(0.02, Math.min(0.98, cs)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
-        grad.addColorStop(Math.min(0.99, cs + (1 - cs) * 0.5), `rgba(${r}, ${g}, ${b}, ${centerAlpha * 0.7})`);
-        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${peakAlpha})`);
+        grad.addColorStop(Math.min(0.99, cs + (1 - cs) * 0.5), `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, ${peakA})`);
         ctx.fillStyle = grad;
     } else {
         ctx.globalAlpha = opacity;
