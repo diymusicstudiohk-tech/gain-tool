@@ -383,13 +383,94 @@ export const drawMainWaveform = ({
     }
     ctx.setLineDash([]);
 
-    // Mouse GR Inspection
+    // Mouse GR Inspection + Hover Layers
     if (mousePos.x >= 0 && lastPlayedType === 'processed') {
+        // --- Detect hover on white waveform area ---
+        let isHoveringOnWaveform = false;
+        const srcOutput = visualResult.outputData;
+        const srcInput = visualResult.visualInput;
+        const dryLinear = Math.pow(10, dryGain / 20);
+        {
+            const hvX = mousePos.x - panOffset;
+            const hStart = Math.floor(hvX * step);
+            const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
+            if (hStart >= 0 && hStart < srcLength) {
+                let maxMix = 0;
+                if (useMipmaps && mixMipmaps) {
+                    const mm = selectMipmapLevel(mixMipmaps, step, mipmapBias);
+                    const lv = mm.level; const bs = mm.blockSize;
+                    const s0 = Math.floor(hStart / bs); const e0 = Math.ceil(hEnd / bs);
+                    for (let i = s0; i < e0 && i < lv.length; i++) { const a = Math.abs(lv[i]); if (a > maxMix) maxMix = a; }
+                } else {
+                    for (let i = hStart; i < hEnd; i++) {
+                        const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear));
+                        if (v > maxMix) maxMix = v;
+                    }
+                }
+                const hMix = displayAmp(maxMix) * ampScale;
+                if (mousePos.y >= centerY - hMix && mousePos.y <= centerY + hMix) {
+                    isHoveringOnWaveform = true;
+                }
+            }
+        }
+
+        // --- Draw hover layers (below crosshair/labels) ---
+        if (isHoveringOnWaveform) {
+            const outPts = []; const mixPts = [];
+            const hlStartX = Math.max(0, Math.floor(panOffset) - 1);
+            const hlEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
+            let hmOut, hmMix;
+            if (useMipmaps) {
+                hmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
+                if (mixMipmaps) hmMix = selectMipmapLevel(mixMipmaps, step, mipmapBias);
+            }
+            for (let x = hlStartX; x < hlEndX; x++) {
+                const vx = x - panOffset;
+                const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
+                if (s < 0 || s >= srcLength) continue;
+                const se = Math.min(srcLength, e);
+                let mxOut = 0; let mxMix = 0;
+                const ls = Math.max(s, 0);
+                if (se - ls > 0) {
+                    if (useMipmaps) {
+                        const oL = hmOut.level; const oB = hmOut.blockSize;
+                        const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
+                        for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
+                        if (hmMix) {
+                            const mL = hmMix.level; const mB = hmMix.blockSize;
+                            const ms = Math.floor(ls / mB); const me = Math.ceil(se / mB);
+                            for (let i = ms; i < me && i < mL.length; i++) { const a = Math.abs(mL[i]); if (a > mxMix) mxMix = a; }
+                        } else {
+                            for (let i = ls; i < se; i++) { const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (v > mxMix) mxMix = v; }
+                        }
+                    } else {
+                        for (let i = ls; i < se; i++) {
+                            const aO = Math.abs(srcOutput[i]); if (aO > mxOut) mxOut = aO;
+                            const mV = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mV > mxMix) mxMix = mV;
+                        }
+                    }
+                } else {
+                    const idx = Math.min(Math.floor(ls), srcLength - 1);
+                    if (idx >= 0) {
+                        mxOut = Math.abs(srcOutput[idx]);
+                        mxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
+                    }
+                }
+                const hO = displayAmp(mxOut) * ampScale;
+                const hM = displayAmp(mxMix) * ampScale;
+                outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
+                mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
+            }
+            // Gold hatching on mix area (dry contribution), solid blue on wet area
+            drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
+            drawPolygon(ctx, outPts, '#7D93B7', width, centerY);
+        }
+
+        // --- GR value computation ---
         const srcGR = visualResult.grCurve;
         const vX = mousePos.x - panOffset;
         const start = Math.floor(vX * step);
         const end = Math.floor((vX + 1) * step);
-
         let hoverGR = 0;
         if (start >= 0 && start < srcLength) {
             if (useMipmaps && mmGR) {
@@ -404,20 +485,22 @@ export const drawMainWaveform = ({
                 for (let i = start + 1; i < safeEnd; i++) { if (srcGR[i] < hoverGR) hoverGR = srcGR[i]; }
             }
         }
-
         if (hoverGrRef) hoverGrRef.current = hoverGR;
 
+        // --- Crosshair ---
         ctx.save();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
         ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
         ctx.beginPath(); ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height); ctx.stroke();
         ctx.restore();
 
+        // --- GR label + legend ---
         const text = `GR: ${hoverGR.toFixed(1)}dB`;
         ctx.font = 'bold 12px sans-serif';
         const metrics = ctx.measureText(text);
         const bgWidth = metrics.width + 12; const bgHeight = 20;
         const bgX = mousePos.x + 8;
+
         // Threshold block above GR label when adjusting comp threshold
         if (isDraggingLine === 'comp') {
             const threshText = `${threshold}dB`;
@@ -429,6 +512,32 @@ export const drawMainWaveform = ({
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
             ctx.fillText(threshText, bgX + 6, tBgY + 14);
         }
+
+        // Legend box above GR label (only when hovering on waveform)
+        if (isHoveringOnWaveform) {
+            const legendLine1 = '藍色 = 壓縮後訊號';
+            const legendLine2 = '金色斜線 = 額外補回的乾訊號';
+            ctx.font = 'bold 11px sans-serif';
+            const lw1 = ctx.measureText(legendLine1).width;
+            const lw2 = ctx.measureText(legendLine2).width;
+            const legendPadX = 10;
+            const legendW = Math.max(lw1, lw2) + legendPadX * 2;
+            const legendH = 44;
+            const grBoxTop = mousePos.y - bgHeight - 4;
+            let legendX = bgX;
+            let legendY = grBoxTop - legendH - 4;
+            if (legendX + legendW > width) legendX = width - legendW - 2;
+            if (legendY < 2) legendY = mousePos.y + 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+            ctx.fillText(legendLine1, legendX + legendPadX, legendY + 18);
+            ctx.fillText(legendLine2, legendX + legendPadX, legendY + 34);
+        }
+
+        // GR label (drawn last — on top of all layers)
+        ctx.font = 'bold 12px sans-serif';
         ctx.fillStyle = '#C2A475';
         ctx.fillRect(bgX, mousePos.y - bgHeight - 4, bgWidth, bgHeight);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
