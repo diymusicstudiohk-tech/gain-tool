@@ -133,6 +133,7 @@ export const drawMainWaveform = ({
 
             const centerY = (height / 2) + panOffsetY;
             const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
+            const grMaxHeight = maxPixelHeight * 0.5;
 
             // Grid — horizontal dB lines with gradient fade
             const FADE_DISTANCE = 160;
@@ -244,7 +245,7 @@ export const drawMainWaveform = ({
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
                 if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
-                if (minGR < 0 && lastPlayedType === 'processed') { const yPos = displayAmp(1.0 - Math.pow(10, minGR / 20)) * ampScale; grPoints.push({ x, y: yPos }); }
+                if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
             }
 
@@ -293,6 +294,7 @@ export const drawMainWaveform = ({
 
     const centerY = (height / 2) + panOffsetY;
     const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
+    const grMaxHeight = maxPixelHeight * 0.5;
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
     const mipmapBias = interactionDPR ? 1 : 0;
