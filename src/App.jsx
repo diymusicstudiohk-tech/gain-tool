@@ -299,7 +299,7 @@ const App = () => {
                     setRegionStart(0);
                     setRegionEnd(1);
                 }}
-                makeupGain={comp.makeupGain} dryGainControl={comp.dryGainControl}
+                wetGainControl={comp.wetGainControl} dryGainControl={comp.dryGainControl}
                 handleGainChange={comp.handleGainChange}
                 isDryMode={playback.isDryMode}
                 isDraggingKnobRef={isDraggingKnobRef}

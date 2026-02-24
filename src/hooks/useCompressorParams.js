@@ -8,21 +8,27 @@ const calculateRatioFromControl = (ctrl) =>
 const calculateControlFromRatio = (r) =>
     r <= 5 ? (r - 1) / 4 * 50 : (r <= 10 ? 50 + (r - 5) / 5 * 25 : 75 + (r - 10) / 90 * 25);
 
-// Piecewise control-to-dB mapping for dry gain knob
+// Piecewise control-to-dB mapping for gain knobs
 // Positions: fully CCW → -∞ | 9 o'clock → -15dB | 12 o'clock → 0dB | fully CW → +5dB
-const dryGainControlToDb = (ctrl) => {
+const gainControlToDb = (ctrl) => {
     if (ctrl <= 0) return -200;
     if (ctrl <= 16.67) return -60 + (ctrl / 16.67) * 45;
     if (ctrl <= 50) return -15 + ((ctrl - 16.67) / 33.33) * 15;
     return ((ctrl - 50) / 50) * 5;
 };
 
-const dryGainDbToControl = (dB) => {
+const gainDbToControl = (dB) => {
     if (dB <= -60) return 0;
     if (dB <= -15) return ((dB + 60) / 45) * 16.67;
     if (dB <= 0) return 16.67 + ((dB + 15) / 15) * 33.33;
     return 50 + (dB / 5) * 50;
 };
+
+// Aliases for backward compatibility
+const dryGainControlToDb = gainControlToDb;
+const dryGainDbToControl = gainDbToControl;
+const wetGainControlToDb = gainControlToDb;
+const wetGainDbToControl = gainDbToControl;
 
 /**
  * Uses ref-based callbacks to break circular dependency with usePlayback.
@@ -37,6 +43,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [knee, setKnee] = useState(5);
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
+    const [wetGainControl, setWetGainControl] = useState(50);
     const [dryGain, setDryGain] = useState(-200);
     const [dryGainControl, setDryGainControl] = useState(0);
 
@@ -76,7 +83,10 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setRatioControl(calculateControlFromRatio(savedParams.ratio));
             setAttack(savedParams.attack); setRelease(savedParams.release);
             setKnee(savedParams.knee); setLookahead(savedParams.lookahead);
-            setMakeupGain(savedParams.makeupGain); setDryGain(savedParams.dryGain);
+            const clampedMakeup = Math.max(-200, Math.min(5, savedParams.makeupGain));
+            setMakeupGain(clampedMakeup);
+            setWetGainControl(wetGainDbToControl(clampedMakeup));
+            setDryGain(savedParams.dryGain);
             setDryGainControl(dryGainDbToControl(savedParams.dryGain));
             setGateThreshold(savedParams.gateThreshold); setGateRatio(savedParams.gateRatio);
             setGateAttack(savedParams.gateAttack); setGateRelease(savedParams.gateRelease);
@@ -120,7 +130,12 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [updateParamGeneric]);
 
     const handleGainChange = useCallback((key, value) => {
-        if (key === 'makeupGain') { setMakeupGain(value); logAction(`SET_GAIN: Makeup -> ${value}`); }
+        if (key === 'makeupGain') {
+            setWetGainControl(value);
+            const dB = wetGainControlToDb(value);
+            setMakeupGain(dB);
+            logAction(`SET_GAIN: Wet -> ${dB <= -200 ? '-∞' : dB.toFixed(1)}dB`);
+        }
         if (key === 'dryGainControl') {
             setDryGainControl(value);
             const dB = dryGainControlToDb(value);
@@ -157,7 +172,10 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setRatioControl(calculateControlFromRatio(p.params.ratio));
         setAttack(p.params.attack); setRelease(p.params.release);
         setKnee(p.params.knee); setLookahead(p.params.lookahead);
-        setMakeupGain(p.params.makeupGain); setDryGain(p.params.dryGain);
+        const clampedMakeup = Math.max(-200, Math.min(5, p.params.makeupGain));
+        setMakeupGain(clampedMakeup);
+        setWetGainControl(wetGainDbToControl(clampedMakeup));
+        setDryGain(p.params.dryGain);
         setDryGainControl(dryGainDbToControl(p.params.dryGain));
         setGateThreshold(p.params.gateThreshold);
         setIsGateBypass(false); setIsCompBypass(false);
@@ -174,10 +192,10 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [applyPreset]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
-        threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, dryGain, dryGainControl,
+        threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
         gateThreshold, gateRatio, gateAttack, gateRelease,
         selectedPresetIdx, isCustomSettings, isGateBypass, isCompBypass
-    }), [threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, dryGain, dryGainControl,
+    }), [threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
         gateThreshold, gateRatio, gateAttack, gateRelease, selectedPresetIdx, isCustomSettings,
         isGateBypass, isCompBypass]);
 
@@ -185,7 +203,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         if (!snap) return;
         setThreshold(snap.threshold); setRatio(snap.ratio); setRatioControl(snap.ratioControl);
         setAttack(snap.attack); setRelease(snap.release); setKnee(snap.knee); setLookahead(snap.lookahead);
-        setMakeupGain(snap.makeupGain); setDryGain(snap.dryGain);
+        setMakeupGain(snap.makeupGain);
+        setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
+        setDryGain(snap.dryGain);
         setDryGainControl(snap.dryGainControl !== undefined ? snap.dryGainControl : dryGainDbToControl(snap.dryGain));
         setGateThreshold(snap.gateThreshold); setGateRatio(snap.gateRatio);
         setGateAttack(snap.gateAttack); setGateRelease(snap.gateRelease);
@@ -197,8 +217,11 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const getDefaultSnapshot = useCallback(() => {
         const def = PRESETS_DATA[0].params;
+        const clampedMakeup = Math.max(-200, Math.min(5, def.makeupGain));
         return {
-            ...def, ratioControl: calculateControlFromRatio(def.ratio),
+            ...def, makeupGain: clampedMakeup,
+            ratioControl: calculateControlFromRatio(def.ratio),
+            wetGainControl: wetGainDbToControl(clampedMakeup),
             dryGainControl: dryGainDbToControl(def.dryGain),
             gateRatio: 4, gateAttack: 2, gateRelease: 100,
             selectedPresetIdx: 0, isCustomSettings: false,
@@ -215,7 +238,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     return {
         threshold, ratio, ratioControl, attack, release, knee, lookahead,
-        makeupGain, dryGain, setDryGain, dryGainControl,
+        makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
         gateThreshold, gateRatio, gateAttack, gateRelease,
         isGateBypass, setIsGateBypass,
         isCompBypass, setIsCompBypass,
@@ -233,5 +256,5 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     };
 };
 
-export { calculateRatioFromControl, calculateControlFromRatio, dryGainControlToDb, dryGainDbToControl };
+export { calculateRatioFromControl, calculateControlFromRatio, dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl };
 export default useCompressorParams;
