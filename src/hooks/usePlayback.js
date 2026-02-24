@@ -40,7 +40,7 @@ const usePlayback = ({
     // Sync Dry Gain
     useEffect(() => {
         if (dryGainNodeRef.current && audioContext) {
-            dryGainNodeRef.current.gain.setTargetAtTime(Math.pow(10, dryGain / 20), audioContext.currentTime, 0.01);
+            dryGainNodeRef.current.gain.setTargetAtTime(dryGain <= 0 ? 0 : Math.pow(10, dryGain / 20), audioContext.currentTime, 0.01);
         }
     }, [dryGain, audioContext, dryGainNodeRef]);
 

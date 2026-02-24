@@ -116,7 +116,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
                 _gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
 
-                _dryLinear = Math.exp(dryGain * LN10_OVER_20);
+                _dryLinear = dryGain <= 0 ? 0 : Math.exp(dryGain * LN10_OVER_20);
             }
 
             const { gateThreshold, gateRatio } = params;

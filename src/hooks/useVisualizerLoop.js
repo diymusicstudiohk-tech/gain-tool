@@ -53,6 +53,8 @@ const useVisualizerLoop = ({
     const waveformFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
     const lastWaveformDrawKeyRef = useRef(null);
+    const dryGainRef = useRef(dryGain);
+    useEffect(() => { dryGainRef.current = dryGain; }, [dryGain]);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -99,7 +101,8 @@ const useVisualizerLoop = ({
 
             const isProcessed = currentType === 'processed' || (currentType !== 'original' && lastType === 'processed');
 
-            const dryLinear = Math.exp(dryGain * LN10_OVER_20);
+            const currentDryGain = dryGainRef.current;
+            const dryLinear = currentDryGain <= 0 ? 0 : Math.exp(currentDryGain * LN10_OVER_20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;
@@ -169,7 +172,7 @@ const useVisualizerLoop = ({
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${zoomX}_${zoomY}_${panOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${dryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${zoomX}_${zoomY}_${panOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${threshold}_${gateThreshold}_${mousePos.x}_${mousePos.y}_${hoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -183,7 +186,7 @@ const useVisualizerLoop = ({
                         visualResult,
                         originalBuffer,
                         zoomX, zoomY, panOffset, panOffsetY,
-                        playingType, lastPlayedType, isDeltaMode, dryGain,
+                        playingType, lastPlayedType, isDeltaMode, dryGain: currentDryGain,
                         threshold, gateThreshold,
                         mousePos, hoverLine,
                         isDraggingLine: isDraggingLineRef.current,
@@ -213,7 +216,7 @@ const useVisualizerLoop = ({
         rafIdRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(rafIdRef.current);
     }, [
-        originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, dryGain, isDeltaMode,
+        originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
         visualStep, mipmaps, mixMipmaps, canvasDims, threshold, gateThreshold, mousePos, hoverLine,
         isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
         isGateBypass, isCompBypass, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,

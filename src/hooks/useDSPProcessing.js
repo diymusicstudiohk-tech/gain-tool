@@ -5,9 +5,20 @@ import { buildMipmaps } from '../utils/mipmapCache';
 
 const MAX_SMOOTH_POINTS = 250000;
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef }) => {
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
+    const [debouncedParams, setDebouncedParams] = useState(currentParams);
+
+    // Adaptive debounce: immediate when not dragging, 150ms when dragging
+    useEffect(() => {
+        if (!isDraggingKnobRef?.current) {
+            setDebouncedParams(currentParams);
+            return;
+        }
+        const timer = setTimeout(() => setDebouncedParams(currentParams), 150);
+        return () => clearTimeout(timer);
+    }, [currentParams, isDraggingKnobRef]);
 
     // Downsampling for Visuals — always auto-cap to MAX_SMOOTH_POINTS
     useEffect(() => {
@@ -38,11 +49,11 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         setVisualSourceCache({ data: cacheData, step: targetStep });
     }, [originalBuffer]);
 
-    // Visual Result Memo
+    // Visual Result Memo — uses debouncedParams to avoid recomputing during fast knob drags
     const visualResult = useMemo(() => {
         if (!visualSourceCache.data || !audioContext) return null;
-        return processCompressor(visualSourceCache.data, audioContext.sampleRate, currentParams, visualSourceCache.step);
-    }, [visualSourceCache, audioContext, currentParams]);
+        return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step);
+    }, [visualSourceCache, audioContext, debouncedParams]);
 
     // Build mipmaps for input, output, and GR curves
     const mipmaps = useMemo(() => {
@@ -58,7 +69,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     const mixMipmaps = useMemo(() => {
         if (!visualResult) return null;
         const src = visualResult;
-        const dryLinear = Math.pow(10, dryGain / 20);
+        const dryLinear = dryGain <= 0 ? 0 : Math.pow(10, dryGain / 20);
         const len = src.outputData.length;
         const mixData = new Float32Array(len);
         for (let i = 0; i < len; i++) {
@@ -79,7 +90,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         const inputData = originalBuffer.getChannelData(0);
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
-        const params = currentParams;
+        const params = { ...currentParams, dryGain, isDeltaMode };
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
@@ -108,7 +119,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         processingTaskRef.current = setTimeout(processChunk, 150);
 
         return () => { if (processingTaskRef.current) clearTimeout(processingTaskRef.current); };
-    }, [originalBuffer, audioContext, currentParams, playingType, isDeltaMode, setIsProcessing]);
+    }, [originalBuffer, audioContext, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing]);
 
     return {
         visualResult,
