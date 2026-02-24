@@ -30,7 +30,7 @@ const drawPolygonWithStroke = (ctx, points, fillColor, strokeColor, width, cente
     ctx.restore();
 };
 
-const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1.0, fadeAmount = 0.7) => {
+const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1.0, fadeAmount = 0.3) => {
     if (points.length === 0) return;
     ctx.save();
 
@@ -53,9 +53,9 @@ const drawPolygonWithPeakFade = (ctx, points, color, width, centerY, opacity = 1
     if (range > 0) {
         const grad = ctx.createLinearGradient(0, minY, 0, maxY);
         const cs = (centerY - minY) / range; // center position (≈0.5)
-        // 100% → 85% → 70% alpha from center to peak
-        const midAlpha = opacity * 0.85;
-        const peakA = opacity * 0.70;
+        // e.g. fadeAmount=0.3 → 100%→85%→70%, fadeAmount=0.2 → 100%→90%→80%
+        const midAlpha = opacity * (1 - fadeAmount / 2);
+        const peakA = opacity * (1 - fadeAmount);
         grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peakA})`);
         grad.addColorStop(Math.max(0.01, cs * 0.5), `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
         grad.addColorStop(Math.max(0.02, Math.min(0.98, cs)), `rgba(${r}, ${g}, ${b}, ${centerAlpha})`);
@@ -302,7 +302,11 @@ export const drawMainWaveform = ({
                 drawPolygonWithPeakFade(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
                 // Output mix — always visible (dark when delta mode hides it behind background)
-                drawPolygon(ctx, mixPoints, isDeltaMode ? '#202020' : '#ffffff', width, centerY);
+                if (isDeltaMode) {
+                    drawPolygon(ctx, mixPoints, '#202020', width, centerY);
+                } else {
+                    drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
+                }
 
                 if (showAllLayers) {
                     // Gold hatched (output mix) + wet on top
@@ -525,7 +529,7 @@ export const drawMainWaveform = ({
             }
             // Bright red input, then white mix on top to mask center
             drawPolygonWithPeakFade(ctx, inPts, '#E15D42', width, centerY);
-            drawPolygon(ctx, mxPts, '#ffffff', width, centerY);
+            drawPolygonWithPeakFade(ctx, mxPts, '#ffffff', width, centerY, 1.0, 0.2);
         }
 
         // --- GR value computation ---
