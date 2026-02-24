@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     X,
-    Download, FolderOpen, ChevronDown, ChevronUp, ToggleLeft, ToggleRight
+    Download, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
 import RotaryKnob from '../ui/RotaryKnob';
@@ -47,8 +47,6 @@ const Header = ({
     isDryMode, isDraggingKnobRef, handleNormalDragState,
     handleKnobEnter, handleKnobLeave,
 
-    // Info panel toggle
-    isInfoPanelEnabled, setIsInfoPanelEnabled,
 }) => {
     const [showAbout, setShowAbout] = useState(false);
 
@@ -411,22 +409,6 @@ const Header = ({
                     title="下載壓縮後音檔"
                 >
                     <Download size={16} />
-                </button>
-
-                <div className="w-px self-stretch bg-white/10"></div>
-
-                {/* Info Panel Toggle */}
-                <button
-                    onClick={() => setIsInfoPanelEnabled(!isInfoPanelEnabled)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold transition-all duration-300 border-2
-                        ${isInfoPanelEnabled
-                            ? 'bg-green-600/80 border-green-500 text-white hover:bg-green-500'
-                            : 'bg-[#202020] border-white/20 text-slate-500 hover:bg-white/10 hover:text-slate-300'
-                        }`}
-                    title={isInfoPanelEnabled ? "關閉旋鈕說明彈出視窗" : "開啟旋鈕說明彈出視窗"}
-                >
-                    {isInfoPanelEnabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                    說明
                 </button>
 
                 <div className="w-px self-stretch bg-white/10"></div>

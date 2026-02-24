@@ -331,8 +331,6 @@ const App = () => {
                     view.setShowInfoPanel(true);
                 }}
                 handleKnobLeave={() => view.setHoveredKnob(null)}
-                isInfoPanelEnabled={view.isInfoPanelEnabled}
-                setIsInfoPanelEnabled={view.setIsInfoPanelEnabled}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
