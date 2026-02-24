@@ -63,6 +63,13 @@ const useVisualizerLoop = ({
     const isGainKnobActive = isGainKnobDragging || hoveredKnob === 'makeup' || hoveredKnob === 'dryGain';
     const interactionDPR = null; // Always full DPR — cache handles performance during drag
 
+    // Invalidate draw key + waveform cache when DSP data changes (e.g. after mouseup)
+    // so the animate loop doesn't skip the redraw via stale key comparison.
+    useEffect(() => {
+        lastWaveformDrawKeyRef.current = null;
+        if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
+    }, [visualResult, mipmaps, mixMipmaps]);
+
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
         if (!isPlayingRef.current) return;
