@@ -207,7 +207,7 @@ const useAudioEngine = ({
             try {
                 const inputData = originalBuffer.getChannelData(0);
                 const res = processCompressor(inputData, audioContext.sampleRate, currentParams, 1);
-                const dryLinear = dryGain <= 0 ? 0 : Math.pow(10, dryGain / 20);
+                const dryLinear = Math.pow(10, dryGain / 20);
                 const mixedData = new Float32Array(inputData.length);
                 for (let i = 0; i < inputData.length; i++) mixedData[i] = res.outputData[i] + (inputData[i] * dryLinear);
                 const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);

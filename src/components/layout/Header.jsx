@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
 import RotaryKnob from '../ui/RotaryKnob';
+import { dryGainControlToDb, dryGainDbToControl } from '../../hooks/useCompressorParams';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
@@ -44,7 +45,7 @@ const Header = ({
     loadCustomAudio,
 
     // Gain knobs
-    makeupGain, dryGain, handleGainChange,
+    makeupGain, dryGainControl, handleGainChange,
     isDryMode, isDraggingKnobRef, handleNormalDragState,
     handleKnobEnter, handleKnobLeave,
 }) => {
@@ -416,7 +417,7 @@ const Header = ({
                 {/* WET/DRY GAIN Knobs */}
                 <div className="flex items-center gap-3">
                     <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={makeupGain} min={0} max={20} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGain} min={0} max={10} step={0.5} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGainControl} min={0} max={100} step={0.5} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => dryGainDbToControl(v)} />
                 </div>
             </div>
         </div >

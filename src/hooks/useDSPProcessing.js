@@ -69,7 +69,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     const mixMipmaps = useMemo(() => {
         if (!visualResult) return null;
         const src = visualResult;
-        const dryLinear = dryGain <= 0 ? 0 : Math.pow(10, dryGain / 20);
+        const dryLinear = Math.pow(10, dryGain / 20);
         const len = src.outputData.length;
         const mixData = new Float32Array(len);
         for (let i = 0; i < len; i++) {

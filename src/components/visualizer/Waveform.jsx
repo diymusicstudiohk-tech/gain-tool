@@ -107,7 +107,7 @@ export const drawMainWaveform = ({
             ctx.globalAlpha = 1;
 
             const inPoints = []; const outPoints = []; const corePoints = []; const mixPoints = []; const grPoints = [];
-            const dryLinear = dryGain <= 0 ? 0 : Math.pow(10, dryGain / 20);
+            const dryLinear = Math.pow(10, dryGain / 20);
 
             // Viewport culling
             const loopStartX = Math.max(0, Math.floor(panOffset) - 1);

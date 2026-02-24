@@ -102,7 +102,7 @@ const useVisualizerLoop = ({
             const isProcessed = currentType === 'processed' || (currentType !== 'original' && lastType === 'processed');
 
             const currentDryGain = dryGainRef.current;
-            const dryLinear = currentDryGain <= 0 ? 0 : Math.exp(currentDryGain * LN10_OVER_20);
+            const dryLinear = Math.exp(currentDryGain * LN10_OVER_20);
 
             for (let i = visualIndex; i < endIdx; i++) {
                 if (i >= visualResult.outputData.length) break;

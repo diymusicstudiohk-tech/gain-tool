@@ -17,7 +17,8 @@ const RotaryKnob = ({
     onLeave,
     dragLockRef,
     disabled,
-    compact
+    compact,
+    parseEditValue
 }) => {
     const isDraggingRef = useRef(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -128,7 +129,7 @@ const RotaryKnob = ({
     }, [handleGlobalMouseMove, handleGlobalTouchMove, handleEnd]);
 
     const handleDoubleClick = () => { if (disabled) return; setIsEditing(true); setInputValue(displayValue || value); };
-    const handleInputBlur = () => { let val = parseFloat(inputValue); if (!isNaN(val)) { if (val < min) val = min; if (val > max) val = max; onChange(val); } setIsEditing(false); };
+    const handleInputBlur = () => { let val = parseFloat(inputValue); if (!isNaN(val)) { if (parseEditValue) val = parseEditValue(val); if (val < min) val = min; if (val > max) val = max; onChange(val); } setIsEditing(false); };
 
     const pct = (value - min) / (max - min); const radius = 14; const circumference = 2 * Math.PI * radius; const arcLength = circumference * 0.75; const dashOffset = arcLength * (1 - pct); const rotation = -135 + (pct * 270);
     const displayStr = displayValue !== undefined ? displayValue : value.toFixed(Number.isInteger(step) ? 0 : 1);
