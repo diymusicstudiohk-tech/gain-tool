@@ -144,7 +144,7 @@ const App = () => {
         audioContext, originalBuffer, setOriginalBuffer,
         applyStateSnapshot: comp.applyStateSnapshot,
         getCurrentStateSnapshot: comp.getCurrentStateSnapshot,
-        applyPreset: comp.applyPreset,
+        resetAllParams: comp.resetAllParams,
         sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
         setPlayingType: playback.setPlayingType,
         setLastPlayedType: playback.setLastPlayedType,

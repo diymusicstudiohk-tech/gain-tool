@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { PRESETS_DATA, AUDIO_SOURCES } from '../utils/constants';
+import { AUDIO_SOURCES } from '../utils/constants';
 import { processCompressor } from '../utils/dsp';
 import { writeWavFile, toMono, stopCurrentSource } from '../utils/audioHelper';
 import { fetchAudioBuffer } from '../utils/audioLoader';
@@ -22,7 +22,7 @@ const ALLOWED_MIME_TYPES = [
  */
 const useAudioEngine = ({
     audioContext, originalBuffer, setOriginalBuffer,
-    applyStateSnapshot, getCurrentStateSnapshot, applyPreset,
+    applyStateSnapshot, getCurrentStateSnapshot, resetAllParams,
     // Shared refs
     sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
     // Playback setters (from usePlayback, wired via App)
@@ -63,7 +63,7 @@ const useAudioEngine = ({
         setOriginalBuffer(monoBuffer);
     }, [audioContext, setOriginalBuffer]);
 
-    const loadAudio = useCallback(async (preset, { autoMatchPreset = true } = {}) => {
+    const loadAudio = useCallback(async (preset) => {
         if (!audioContext) return;
         try {
             setIsLoading(true); setErrorMsg('');
@@ -77,24 +77,14 @@ const useAudioEngine = ({
             const arrayBuffer = await fetchAudioBuffer(preset.url);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
+            resetAllParams();
             setIsLoading(false);
-
-            if (autoMatchPreset && preset.category) {
-                const trackCategory = preset.category;
-                const matchingPresetIdx = PRESETS_DATA.findIndex(p => {
-                    if (!p.category) return false;
-                    const tc = trackCategory.trim().toLowerCase();
-                    const pc = p.category.trim().toLowerCase();
-                    return tc.includes(pc) || pc.includes(tc);
-                });
-                if (matchingPresetIdx !== -1) applyPreset(matchingPresetIdx);
-            }
         } catch (err) {
             console.error(err);
             setErrorMsg(`載入失敗: ${err.message}`);
             setIsLoading(false);
         }
-    }, [audioContext, handleDecodedBuffer, applyPreset, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const handleFileUpload = useCallback(async (e) => {
@@ -130,13 +120,14 @@ const useAudioEngine = ({
             userBufferRef.current = decoded;
             userFileNameRef.current = file.name;
             handleDecodedBuffer(decoded);
+            resetAllParams();
             setIsLoading(false);
         } catch (err) {
             setErrorMsg('無法解析音檔，請確認格式 (MP3/WAV/M4A/AAC/FLAC)。');
             setIsLoading(false);
         }
-    }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef, isPlayingRef,
-        startOffsetRef, setPlayingType, setOriginalBuffer]);
+    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
+        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const saveSessionState = useCallback((mode) => {
         const snapshot = getCurrentStateSnapshot();
@@ -167,7 +158,7 @@ const useAudioEngine = ({
             setCurrentSourceId(snap.sourceId);
             setFileName(snap.fileName);
             const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
-            if (source) loadAudio(source, { autoMatchPreset: false });
+            if (source) loadAudio(source);
         } else {
             const defaultSource = AUDIO_SOURCES[0];
             loadAudio(defaultSource);
@@ -265,7 +256,7 @@ const useAudioEngine = ({
             } else if (currentSourceId) {
                 const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
                 if (source) {
-                    await loadAudio(source, { autoMatchPreset: false });
+                    await loadAudio(source);
                 }
             }
             hasInitialLoadRun.current = true;
@@ -304,12 +295,13 @@ const useAudioEngine = ({
             const ab = await blob.arrayBuffer();
             const decoded = await audioContext.decodeAudioData(ab);
             handleDecodedBuffer(decoded);
+            resetAllParams();
             setIsLoading(false);
         } catch (_) {
             setErrorMsg('無法載入自訂音檔，請重新上載。');
             setIsLoading(false);
         }
-    }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {
