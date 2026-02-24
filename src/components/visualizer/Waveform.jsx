@@ -636,17 +636,6 @@ export const drawMainWaveform = ({
         const bgHeight = 20;
         const bgX = mousePos.x + 8;
 
-        // Threshold block above GR label when adjusting comp threshold
-        if (isDraggingLine === 'comp') {
-            const threshText = `${threshold}dB`;
-            const threshMetrics = ctx.measureText(threshText);
-            const tBgW = threshMetrics.width + 12; const tBgH = 20;
-            const tBgY = mousePos.y - bgHeight - 4 - tBgH - 4;
-            ctx.fillStyle = '#C2A475';
-            ctx.fillRect(bgX, tBgY, tBgW, tBgH);
-            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(threshText, bgX + 6, tBgY + 14);
-        }
 
         // Legend box above GR label (only when hovering on waveform)
         if (isHoveringOnWetArea || isHoveringOnDryArea) {
@@ -755,6 +744,22 @@ export const drawMainWaveform = ({
         drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, gateColor, 'left');
     }
     ctx.setLineDash([]);
+
+    // ── Comp Threshold Tooltip — drawn last so it's on top of everything ──
+    if ((hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
+        ctx.font = 'bold 12px sans-serif';
+        const threshText = `Comp Threshold: ${threshold} dB`;
+        const threshMetrics = ctx.measureText(threshText);
+        const tPadX = 8; const tBgW = threshMetrics.width + tPadX * 2; const tBgH = 24;
+        let tBgX = mousePos.x + 12;
+        let tBgY = mousePos.y - tBgH - 8;
+        if (tBgX + tBgW > width) tBgX = mousePos.x - tBgW - 12;
+        if (tBgY < 2) tBgY = mousePos.y + 12;
+        ctx.fillStyle = '#4D5B72';
+        ctx.fillRect(tBgX, tBgY, tBgW, tBgH);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+        ctx.fillText(threshText, tBgX + tPadX, tBgY + 16);
+    }
 };
 
 // --- Component ---
