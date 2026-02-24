@@ -40,7 +40,7 @@ const OutputWaveform = ({
     // Track hover zone for overlay styling — only re-render when zone category changes
     const hoverZoneRef = useRef('outside');
 
-    useOutputWaveformDrawer(canvasRef, outputData, outputMipmaps);
+    useOutputWaveformDrawer(canvasRef, outputData, outputMipmaps, regionStart, regionEnd);
 
     // ── Stable refs so touch effect (registered once) always gets fresh values ──
     const regionRef = useRef({ start: regionStart, end: regionEnd });

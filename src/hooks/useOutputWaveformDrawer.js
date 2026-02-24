@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { selectMipmapLevel } from '../utils/mipmapCache';
 
-const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels) => {
+const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStart = 0, regionEnd = 1) => {
     const dimsRef = useRef({ width: 0, height: 0 });
 
-    const drawOutputWaveform = useCallback((canvas, data, levels) => {
+    const drawOutputWaveform = useCallback((canvas, data, levels, rStart, rEnd) => {
         if (!canvas || !data || data.length === 0) return;
         const ctx = canvas.getContext('2d');
         const { width, height } = dimsRef.current;
@@ -24,13 +24,25 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels) => {
         const len = data.length;
         const step = len / width;
 
-        ctx.fillStyle = '#ffffff';
+        const GOLD = '#D4A017';
+        const WHITE = '#ffffff';
+
+        // Precompute region pixel boundaries
+        const regionLeftPx = (rStart != null ? rStart : 0) * width;
+        const regionRightPx = (rEnd != null ? rEnd : 1) * width;
 
         // Use mipmaps when available for faster peak lookup
         const useMipmaps = levels && levels.length > 1;
         const mm = useMipmaps ? selectMipmapLevel(levels, step) : null;
 
+        let currentColor = '';
         for (let x = 0; x < width; x++) {
+            const inside = x >= regionLeftPx && x <= regionRightPx;
+            const color = inside ? WHITE : GOLD;
+            if (color !== currentColor) {
+                ctx.fillStyle = color;
+                currentColor = color;
+            }
             const start = Math.floor(x * step);
             const end = Math.min(Math.floor((x + 1) * step), len);
 
@@ -84,13 +96,13 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels) => {
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
                 dimsRef.current = { width, height };
-                drawOutputWaveform(canvas, outputData, mipmapLevels);
+                drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd);
             }
         });
 
         observer.observe(container);
         return () => observer.disconnect();
-    }, [canvasRef, outputData, mipmapLevels, drawOutputWaveform]);
+    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, drawOutputWaveform]);
 
     // Redraw when data changes
     useEffect(() => {
@@ -106,8 +118,8 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels) => {
             }
         }
 
-        drawOutputWaveform(canvas, outputData, mipmapLevels);
-    }, [canvasRef, outputData, mipmapLevels, drawOutputWaveform]);
+        drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd);
+    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, drawOutputWaveform]);
 
     return { dimsRef };
 };
