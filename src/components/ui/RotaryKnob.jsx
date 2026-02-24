@@ -76,8 +76,10 @@ const RotaryKnob = ({
 
     const handleGlobalMouseMove = useCallback((e) => {
         e.preventDefault();
+        // If button was released outside the browser window, treat as mouseup
+        if (e.buttons === 0) { handleEnd(); return; }
         handleMove(e.clientY);
-    }, [handleMove]);
+    }, [handleMove, handleEnd]);
 
     const handleGlobalTouchMove = useCallback((e) => {
         e.preventDefault();

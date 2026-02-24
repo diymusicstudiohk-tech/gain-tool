@@ -43,10 +43,14 @@ const useWaveformInteraction = ({
     // Holds the latest touchstart handler so the passive:false DOM listener
     // always calls the current closure without re-registering.
     const touchStartHandlerRef = useRef(null);
+    // Ref to globalUp so globalMove can call it without a circular dep
+    const globalUpRef = useRef(null);
 
     const onWaveformGlobalMove = useCallback((e) => {
         // Prevent scroll/zoom when dragging on touch devices
         if (e.type === 'touchmove') e.preventDefault();
+        // If button was released outside the browser window, treat as mouseup
+        if (e.type === 'mousemove' && e.buttons === 0) { globalUpRef.current?.(e); return; }
 
         const { clientX, clientY } = getEventCoords(e);
 
@@ -222,9 +226,9 @@ const useWaveformInteraction = ({
         setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, handleSeekOnWaveform]);
 
-    // Keep ref pointing to the latest handler so the DOM listener (registered once)
-    // always invokes the current closure.
+    // Keep refs pointing to the latest handlers so closures stay current.
     touchStartHandlerRef.current = handleWaveformTouchStart;
+    globalUpRef.current = onWaveformGlobalUp;
 
     // Register touchstart directly on the container with passive:false.
     // React's synthetic onTouchStart cannot call preventDefault() on iOS/iPadOS.
