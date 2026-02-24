@@ -41,12 +41,14 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const currentParams = useMemo(() => ({
         threshold, ratio, attack, release, knee, lookahead, makeupGain,
         gateThreshold, gateRatio, gateAttack, gateRelease,
-        isGateBypass, isCompBypass, dryGain, isDeltaMode: false
+        isGateBypass, isCompBypass
     }), [threshold, ratio, attack, release, knee, lookahead, makeupGain,
-        gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass, dryGain]);
+        gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
 
-    const paramsRef = useRef(currentParams);
-    useEffect(() => { paramsRef.current = currentParams; }, [currentParams]);
+    const paramsRef = useRef({ ...currentParams, dryGain, isDeltaMode: false });
+    useEffect(() => {
+        paramsRef.current = { ...currentParams, dryGain, isDeltaMode: false };
+    }, [currentParams, dryGain]);
 
     // Load from localStorage on mount
     useEffect(() => {

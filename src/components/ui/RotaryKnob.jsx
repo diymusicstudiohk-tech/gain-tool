@@ -24,11 +24,13 @@ const RotaryKnob = ({
     const [isHovered, setIsHovered] = useState(false);
     const [inputValue, setInputValue] = useState(displayValue || value);
 
-    // 使用 Refs 儲存變數，以便在事件監聽器中訪問最新值
+    // 使用 Refs 儲存變數，以便在事件監聯器中訪問最新值
     const startY = useRef(0);
     const startVal = useRef(0);
     const paramsRef = useRef({ value, min, max, step });
     const callbacksRef = useRef({ onChange, onDragStateChange });
+    const lastMoveTimeRef = useRef(0);
+    const lastClientYRef = useRef(0);
 
     // 每次 Render 更新 Params Ref 和 Callbacks Ref
     useEffect(() => {
@@ -46,8 +48,7 @@ const RotaryKnob = ({
     const labelColorClass = disabled ? 'text-slate-600' : 'text-slate-500 hover:text-slate-300';
     const valueColorStyle = disabled ? { color: '#475569' } : { color: colors[color] || colors.slate };
 
-    const handleMove = useCallback((clientY) => {
-        if (!isDraggingRef.current) return;
+    const applyMove = useCallback((clientY) => {
         const { min: pMin, max: pMax, step: pStep } = paramsRef.current;
         const { onChange: pOnChange } = callbacksRef.current;
 
@@ -62,6 +63,15 @@ const RotaryKnob = ({
         }
     }, []);
 
+    const handleMove = useCallback((clientY) => {
+        if (!isDraggingRef.current) return;
+        lastClientYRef.current = clientY;
+        const now = performance.now();
+        if (now - lastMoveTimeRef.current < 16) return;
+        lastMoveTimeRef.current = now;
+        applyMove(clientY);
+    }, [applyMove]);
+
     const handleGlobalMouseMove = useCallback((e) => {
         e.preventDefault();
         handleMove(e.clientY);
@@ -73,6 +83,11 @@ const RotaryKnob = ({
     }, [handleMove]);
 
     const handleEnd = useCallback(() => {
+        // Flush final position before ending drag
+        if (lastClientYRef.current !== 0) {
+            applyMove(lastClientYRef.current);
+        }
+        lastMoveTimeRef.current = 0;
         isDraggingRef.current = false;
         if (dragLockRef) dragLockRef.current = false;
         if (callbacksRef.current.onDragStateChange) callbacksRef.current.onDragStateChange(false);
@@ -81,7 +96,7 @@ const RotaryKnob = ({
         window.removeEventListener('mouseup', handleEnd);
         window.removeEventListener('touchmove', handleGlobalTouchMove);
         window.removeEventListener('touchend', handleEnd);
-    }, [dragLockRef, handleGlobalMouseMove, handleGlobalTouchMove]);
+    }, [applyMove, dragLockRef, handleGlobalMouseMove, handleGlobalTouchMove]);
 
     const handleStart = (clientY, isTouch = false) => {
         if (disabled) return;

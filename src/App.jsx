@@ -176,6 +176,7 @@ const App = () => {
         isDeltaMode: playback.isDeltaMode,
         setIsProcessing: comp.setIsProcessing,
         fullAudioDataRef,
+        isDraggingKnobRef,
     });
 
     // --- 8. Visualizer Loop ---
@@ -366,6 +367,7 @@ const App = () => {
 
             <OutputWaveform
                 outputData={dsp.visualResult?.outputData}
+                outputMipmaps={dsp.mipmaps?.output}
                 originalBuffer={originalBuffer}
                 audioContext={audioContext}
                 startTimeRef={startTimeRef}
