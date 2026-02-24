@@ -164,20 +164,15 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
         if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = '#D4B88A'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12); }
     }
-    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1) {
+    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1 && isHoveringGRArea) {
         const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
-        if (isHoveringGRArea) {
-            // Brick red filled bar from top to hover Y
-            ctx.fillStyle = '#B54C35';
-            ctx.fillRect(grX, 0, barWidth, hoverY);
-            // Gold dB text below the bar
-            const dbText = hoverGrDbVal.toFixed(1);
-            ctx.fillStyle = '#C2A475'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-            ctx.fillText(dbText, grCenterX, hoverY + 12);
-        } else {
-            ctx.strokeStyle = '#C2A475'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(grX, hoverY); ctx.lineTo(grX + barWidth, hoverY); ctx.stroke();
-        }
+        // Brick red filled bar from top to hover Y
+        ctx.fillStyle = '#B54C35';
+        ctx.fillRect(grX, 0, barWidth, hoverY);
+        // Gold dB text below the bar
+        const dbText = hoverGrDbVal.toFixed(1);
+        ctx.fillStyle = '#C2A475'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(dbText, grCenterX, hoverY + 12);
     }
 
     // --- Dry Bar (center-outward) ---
@@ -280,12 +275,6 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
         if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = '#D4B88A'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), w / 2, holdHeight + 14); }
     }
 
-    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1) {
-        const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * maxPixelHeight;
-        ctx.strokeStyle = '#C2A475';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(0, hoverY); ctx.lineTo(w, hoverY); ctx.stroke();
-    }
 
 };
 
