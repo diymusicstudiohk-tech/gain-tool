@@ -248,7 +248,7 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); drawPolygon(ctx, inPoints, '#ffffff', width, centerY, 0.2); }
+            if (lastPlayedType === 'original') { drawPolygon(ctx, inPoints, '#D05A40', width, centerY); }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
@@ -385,8 +385,9 @@ export const drawMainWaveform = ({
 
     // Mouse GR Inspection + Hover Layers
     if (mousePos.x >= 0 && lastPlayedType === 'processed') {
-        // --- Detect hover on white waveform area ---
+        // --- Detect hover on white waveform area or brick-red area ---
         let isHoveringOnWaveform = false;
+        let isHoveringOnBrickRed = false;
         const srcOutput = visualResult.outputData;
         const srcInput = visualResult.visualInput;
         const dryLinear = Math.pow(10, dryGain / 20);
@@ -396,6 +397,7 @@ export const drawMainWaveform = ({
             const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
             if (hStart >= 0 && hStart < srcLength) {
                 let maxMix = 0;
+                let maxIn = 0;
                 if (useMipmaps && mixMipmaps) {
                     const mm = selectMipmapLevel(mixMipmaps, step, mipmapBias);
                     const lv = mm.level; const bs = mm.blockSize;
@@ -407,9 +409,23 @@ export const drawMainWaveform = ({
                         if (v > maxMix) maxMix = v;
                     }
                 }
+                if (useMipmaps && mipmaps && mipmaps.input) {
+                    const mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
+                    const inLv = mmIn.level; const inBs = mmIn.blockSize;
+                    const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
+                    for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
+                } else {
+                    for (let i = hStart; i < hEnd; i++) {
+                        const a = Math.abs(srcInput[i]);
+                        if (a > maxIn) maxIn = a;
+                    }
+                }
                 const hMix = displayAmp(maxMix) * ampScale;
+                const hIn = displayAmp(maxIn) * ampScale;
                 if (mousePos.y >= centerY - hMix && mousePos.y <= centerY + hMix) {
                     isHoveringOnWaveform = true;
+                } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
+                    isHoveringOnBrickRed = true;
                 }
             }
         }
@@ -464,6 +480,58 @@ export const drawMainWaveform = ({
             // Gold hatching on mix area (dry contribution), solid blue on wet area
             drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
             drawPolygon(ctx, outPts, '#7D93B7', width, centerY);
+        }
+
+        // --- Draw brick-red hover overlay (bright red) ---
+        if (isHoveringOnBrickRed) {
+            const inPts = []; const mxPts = [];
+            const brStartX = Math.max(0, Math.floor(panOffset) - 1);
+            const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
+            let hmIn, hmMix2;
+            if (useMipmaps) {
+                hmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
+                if (mixMipmaps) hmMix2 = selectMipmapLevel(mixMipmaps, step, mipmapBias);
+            }
+            for (let x = brStartX; x < brEndX; x++) {
+                const vx = x - panOffset;
+                const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
+                if (s < 0 || s >= srcLength) continue;
+                const se = Math.min(srcLength, e);
+                let mxIn = 0; let mxMix = 0;
+                const ls = Math.max(s, 0);
+                if (se - ls > 0) {
+                    if (useMipmaps) {
+                        const iL = hmIn.level; const iB = hmIn.blockSize;
+                        const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
+                        for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
+                        if (hmMix2) {
+                            const mL = hmMix2.level; const mB = hmMix2.blockSize;
+                            const ms = Math.floor(ls / mB); const me = Math.ceil(se / mB);
+                            for (let i = ms; i < me && i < mL.length; i++) { const a = Math.abs(mL[i]); if (a > mxMix) mxMix = a; }
+                        } else {
+                            for (let i = ls; i < se; i++) { const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (v > mxMix) mxMix = v; }
+                        }
+                    } else {
+                        for (let i = ls; i < se; i++) {
+                            const aI = Math.abs(srcInput[i]); if (aI > mxIn) mxIn = aI;
+                            const mV = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mV > mxMix) mxMix = mV;
+                        }
+                    }
+                } else {
+                    const idx = Math.min(Math.floor(ls), srcLength - 1);
+                    if (idx >= 0) {
+                        mxIn = Math.abs(srcInput[idx]);
+                        mxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
+                    }
+                }
+                const hI = displayAmp(mxIn) * ampScale;
+                const hM = displayAmp(mxMix) * ampScale;
+                inPts.push({ x, yTop: centerY - hI, yBot: centerY + hI });
+                mxPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
+            }
+            // Bright red input, then white mix on top to mask center
+            drawPolygon(ctx, inPts, '#FF2222', width, centerY);
+            drawPolygon(ctx, mxPts, '#ffffff', width, centerY);
         }
 
         // --- GR value computation ---
@@ -534,6 +602,26 @@ export const drawMainWaveform = ({
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
             ctx.fillText(legendLine1, legendX + legendPadX, legendY + 18);
             ctx.fillText(legendLine2, legendX + legendPadX, legendY + 34);
+        }
+
+        // Legend for brick-red hover
+        if (isHoveringOnBrickRed) {
+            const legendText = '紅色 = 被壓縮處理減少了的訊號';
+            ctx.font = 'bold 11px sans-serif';
+            const lw = ctx.measureText(legendText).width;
+            const legendPadX = 10;
+            const legendW = lw + legendPadX * 2;
+            const legendH = 28;
+            const grBoxTop = mousePos.y - bgHeight - 4;
+            let legendX = bgX;
+            let legendY = grBoxTop - legendH - 4;
+            if (legendX + legendW > width) legendX = width - legendW - 2;
+            if (legendY < 2) legendY = mousePos.y + 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
         }
 
         // GR label (drawn last — on top of all layers)
