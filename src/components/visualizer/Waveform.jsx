@@ -597,10 +597,10 @@ export const drawMainWaveform = ({
                 }
                 ctx.closePath();
 
-                // Vertical gradient: transparent at top → 50% brick red at grMaxHeight
+                // Vertical gradient: 80% at GR curve → 0% at top
                 const grGrad = ctx.createLinearGradient(0, 0, 0, grMaxHeight);
                 grGrad.addColorStop(0, 'rgba(181, 76, 53, 0)');
-                grGrad.addColorStop(1, 'rgba(181, 76, 53, 0.5)');
+                grGrad.addColorStop(1, 'rgba(181, 76, 53, 0.8)');
                 ctx.fillStyle = grGrad;
                 ctx.fill();
                 ctx.restore();
