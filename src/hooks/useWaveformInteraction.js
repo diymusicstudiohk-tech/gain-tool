@@ -1,9 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-
-// Display compression (must match Waveform.jsx)
-const DISPLAY_EXP = 0.43;
-const displayAmp = (lin) => lin > 0 ? Math.pow(lin, DISPLAY_EXP) : 0;
-const linearFromDisplay = (disp) => disp > 0 ? Math.pow(disp, 1 / DISPLAY_EXP) : 0;
+import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../utils/displayMath';
 
 // Extract clientX/clientY from mouse or touch events
 const getEventCoords = (e) => {
@@ -64,10 +60,7 @@ const useWaveformInteraction = ({
             const relY = clientY - rect.top;
             setMousePos({ x: relX, y: relY });
             const height = rect.height;
-            const VERT_PAD = height * 0.05;
-            const maxH = (height / 2) - VERT_PAD;
-            const ampScale = maxH * zoomY;
-            const centerY = (height / 2) + panOffsetY;
+            const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
             const distFromCenter = Math.abs(relY - centerY);
             const displayVal = distFromCenter / ampScale;
             const linearAmp = linearFromDisplay(Math.min(displayVal, 1));
@@ -193,10 +186,7 @@ const useWaveformInteraction = ({
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relY = clientY - rect.top;
             const height = rect.height;
-            const VERT_PAD = height * 0.05;
-            const maxH = (height / 2) - VERT_PAD;
-            const ampScale = maxH * zoomY;
-            const centerY = (height / 2) + panOffsetY;
+            const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
             const HIT_TOLERANCE = 20;
 
             const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
@@ -259,10 +249,7 @@ const useWaveformInteraction = ({
         const relX = e.clientX - rect.left;
         const relY = e.clientY - rect.top;
         const height = rect.height;
-        const VERT_PAD = height * 0.05;
-        const maxH = (height / 2) - VERT_PAD;
-        const ampScale = maxH * zoomY;
-        const centerY = (height / 2) + panOffsetY;
+        const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
         setMousePos({ x: relX, y: relY });
 

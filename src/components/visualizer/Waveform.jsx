@@ -1,11 +1,6 @@
 import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
-
-// Display compression: exponent < 1 pushes waveform towards edges.
-// 0.43 halves the gap between -5dB and the border vs linear display.
-const DISPLAY_EXP = 0.43;
-const displayAmp = (lin) => lin > 0 ? Math.pow(lin, DISPLAY_EXP) : 0;
-const linearFromDisplay = (disp) => disp > 0 ? Math.pow(disp, 1 / DISPLAY_EXP) : 0;
+import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
 
 // --- Helper Drawing Functions ---
 
@@ -178,10 +173,7 @@ export const drawMainWaveform = ({
 
             if (!Number.isFinite(step) || step <= 0) return;
 
-            const centerY = (height / 2) + panOffsetY;
-            const VERT_PAD = height * 0.05;
-            const maxPixelHeight = (height / 2) - VERT_PAD; const ampScale = maxPixelHeight * zoomY;
-            const grMaxHeight = maxPixelHeight * 0.5;
+            const { centerY, maxPixelHeight, ampScale, grMaxHeight } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
             // Grid — horizontal dB lines with gradient fade
             const FADE_DISTANCE = 160;
@@ -364,10 +356,7 @@ export const drawMainWaveform = ({
     const step = srcLength / (width * zoomX);
     if (!Number.isFinite(step) || step <= 0) return;
 
-    const centerY = (height / 2) + panOffsetY;
-    const VERT_PAD = height * 0.05;
-    const maxPixelHeight = (height / 2) - VERT_PAD; const ampScale = maxPixelHeight * zoomY;
-    const grMaxHeight = maxPixelHeight * 0.5;
+    const { centerY, maxPixelHeight, ampScale, grMaxHeight } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
     const mipmapBias = interactionDPR ? 1 : 0;
