@@ -311,7 +311,7 @@ export const drawMainWaveform = ({
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
             else if (isDeltaMode) {
                 // Cyan outer (larger of input vs mix) — difference band visible
-                drawPolygonWithPeakFade(ctx, diffOuterPoints, '#2DD4BF', width, centerY, 0.85, 0.25);
+                drawPolygonWithPeakFade(ctx, diffOuterPoints, '#618C71', width, centerY, 0.85, 0.25);
                 // White inner hidden (0% alpha) — only cyan difference band shows
                 drawPolygonWithPeakFade(ctx, diffInnerPoints, '#202020', width, centerY, 1.0, 0.0);
             }
