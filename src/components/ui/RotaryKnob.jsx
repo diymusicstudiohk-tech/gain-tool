@@ -34,6 +34,7 @@ const RotaryKnob = ({
     const lastMoveTimeRef = useRef(0);
     const lastClientYRef = useRef(0);
     const handleEndRef = useRef(null); // ref to avoid circular dep with handleGlobalMouseMove
+    const lastMouseDownTimeRef = useRef(0);
 
     // 每次 Render 更新 Params Ref 和 Callbacks Ref
     useEffect(() => {
@@ -108,6 +109,18 @@ const RotaryKnob = ({
 
     const handleStart = (clientY, isTouch = false) => {
         if (disabled) return;
+
+        // Detect double-click via rapid mousedowns (within 300ms)
+        if (!isTouch) {
+            const now = performance.now();
+            if (now - lastMouseDownTimeRef.current < 300) {
+                lastMouseDownTimeRef.current = 0;
+                handleDoubleClick();
+                return;
+            }
+            lastMouseDownTimeRef.current = now;
+        }
+
         isDraggingRef.current = true;
 
         if (callbacksRef.current.onDragStateChange) callbacksRef.current.onDragStateChange(true);
@@ -164,7 +177,7 @@ const RotaryKnob = ({
 
     return (
         <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }}>
-            <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }}>
+            <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                     <circle cx="18" cy="18" r={radius} fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeDashoffset={dashOffset} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
