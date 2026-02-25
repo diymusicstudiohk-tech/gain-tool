@@ -180,6 +180,12 @@ const useWaveformInteraction = ({
 
         const { clientX, clientY } = getEventCoords(e);
 
+        // Update mousePos so crosshair, gain tooltip, and legends appear on touch
+        if (waveformCanvasRef.current) {
+            const rect = waveformCanvasRef.current.getBoundingClientRect();
+            setMousePos({ x: clientX - rect.left, y: clientY - rect.top });
+        }
+
         // Detect threshold lines — use a larger hit tolerance than mouse (20px vs 8px)
         let touchHoverLine = null;
         if (waveformCanvasRef.current) {
