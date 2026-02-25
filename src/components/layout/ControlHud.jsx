@@ -106,7 +106,7 @@ const ControlHud = ({
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDryMode
                                     ? 'breathe-brick-red border-[#B54C35]'
-                                    : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                                    : 'bg-[#202020] hover:bg-[#B54C35] border-[#C2A475]/30'
                             }`}
                         >
                             <Power size={18} className="relative z-10 text-white" strokeWidth={2.5} />
