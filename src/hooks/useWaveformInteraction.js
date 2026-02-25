@@ -25,6 +25,7 @@ const useWaveformInteraction = ({
     isCompBypass, setIsCompBypass, isGateBypass, setIsGateBypass,
     lastPlayedType, handleModeChange,
     isDraggingKnobRef,
+    isDeltaMode,
     // Seek-related refs
     startOffsetRef, playingTypeRef, playBufferRef,
     playheadRef, outputPlayheadRef,
@@ -188,7 +189,7 @@ const useWaveformInteraction = ({
 
         // Detect threshold lines — use a larger hit tolerance than mouse (20px vs 8px)
         let touchHoverLine = null;
-        if (waveformCanvasRef.current) {
+        if (waveformCanvasRef.current && !isDeltaMode) {
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relY = clientY - rect.top;
             const height = rect.height;
@@ -232,7 +233,7 @@ const useWaveformInteraction = ({
         }
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomY, panOffsetY,
         threshold, gateThreshold,
-        isCompBypass, isGateBypass, lastPlayedType,
+        isCompBypass, isGateBypass, isDeltaMode, lastPlayedType,
         setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, handleSeekOnWaveform]);
 
@@ -276,13 +277,15 @@ const useWaveformInteraction = ({
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
-        if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        if (!isDeltaMode) {
+            if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
+            if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
     }, [threshold, gateThreshold, zoomY, panOffsetY,
-        isCompBypass, isGateBypass,
+        isCompBypass, isGateBypass, isDeltaMode,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
     const handleMouseLeave = useCallback(() => {

@@ -216,12 +216,11 @@ export const drawMainWaveform = ({
             }
             ctx.globalAlpha = 1;
 
-            const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = [];
+            const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = []; const deltaPoints = [];
             const dryLinear = Math.pow(10, dryGain / 20);
 
             // Determine which channels are needed before the loop
-            const showAllLayers = isGainKnobActive || isDeltaMode;
-            const needsOutChannel = showAllLayers;
+            const needsOutChannel = isGainKnobActive || isDeltaMode;
 
             // Viewport culling
             const loopStartX = Math.max(0, Math.floor(panOffset) - 1);
@@ -247,7 +246,7 @@ export const drawMainWaveform = ({
                 const end = Math.floor((vX + 1) * step);
                 if (start < 0 || start >= srcLength) continue;
                 const safeEnd = Math.min(srcLength, end);
-                let maxIn = 0; let maxOut = 0; let minGR = 0; let maxMix = 0;
+                let maxIn = 0; let maxOut = 0; let minGR = 0; let maxMix = 0; let maxDelta = 0;
                 const loopStartIdx = Math.max(start, 0);
                 const count = safeEnd - loopStartIdx;
 
@@ -272,11 +271,13 @@ export const drawMainWaveform = ({
                             const mixStart = Math.floor(loopStartIdx / mixBS); const mixEnd = Math.ceil(safeEnd / mixBS);
                             for (let i = mixStart; i < mixEnd && i < mixLevel.length; i++) { const a = Math.abs(mixLevel[i]); if (a > maxMix) maxMix = a; }
                         }
+                        if (isDeltaMode) maxDelta = Math.abs(maxIn - maxOut);
                     } else {
                         for (let i = loopStartIdx; i < safeEnd; i++) {
                             const absIn = Math.abs(srcInput[i]); const grVal = srcGR[i];
                             if (absIn > maxIn) maxIn = absIn; if (grVal < minGR) minGR = grVal;
                             if (needsOutChannel) { const absOut = Math.abs(srcOutput[i]); if (absOut > maxOut) maxOut = absOut; }
+                            if (isDeltaMode) { const d = Math.abs(srcInput[i] - srcOutput[i]); if (d > maxDelta) maxDelta = d; }
                             if (lastPlayedType === 'processed') { const mixVal = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mixVal > maxMix) maxMix = mixVal; }
                         }
                     }
@@ -285,6 +286,7 @@ export const drawMainWaveform = ({
                     if (idx >= 0) {
                         maxIn = Math.abs(srcInput[idx]); minGR = srcGR[idx];
                         if (needsOutChannel) maxOut = Math.abs(srcOutput[idx]);
+                        if (isDeltaMode) maxDelta = Math.abs(srcInput[idx] - srcOutput[idx]);
                         if (lastPlayedType === 'processed') maxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
                     }
                 }
@@ -292,6 +294,7 @@ export const drawMainWaveform = ({
                 const hIn = displayAmp(maxIn) * ampScale; const hMix = displayAmp(maxMix) * ampScale;
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
                 if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
+                if (isDeltaMode) { const hDelta = displayAmp(maxDelta) * ampScale; deltaPoints.push({ x, yTop: centerY - hDelta, yBot: centerY + hDelta }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
                 if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
@@ -299,20 +302,19 @@ export const drawMainWaveform = ({
 
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
-            else {
-                const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
+            else if (isDeltaMode) {
+                // Delta mode: only draw the difference between input and output
+                drawPolygonWithPeakFade(ctx, deltaPoints, '#E15D42', width, centerY);
+            } else {
+                const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
                 drawPolygonWithPeakFade(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
-                // Output mix — always visible (dark when delta mode hides it behind background)
-                if (isDeltaMode) {
-                    drawPolygon(ctx, mixPoints, '#202020', width, centerY);
-                } else {
-                    drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
-                }
+                // Output mix
+                drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
 
-                if (showAllLayers) {
+                if (isGainKnobActive) {
                     if (activeGainKnob === 'makeup') {
                         // Wet knob: solid gold for wet only, no hatching
                         drawPolygon(ctx, outPoints, '#C2A475', width, centerY);
@@ -320,14 +322,10 @@ export const drawMainWaveform = ({
                         // Dry knob: gold hatched for dry, white for wet on top
                         drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                         drawPolygon(ctx, outPoints, '#ffffff', width, centerY);
-                    } else {
-                        // Delta mode or other: original behavior
-                        drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
-                        drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
                     }
                 }
             }
-            if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
+            if (!isDeltaMode && grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 
 
 
@@ -376,7 +374,7 @@ export const drawMainWaveform = ({
     };
 
     // Mouse GR Inspection + Hover Layers
-    if (mousePos.x >= 0 && lastPlayedType === 'processed') {
+    if (mousePos.x >= 0 && lastPlayedType === 'processed' && !isDeltaMode) {
         // --- Detect hover on wet area, dry-contribution area, or brick-red area ---
         let isHoveringOnWetArea = false;
         let isHoveringOnDryArea = false;
@@ -731,7 +729,7 @@ export const drawMainWaveform = ({
     const isDry = lastPlayedType === 'original';
     const inactiveColor = '#555';
 
-    if (!isCompBypass) {
+    if (!isCompBypass && !isDeltaMode) {
         const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
@@ -779,7 +777,7 @@ export const drawMainWaveform = ({
         }
     }
 
-    if (!isGateBypass) {
+    if (!isGateBypass && !isDeltaMode) {
         const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
         if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
