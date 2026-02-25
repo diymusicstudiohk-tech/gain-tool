@@ -87,6 +87,7 @@ const ControlHud = ({
                         <button
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); togglePlayback(); }}
+                            data-tooltip={playingType !== 'none' ? '暫停' : '播放'}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border border-[#C2A475]/30 shadow-inner shadow-xl ${
                                 playingType !== 'none'
                                     ? 'breathe-free-mode'
@@ -103,7 +104,7 @@ const ControlHud = ({
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={() => !isDeltaMode && handleModeChange(isDryMode ? 'processed' : 'original')}
                             disabled={isDeltaMode}
-                            title={isDryMode ? "關閉 Bypass" : "開啟 Bypass"}
+                            data-tooltip={isDryMode ? "關閉旁通模式" : "旁通：聆聽未處理的原始聲音"}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDeltaMode
                                     ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
@@ -119,7 +120,7 @@ const ControlHud = ({
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={toggleDeltaMode}
                             disabled={isDryMode}
-                            title="Delta Monitoring"
+                            data-tooltip={isDeltaMode ? "關閉差異監聽" : "差異監聽：只聽被壓縮器移除的部分"}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDryMode
                                     ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
@@ -135,7 +136,7 @@ const ControlHud = ({
                             <button
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onClick={() => setIsPresetOpen(o => !o)}
-                                title={PRESETS_DATA[selectedPresetIdx]?.name || '選擇預設'}
+                                data-tooltip={!isPresetOpen ? "選擇壓縮器預設" : undefined}
                                 className={`w-8 h-full rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                     isPresetOpen
                                         ? 'bg-[#C2A475] border-[#C2A475]'

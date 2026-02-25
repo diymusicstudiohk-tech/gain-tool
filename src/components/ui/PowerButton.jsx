@@ -13,7 +13,7 @@ const PowerButton = ({ isOn, onClick, className = '' }) => {
                 }
                 ${className}
             `}
-            title={isOn ? "Bypass (Click to Disable)" : "Enable (Click to Activate)"}
+            data-tooltip={isOn ? "點擊關閉此模組" : "點擊啟用此模組"}
         >
             <Power size={14} strokeWidth={3} className="transition-all duration-300" />
         </button>
