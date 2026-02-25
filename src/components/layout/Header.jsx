@@ -34,7 +34,6 @@ const Header = ({
     isLoading,
     loadPreset,
     fileInputRef,
-    resetAllParams,
 
     handleFactoryReset,
     stopAudio,
@@ -116,7 +115,6 @@ const Header = ({
         setCustomAudioFiles(updated);
         if (e.target) e.target.value = '';
         // Immediately load the first uploaded file as current audio
-        resetAllParams();
         loadCustomAudio(newEntries[0].id, newEntries[0].name);
     };
 
@@ -128,7 +126,6 @@ const Header = ({
         setCustomAudioFiles(updated);
         // If the removed file is currently active, fall back to default practice track
         if (currentSourceId === `custom_${id}`) {
-            resetAllParams();
             loadPreset(AUDIO_SOURCES[0]);
         }
     };
@@ -137,7 +134,6 @@ const Header = ({
     const handleSelectRegularSource = (source) => {
         setIsCustomDropdownOpen(false);
         if (source.id === currentSourceId) return;
-        resetAllParams();
         loadPreset(source);
     };
 
@@ -145,17 +141,14 @@ const Header = ({
     const handleSelectCustomSource = (file) => {
         setIsCustomDropdownOpen(false);
         if (currentSourceId === `custom_${file.id}`) return;
-        resetAllParams();
         loadCustomAudio(file.id, file.name);
     };
 
     const confirmChange = () => {
         if (pendingAction === 'sourceChange' && pendingSource) {
-            resetAllParams();
             loadPreset(pendingSource);
             setPendingSource(null);
         } else if (pendingAction === 'customSourceChange' && pendingCustomFile) {
-            resetAllParams();
             loadCustomAudio(pendingCustomFile.id, pendingCustomFile.name);
             setPendingCustomFile(null);
         } else if (pendingAction === 'factoryReset') {

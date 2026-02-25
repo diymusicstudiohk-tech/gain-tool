@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Gauge } from 'lucide-react';
 
-import { saveAppStateToStorage, softReset } from './utils/storage';
+import { saveAppStateToStorage, saveParamsForSource, softReset } from './utils/storage';
 
 import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
@@ -146,6 +146,7 @@ const App = () => {
         applyStateSnapshot: comp.applyStateSnapshot,
         getCurrentStateSnapshot: comp.getCurrentStateSnapshot,
         resetAllParams: comp.resetAllParams,
+        getDefaultSnapshot: comp.getDefaultSnapshot,
         sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
         setPlayingType: playback.setPlayingType,
         setLastPlayedType: playback.setLastPlayedType,
@@ -260,6 +261,14 @@ const App = () => {
     }, [engine.currentSourceId,
         playback.lastPlayedType]);
 
+    // --- Per-Source Auto-Save Params (debounced 1s) ---
+    useEffect(() => {
+        if (!engine.currentSourceId || engine.isLoading) return;
+        const timer = setTimeout(() => {
+            saveParamsForSource(engine.currentSourceId, comp.getCurrentStateSnapshot());
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [engine.currentSourceId, comp.getCurrentStateSnapshot, engine.isLoading]);
 
     // --- Render ---
     return (
@@ -278,13 +287,6 @@ const App = () => {
                 loadCustomAudio={engine.loadCustomAudio}
 
                 fileInputRef={engine.fileInputRef}
-                resetAllParams={() => {
-                    comp.resetAllParams();
-                    view.resetView();
-                    playback.setIsDeltaMode(false);
-                    setRegionStart(0);
-                    setRegionEnd(1);
-                }}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">

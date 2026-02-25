@@ -6,6 +6,7 @@ import { fetchAudioBuffer } from '../utils/audioLoader';
 import {
     loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB,
     loadCustomAudioBlobFromDB,
+    saveParamsForSource, loadParamsForSource,
 } from '../utils/storage';
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
@@ -22,7 +23,7 @@ const ALLOWED_MIME_TYPES = [
  */
 const useAudioEngine = ({
     audioContext, originalBuffer, setOriginalBuffer,
-    applyStateSnapshot, getCurrentStateSnapshot, resetAllParams,
+    applyStateSnapshot, getCurrentStateSnapshot, resetAllParams, getDefaultSnapshot,
     // Shared refs
     sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
     // Playback setters (from usePlayback, wired via App)
@@ -41,6 +42,12 @@ const useAudioEngine = ({
     const uploadSessionRef = useRef(null);
     const hasInitialLoadRun = useRef(false);
     const fileInputRef = useRef(null);
+    const currentSourceIdRef = useRef(null);
+    const getSnapshotRef = useRef(getCurrentStateSnapshot);
+
+    // Keep refs in sync
+    useEffect(() => { currentSourceIdRef.current = currentSourceId; }, [currentSourceId]);
+    useEffect(() => { getSnapshotRef.current = getCurrentStateSnapshot; }, [getCurrentStateSnapshot]);
 
     const handleDecodedBuffer = useCallback((decodedBuffer) => {
         if (!audioContext) return;
@@ -63,9 +70,15 @@ const useAudioEngine = ({
         setOriginalBuffer(monoBuffer);
     }, [audioContext, setOriginalBuffer]);
 
-    const loadAudio = useCallback(async (preset) => {
+    const loadAudio = useCallback(async (preset, options) => {
         if (!audioContext) return;
+        const { paramsSnapshot, skipSavePrev } = options || {};
         try {
+            // Save current source params before switching
+            if (!skipSavePrev && currentSourceIdRef.current && currentSourceIdRef.current !== preset.id) {
+                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
+            }
+
             setIsLoading(true); setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
@@ -77,14 +90,25 @@ const useAudioEngine = ({
             const arrayBuffer = await fetchAudioBuffer(preset.trackName);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
-            resetAllParams();
+
+            // Restore params: priority is paramsSnapshot > per-source localStorage > defaults
+            if (paramsSnapshot) {
+                applyStateSnapshot(paramsSnapshot);
+            } else {
+                const saved = loadParamsForSource(preset.id);
+                if (saved) {
+                    applyStateSnapshot(saved);
+                } else {
+                    resetAllParams();
+                }
+            }
             setIsLoading(false);
         } catch (err) {
             console.error(err);
             setErrorMsg(`載入失敗: ${err.message}`);
             setIsLoading(false);
         }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const handleFileUpload = useCallback(async (e) => {
@@ -106,6 +130,11 @@ const useAudioEngine = ({
         }
 
         try {
+            // Save current source params before switching
+            if (currentSourceIdRef.current) {
+                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
+            }
+
             setIsLoading(true); setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
@@ -120,6 +149,7 @@ const useAudioEngine = ({
             userBufferRef.current = decoded;
             userFileNameRef.current = file.name;
             handleDecodedBuffer(decoded);
+            // Always reset for new uploads (fresh start)
             resetAllParams();
             setIsLoading(false);
         } catch (err) {
@@ -150,25 +180,34 @@ const useAudioEngine = ({
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
 
+        // Save current source params to localStorage
+        if (currentSourceIdRef.current) {
+            saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
+        }
+
         if (currentSourceId === 'upload') saveSessionState('upload');
 
         if (practiceSessionRef.current) {
             const snap = practiceSessionRef.current;
-            applyStateSnapshot(snap);
             setCurrentSourceId(snap.sourceId);
             setFileName(snap.fileName);
             const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
-            if (source) loadAudio(source);
+            if (source) loadAudio(source, { paramsSnapshot: snap, skipSavePrev: true });
         } else {
             const defaultSource = AUDIO_SOURCES[0];
-            loadAudio(defaultSource);
+            loadAudio(defaultSource, { skipSavePrev: true });
         }
     }, [sourceNodeRef, drySourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
-        applyStateSnapshot, loadAudio, setPlayingType]);
+        loadAudio, setPlayingType]);
 
     const switchToUpload = useCallback(() => {
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
+
+        // Save current source params to localStorage
+        if (currentSourceIdRef.current) {
+            saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
+        }
 
         if (currentSourceId !== 'upload') saveSessionState('practice');
 
@@ -179,6 +218,11 @@ const useAudioEngine = ({
             setFileName(snap.fileName);
             if (userBufferRef.current) handleDecodedBuffer(userBufferRef.current);
         } else {
+            // No session ref — try per-source localStorage for 'upload'
+            const savedUploadParams = loadParamsForSource('upload');
+            if (savedUploadParams) {
+                applyStateSnapshot(savedUploadParams);
+            }
             restoreUserUpload();
         }
     }, [sourceNodeRef, drySourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
@@ -236,7 +280,6 @@ const useAudioEngine = ({
         if (!audioContext || hasInitialLoadRun.current) return;
 
         const loadInitialAudio = async () => {
-            const savedState = loadAppStateFromStorage();
             if (currentSourceId === 'upload') {
                 try {
                     const record = await loadAudioFileFromDB();
@@ -247,6 +290,9 @@ const useAudioEngine = ({
                         userFileNameRef.current = record.name;
                         setFileName(record.name);
                         handleDecodedBuffer(decoded);
+                        // Restore per-source params for upload
+                        const saved = loadParamsForSource('upload');
+                        if (saved) applyStateSnapshot(saved);
                     } else {
                         setCurrentSourceId(null);
                     }
@@ -254,9 +300,34 @@ const useAudioEngine = ({
                     console.error("Failed to restore upload", e);
                 }
             } else if (currentSourceId) {
-                const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
-                if (source) {
-                    await loadAudio(source);
+                // For custom sources, check if it starts with 'custom_'
+                if (currentSourceId.startsWith('custom_')) {
+                    const id = currentSourceId.replace('custom_', '');
+                    try {
+                        setIsLoading(true);
+                        const blob = await loadCustomAudioBlobFromDB(id);
+                        if (blob) {
+                            const ab = await blob.arrayBuffer();
+                            const decoded = await audioContext.decodeAudioData(ab);
+                            handleDecodedBuffer(decoded);
+                            const saved = loadParamsForSource(currentSourceId);
+                            if (saved) applyStateSnapshot(saved);
+                            else resetAllParams();
+                            setIsLoading(false);
+                        } else {
+                            setCurrentSourceId(null);
+                            setIsLoading(false);
+                        }
+                    } catch (e) {
+                        console.error("Failed to restore custom audio", e);
+                        setCurrentSourceId(null);
+                        setIsLoading(false);
+                    }
+                } else {
+                    const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
+                    if (source) {
+                        await loadAudio(source, { skipSavePrev: true });
+                    }
                 }
             }
             hasInitialLoadRun.current = true;
@@ -279,14 +350,20 @@ const useAudioEngine = ({
 
     const loadCustomAudio = useCallback(async (id, name) => {
         if (!audioContext) return;
+        const newSourceId = `custom_${id}`;
         try {
+            // Save current source params before switching
+            if (currentSourceIdRef.current && currentSourceIdRef.current !== newSourceId) {
+                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
+            }
+
             setIsLoading(true);
             setErrorMsg('');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none');
             isPlayingRef.current = false;
             startOffsetRef.current = 0;
-            setCurrentSourceId(`custom_${id}`);
+            setCurrentSourceId(newSourceId);
             setFileName(name);
             setOriginalBuffer(null);
 
@@ -295,13 +372,20 @@ const useAudioEngine = ({
             const ab = await blob.arrayBuffer();
             const decoded = await audioContext.decodeAudioData(ab);
             handleDecodedBuffer(decoded);
-            resetAllParams();
+
+            // Load per-source params or defaults
+            const saved = loadParamsForSource(newSourceId);
+            if (saved) {
+                applyStateSnapshot(saved);
+            } else {
+                resetAllParams();
+            }
             setIsLoading(false);
         } catch (_) {
             setErrorMsg('無法載入自訂音檔，請重新上載。');
             setIsLoading(false);
         }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {

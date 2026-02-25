@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { PRESETS_DATA } from '../utils/constants';
-import { saveParamsToStorage, loadParamsFromStorage } from '../utils/storage';
+import { loadParamsFromStorage } from '../utils/storage';
 
 const calculateRatioFromControl = (ctrl) =>
     ctrl <= 50 ? 1 + (ctrl / 50) * 4 : (ctrl <= 75 ? 5 + ((ctrl - 50) / 25) * 5 : 10 + ((ctrl - 75) / 25) * 90);
@@ -93,18 +93,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setIsGateBypass(savedParams.isGateBypass); setIsCompBypass(savedParams.isCompBypass);
         }
     }, []);
-
-    // Auto-save params (debounced 1s)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            saveParamsToStorage({
-                threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
-                gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass
-            });
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [threshold, ratio, attack, release, knee, lookahead, makeupGain, dryGain,
-        gateThreshold, gateRatio, gateAttack, gateRelease, isGateBypass, isCompBypass]);
 
     const ensureProcessedMode = useCallback(() => {
         if (lastPlayedTypeRef.current !== 'processed') {

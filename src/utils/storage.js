@@ -2,6 +2,7 @@
 // LocalStorage Keys
 const STORAGE_KEY_PARAMS = 'comp_v2_params';
 const STORAGE_KEY_APP_STATE = 'comp_v2_app_state';
+const SOURCE_PARAMS_PREFIX = 'comp_v2_src_';
 
 // IndexedDB Config
 const DB_NAME = 'CompVisualizerDB';
@@ -49,6 +50,40 @@ export const loadAppStateFromStorage = () => {
 export const clearLocalStorage = () => {
     localStorage.removeItem(STORAGE_KEY_PARAMS);
     localStorage.removeItem(STORAGE_KEY_APP_STATE);
+    clearAllSourceParams();
+};
+
+// --- Per-Source Parameter Storage ---
+
+export const saveParamsForSource = (sourceId, snapshot) => {
+    if (!sourceId) return;
+    try {
+        localStorage.setItem(SOURCE_PARAMS_PREFIX + sourceId, JSON.stringify(snapshot));
+    } catch (e) {
+        console.error("Failed to save per-source params", e);
+    }
+};
+
+export const loadParamsForSource = (sourceId) => {
+    if (!sourceId) return null;
+    try {
+        const raw = localStorage.getItem(SOURCE_PARAMS_PREFIX + sourceId);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        console.error("Failed to load per-source params", e);
+        return null;
+    }
+};
+
+export const clearAllSourceParams = () => {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(SOURCE_PARAMS_PREFIX)) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
 };
 
 // --- IndexedDB Helpers ---
