@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     X,
-    Download, FolderOpen, ChevronDown, ChevronUp
+    Download, FolderOpen, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -96,6 +96,30 @@ const Header = ({
         const src = AUDIO_SOURCES.find(s => s.id === sid);
         return src ? src.name : '選擇音檔';
     })();
+
+    // Build flat list of all selectable sources for prev/next navigation
+    const allSources = [
+        ...customAudioFiles.map(f => ({ type: 'custom', id: `custom_${f.id}`, file: f })),
+        ...AUDIO_SOURCES.map(s => ({ type: 'builtin', id: s.id, source: s })),
+    ];
+
+    const currentIndex = allSources.findIndex(item => item.id === currentSourceId);
+
+    const handlePrev = () => {
+        if (!allSources.length || currentSourceId === 'upload' || !currentSourceId) return;
+        const idx = currentIndex <= 0 ? allSources.length - 1 : currentIndex - 1;
+        const item = allSources[idx];
+        if (item.type === 'custom') loadCustomAudio(item.file.id, item.file.name);
+        else loadPreset(item.source);
+    };
+
+    const handleNext = () => {
+        if (!allSources.length || currentSourceId === 'upload' || !currentSourceId) return;
+        const idx = currentIndex >= allSources.length - 1 ? 0 : currentIndex + 1;
+        const item = allSources[idx];
+        if (item.type === 'custom') loadCustomAudio(item.file.id, item.file.name);
+        else loadPreset(item.source);
+    };
 
     // Custom practice file picker handler
     const handleCustomAudioFilesSelected = async (e) => {
@@ -382,6 +406,32 @@ const Header = ({
                         onChange={handleCustomAudioFilesSelected}
                     />
                 </div>
+
+                {/* Prev/Next source navigation buttons */}
+                <button
+                    onClick={handlePrev}
+                    disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all duration-300 border-2
+                        ${!currentSourceId || currentSourceId === 'upload' || isLoading
+                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                            : 'bg-[#202020] border-white/40 text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                        }`}
+                    title="上一首"
+                >
+                    <ChevronLeft size={16} />
+                </button>
+                <button
+                    onClick={handleNext}
+                    disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all duration-300 border-2
+                        ${!currentSourceId || currentSourceId === 'upload' || isLoading
+                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                            : 'bg-[#202020] border-white/40 text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                        }`}
+                    title="下一首"
+                >
+                    <ChevronRight size={16} />
+                </button>
 
                 {/* Download processed audio button */}
                 <button
