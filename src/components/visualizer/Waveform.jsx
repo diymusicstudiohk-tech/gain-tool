@@ -708,7 +708,7 @@ export const drawMainWaveform = ({
         if (gX + gW > width) gX = mousePos.x - gW - 12;
         if (gY < 2) gY = mousePos.y + 12;
 
-        ctx.fillStyle = 'rgba(194, 164, 117, 0.8)';
+        ctx.fillStyle = 'rgb(194, 164, 117)';
         ctx.fillRect(gX, gY, gW, gH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(gainText, gX + gPadX, gY + 16);
