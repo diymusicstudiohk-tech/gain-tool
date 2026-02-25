@@ -679,12 +679,25 @@ export const drawMainWaveform = ({
 
     // ── Crosshair + Gain Tooltip — always visible when mouse is on canvas ──
     if (mousePos.x >= 0 && mousePos.y >= 0) {
-        // Vertical + horizontal crosshair lines
+        // Vertical crosshair line
         ctx.save();
         ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
         ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
         ctx.beginPath();
         ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height);
+        ctx.stroke();
+        ctx.restore();
+
+        // Horizontal crosshair line with edge-fade gradient
+        ctx.save();
+        const hGrad = ctx.createLinearGradient(0, 0, width, 0);
+        hGrad.addColorStop(0, 'rgba(255,255,255,0.6)');
+        hGrad.addColorStop(0.15, 'rgba(255,255,255,1)');
+        hGrad.addColorStop(0.85, 'rgba(255,255,255,1)');
+        hGrad.addColorStop(1, 'rgba(255,255,255,0.6)');
+        ctx.strokeStyle = hGrad; ctx.lineWidth = 1;
+        ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+        ctx.beginPath();
         ctx.moveTo(0, mousePos.y); ctx.lineTo(width, mousePos.y);
         ctx.stroke();
         ctx.restore();
