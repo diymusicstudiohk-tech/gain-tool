@@ -32,6 +32,8 @@ const OutputWaveform = ({
     regionStart,
     regionEnd,
     onRegionChange,
+    isLoading,
+    loadingMessage,
 }) => {
     const containerRef = useRef(null);
     const canvasRef = useRef(null);
@@ -228,6 +230,15 @@ const OutputWaveform = ({
             onMouseLeave={handleMouseLeave}
         >
             <canvas ref={canvasRef} className="w-full h-full block" />
+
+            {/* Loading overlay */}
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm transition-opacity duration-300">
+                    <span className="text-white font-mono text-sm animate-pulse tracking-wider">
+                        {loadingMessage || "載入音檔中..."}
+                    </span>
+                </div>
+            )}
 
             {/* Gold region overlay — pointer-events:none, all interaction via container */}
             {regionStart != null && regionEnd != null && (

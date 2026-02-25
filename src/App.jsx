@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Gauge } from 'lucide-react';
 
 import { saveAppStateToStorage, saveParamsForSource, softReset } from './utils/storage';
 
@@ -336,6 +335,8 @@ const App = () => {
                 regionStart={regionStart}
                 regionEnd={regionEnd}
                 onRegionChange={handleRegionChange}
+                isLoading={engine.isLoading}
+                loadingMessage={engine.loadingMessage}
             />
 
             <ControlHud
@@ -386,13 +387,6 @@ const App = () => {
                 }}
             />
 
-            {engine.isLoading && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-slate-800 p-4 rounded text-white flex items-center gap-2">
-                        <Gauge className="animate-spin" /> Loading...
-                    </div>
-                </div>
-            )}
             {engine.errorMsg && (
                 <div className="fixed top-4 right-4 bg-red-900/90 text-white p-4 rounded shadow-xl border border-red-500 max-w-sm z-50">
                     {engine.errorMsg}

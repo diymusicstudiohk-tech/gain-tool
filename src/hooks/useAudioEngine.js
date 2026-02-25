@@ -31,6 +31,7 @@ const useAudioEngine = ({
     currentParams, dryGain, logAction,
 }) => {
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [currentSourceId, setCurrentSourceId] = useState(null);
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
@@ -79,7 +80,7 @@ const useAudioEngine = ({
                 saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
             }
 
-            setIsLoading(true); setErrorMsg('');
+            setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
             setOriginalBuffer(null);
@@ -87,7 +88,7 @@ const useAudioEngine = ({
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
             setFileName(preset.name);
 
-            const arrayBuffer = await fetchAudioBuffer(preset.trackName);
+            const arrayBuffer = await fetchAudioBuffer(preset.trackName, setLoadingMessage);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
 
@@ -102,11 +103,11 @@ const useAudioEngine = ({
                     resetAllParams();
                 }
             }
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         } catch (err) {
             console.error(err);
             setErrorMsg(`載入失敗: ${err.message}`);
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         }
     }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
@@ -135,7 +136,7 @@ const useAudioEngine = ({
                 saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
             }
 
-            setIsLoading(true); setErrorMsg('');
+            setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
 
@@ -151,10 +152,10 @@ const useAudioEngine = ({
             handleDecodedBuffer(decoded);
             // Always reset for new uploads (fresh start)
             resetAllParams();
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         } catch (err) {
             setErrorMsg('無法解析音檔，請確認格式 (MP3/WAV/M4A/AAC/FLAC)。');
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         }
     }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
@@ -304,7 +305,7 @@ const useAudioEngine = ({
                 if (currentSourceId.startsWith('custom_')) {
                     const id = currentSourceId.replace('custom_', '');
                     try {
-                        setIsLoading(true);
+                        setIsLoading(true); setLoadingMessage('載入音檔中...');
                         const blob = await loadCustomAudioBlobFromDB(id);
                         if (blob) {
                             const ab = await blob.arrayBuffer();
@@ -313,15 +314,15 @@ const useAudioEngine = ({
                             const saved = loadParamsForSource(currentSourceId);
                             if (saved) applyStateSnapshot(saved);
                             else resetAllParams();
-                            setIsLoading(false);
+                            setIsLoading(false); setLoadingMessage('');
                         } else {
                             setCurrentSourceId(null);
-                            setIsLoading(false);
+                            setIsLoading(false); setLoadingMessage('');
                         }
                     } catch (e) {
                         console.error("Failed to restore custom audio", e);
                         setCurrentSourceId(null);
-                        setIsLoading(false);
+                        setIsLoading(false); setLoadingMessage('');
                     }
                 } else {
                     const source = AUDIO_SOURCES.find(s => s.id === currentSourceId);
@@ -358,7 +359,7 @@ const useAudioEngine = ({
             }
 
             setIsLoading(true);
-            setErrorMsg('');
+            setErrorMsg(''); setLoadingMessage('載入音檔中...');
             stopCurrentSource(sourceNodeRef, drySourceNodeRef);
             setPlayingType('none');
             isPlayingRef.current = false;
@@ -380,16 +381,16 @@ const useAudioEngine = ({
             } else {
                 resetAllParams();
             }
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         } catch (_) {
             setErrorMsg('無法載入自訂音檔，請重新上載。');
-            setIsLoading(false);
+            setIsLoading(false); setLoadingMessage('');
         }
     }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {
-        isLoading, errorMsg,
+        isLoading, loadingMessage, errorMsg,
         currentSourceId, lastPracticeSourceId,
         fileName,
         userBufferRef, userFileNameRef, fileInputRef,
