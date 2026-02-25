@@ -159,13 +159,13 @@ export const TOOLTIPS = {
 
     // --- OUTPUT MODULE ---
     makeup: {
-        title: "Makeup Gain (音量補償)",
+        title: "Wet Output (音量補償)",
         desc: "手動增加輸出音量，以補償壓縮後損失的電平。",
         setting: "向右扭：整體波形（白色與藍色）變大。注意這不會改變紅色 GR 波形，因為這是發生在壓縮之後。",
         common: "目的：A/B 測試時保持音量一致。常用：看 GR 減少了多少 dB，就補回多少 dB (例如 GR 平均 -3dB，Makeup 就加 3dB)。"
     },
     dryGain: {
-        title: "Dry Gain (原音混合)",
+        title: "Dry Output (原音混合)",
         desc: "將未經處理的原始訊號 (Dry) 混合進來，即「平行壓縮」。",
         setting: "向右扭：黃色波形（原始訊號）會疊加在畫面上。這能讓大音量的動態回歸，同時保留壓縮帶來的細節。",
         common: "目的：保留衝擊力同時增加厚度。常用：通常設在比濕訊號小一點的位置，用於鼓組或人聲增厚。"

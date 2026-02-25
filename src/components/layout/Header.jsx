@@ -413,10 +413,10 @@ const Header = ({
 
                 <div className="w-px self-stretch bg-white/10"></div>
 
-                {/* WET/DRY GAIN Knobs */}
+                {/* WET/DRY OUTPUT Knobs */}
                 <div className="flex items-center gap-3">
-                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET GAIN" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
-                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY GAIN" value={dryGainControl} min={0} max={100} step={0.5} defaultValue={0} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => dryGainDbToControl(v)} />
+                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET OUTPUT" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
+                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY OUTPUT" value={dryGainControl} min={0} max={100} step={0.5} defaultValue={0} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => dryGainDbToControl(v)} />
                 </div>
             </div>
         </div >
