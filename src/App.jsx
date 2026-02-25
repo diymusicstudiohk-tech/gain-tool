@@ -308,7 +308,7 @@ const App = () => {
                     playheadRef={playheadRef}
                     onMouseDown={waveform.handleWaveformMouseDown}
                     onMouseMove={waveform.handleLocalMouseMove}
-                    onMouseLeave={waveform.handleLocalMouseMove}
+                    onMouseLeave={waveform.handleMouseLeave}
                 >
                     {(!comp.isCustomSettings && comp.selectedPresetIdx !== 0 && PRESETS_DATA[comp.selectedPresetIdx]) ? (
                         <div className="absolute top-4 right-4 z-30 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-72 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">

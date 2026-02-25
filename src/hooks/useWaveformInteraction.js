@@ -278,6 +278,12 @@ const useWaveformInteraction = ({
     }, [threshold, gateThreshold, zoomY, panOffsetY,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
+    const handleMouseLeave = useCallback(() => {
+        setMousePos({ x: -1, y: -1 });
+        setHoverLine(null);
+        if (containerRef.current) containerRef.current.style.cursor = 'crosshair';
+    }, [containerRef]);
+
     return {
         hoverLine, mousePos,
         isKnobDragging, setIsKnobDragging,
@@ -286,7 +292,7 @@ const useWaveformInteraction = ({
         isCompAdjusting, setIsCompAdjusting,
         isGateAdjusting, setIsGateAdjusting,
         isDraggingLineRef, isDraggingRef, hoverGrRef, isHoveringGRAreaRef,
-        handleWaveformMouseDown, handleLocalMouseMove,
+        handleWaveformMouseDown, handleLocalMouseMove, handleMouseLeave,
     };
 };
 

@@ -5,6 +5,7 @@ import { selectMipmapLevel } from '../../utils/mipmapCache';
 // 0.43 halves the gap between -5dB and the border vs linear display.
 const DISPLAY_EXP = 0.43;
 const displayAmp = (lin) => lin > 0 ? Math.pow(lin, DISPLAY_EXP) : 0;
+const linearFromDisplay = (disp) => disp > 0 ? Math.pow(disp, 1 / DISPLAY_EXP) : 0;
 
 // --- Helper Drawing Functions ---
 
@@ -625,13 +626,6 @@ export const drawMainWaveform = ({
             }
         }
 
-        // --- Crosshair ---
-        ctx.save();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
-        ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height); ctx.stroke();
-        ctx.restore();
-
         // --- Positioning for legend + threshold tooltip ---
         const bgHeight = 20;
         const bgX = mousePos.x + 8;
@@ -679,6 +673,42 @@ export const drawMainWaveform = ({
             ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
         }
 
+    }
+
+    // ── Crosshair + Gain Tooltip — always visible when mouse is on canvas ──
+    if (mousePos.x >= 0 && mousePos.y >= 0) {
+        // Vertical + horizontal crosshair lines
+        ctx.save();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+        ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height);
+        ctx.moveTo(0, mousePos.y); ctx.lineTo(width, mousePos.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Gain value at cursor Y position
+        const distFromCenter = Math.abs(mousePos.y - centerY);
+        const displayVal = distFromCenter / ampScale;
+        const linearAmp = linearFromDisplay(displayVal);
+        const gainDb = linearAmp > 0.000001 ? 20 * Math.log10(linearAmp) : -Infinity;
+        const gainText = Number.isFinite(gainDb) ? `${gainDb.toFixed(1)} dB` : '-∞ dB';
+
+        // Gold tooltip at top-right of cursor
+        ctx.font = 'bold 11px sans-serif';
+        const gm = ctx.measureText(gainText);
+        const gPadX = 6;
+        const gW = gm.width + gPadX * 2;
+        const gH = 20;
+        let gX = mousePos.x + 12;
+        let gY = mousePos.y - gH - 4;
+        if (gX + gW > width) gX = mousePos.x - gW - 12;
+        if (gY < 2) gY = mousePos.y + 8;
+
+        ctx.fillStyle = 'rgba(194, 164, 117, 0.8)';
+        ctx.fillRect(gX, gY, gW, gH);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+        ctx.fillText(gainText, gX + gPadX, gY + 14);
     }
 
     // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
