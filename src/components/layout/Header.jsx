@@ -190,7 +190,7 @@ const Header = ({
     };
 
     return (
-        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-[#111111] px-4 py-3 -mx-4 -mt-4 pr-8">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-app px-4 py-3 -mx-4 -mt-4 pr-8">
 
             <ConfirmationModal
                 isOpen={showConfirmModal}
@@ -206,7 +206,7 @@ const Header = ({
                     onClick={() => setShowAbout(false)}
                 >
                     <div
-                        className="bg-[#111111] rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-100 animate-in zoom-in-95 duration-200 relative"
+                        className="bg-app rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 transform scale-100 animate-in zoom-in-95 duration-200 relative"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Close Button */}
@@ -286,8 +286,8 @@ const Header = ({
                             ${currentSourceId === 'upload' || !currentSourceId
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                                 : isCustomDropdownOpen
-                                    ? 'bg-[#B54C35] border-[#B54C35] text-black animate-[breathe-mixcheck_2s_ease-in-out_infinite] z-10'
-                                    : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                                    ? 'bg-brick-red border-brick-red text-black animate-[breathe-mixcheck_2s_ease-in-out_infinite] z-10'
+                                    : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                             }`}
                     >
                         <span className="truncate">{dropdownDisplayName}</span>
@@ -309,7 +309,7 @@ const Header = ({
                                 {/* Load custom file */}
                                 <button
                                     onClick={() => { customPracticeInputRef.current?.click(); setIsCustomDropdownOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-[#C2A475] hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gold hover:bg-white/10 hover:text-white transition-colors duration-150 rounded-md"
                                 >
                                     <FolderOpen size={14} className="flex-shrink-0" />
                                     載入自訂音檔
@@ -320,7 +320,7 @@ const Header = ({
                                 {/* Custom files */}
                                 {customAudioFiles.length > 0 && (
                                     <>
-                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gold">
                                             自訂音檔
                                         </div>
                                         {customAudioFiles.map(f => {
@@ -328,7 +328,7 @@ const Header = ({
                                             return (
                                                 <div
                                                     key={f.id}
-                                                    className={`flex items-center gap-1 rounded-md mx-0.5 transition-colors duration-150 ${isActive ? 'bg-[#B54C35] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                    className={`flex items-center gap-1 rounded-md mx-0.5 transition-colors duration-150 ${isActive ? 'bg-brick-red text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                                 >
                                                     <button
                                                         className="flex-1 text-left px-3 py-2 text-sm truncate"
@@ -360,7 +360,7 @@ const Header = ({
                                     }, {})
                                 ).map(([category, sources]) => (
                                     <div key={category}>
-                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gold">
                                             {category}
                                         </div>
                                         {sources.map(source => {
@@ -369,7 +369,7 @@ const Header = ({
                                                 <button
                                                     key={source.id}
                                                     onClick={() => handleSelectRegularSource(source)}
-                                                    className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-[#C2A475] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                    className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-gold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                                 >
                                                     {source.name}
                                                 </button>
@@ -383,14 +383,14 @@ const Header = ({
                             {canScrollUp && (
                                 <div className="absolute top-0 right-2 pointer-events-none">
                                     <div className="bg-gray-700/90 rounded-full p-0.5 mt-1">
-                                        <ChevronUp size={12} className="text-[#C2A475]" />
+                                        <ChevronUp size={12} className="text-gold" />
                                     </div>
                                 </div>
                             )}
                             {canScrollDown && (
                                 <div className="absolute bottom-0 right-2 pointer-events-none">
                                     <div className="bg-gray-700/90 rounded-full p-0.5 mb-1">
-                                        <ChevronDown size={12} className="text-[#C2A475]" />
+                                        <ChevronDown size={12} className="text-gold" />
                                     </div>
                                 </div>
                             )}
@@ -416,7 +416,7 @@ const Header = ({
                         className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
                             ${!currentSourceId || currentSourceId === 'upload' || isLoading
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                                : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                                : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                             }`}
                         data-tooltip="上一首"
                     >
@@ -428,7 +428,7 @@ const Header = ({
                         className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
                             ${!currentSourceId || currentSourceId === 'upload' || isLoading
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                                : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                                : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                             }`}
                         data-tooltip="下一首"
                     >
@@ -443,7 +443,7 @@ const Header = ({
                     className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
                         ${!currentSourceId || isLoading
                             ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                            : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
                         }`}
                     data-tooltip="下載壓縮後音檔"
                 >

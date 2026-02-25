@@ -88,10 +88,10 @@ const ControlHud = ({
                             onMouseDown={(e) => e.stopPropagation()}
                             onClick={(e) => { e.stopPropagation(); togglePlayback(); }}
                             data-tooltip={playingType !== 'none' ? '暫停' : '播放'}
-                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border border-[#C2A475]/30 shadow-inner shadow-xl ${
+                            className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border border-gold/30 shadow-inner shadow-xl ${
                                 playingType !== 'none'
                                     ? 'breathe-free-mode'
-                                    : 'bg-[#C2A475] hover:bg-[#d4b98a] shadow-[#C2A475]/30'
+                                    : 'bg-gold hover:bg-gold-light shadow-gold/30'
                             }`}
                         >
                             {playingType !== 'none'
@@ -107,10 +107,10 @@ const ControlHud = ({
                             data-tooltip={isDryMode ? "關閉旁通模式" : "旁通：聆聽未處理的原始聲音"}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDeltaMode
-                                    ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
+                                    ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
                                     : isDryMode
-                                        ? 'breathe-brick-red border-[#B54C35]'
-                                        : 'bg-[#202020] hover:bg-[#B54C35] border-[#C2A475]/30'
+                                        ? 'breathe-brick-red border-brick-red'
+                                        : 'bg-panel hover:bg-brick-red border-gold/30'
                             }`}
                         >
                             <Power size={18} className="relative z-10 text-white" strokeWidth={2.5} />
@@ -123,10 +123,10 @@ const ControlHud = ({
                             data-tooltip={isDeltaMode ? "關閉差異監聽" : "差異監聽：只聽被壓縮器移除的部分"}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                 isDryMode
-                                    ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
+                                    ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
                                     : isDeltaMode
-                                        ? 'breathe-delta border-[#618C71]'
-                                        : 'bg-[#202020] hover:bg-[#618C71] border-[#C2A475]/30'
+                                        ? 'breathe-delta border-green'
+                                        : 'bg-panel hover:bg-green border-gold/30'
                             }`}
                         >
                             <Triangle size={14} fill={isDeltaMode ? "white" : "none"} className="relative z-10 text-white" />
@@ -139,8 +139,8 @@ const ControlHud = ({
                                 data-tooltip={!isPresetOpen ? "選擇壓縮器預設" : undefined}
                                 className={`w-8 h-full rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                                     isPresetOpen
-                                        ? 'bg-[#C2A475] border-[#C2A475]'
-                                        : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                                        ? 'bg-gold border-gold'
+                                        : 'bg-panel hover:bg-gold border-gold/30'
                                 }`}
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="relative z-10 text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -178,7 +178,7 @@ const ControlHud = ({
                                             if (visiblePresets.length === 0) return null;
                                             return (
                                                 <div key={category}>
-                                                    <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-[#C2A475]">
+                                                    <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gold">
                                                         {CATEGORY_ZH[category] || category}
                                                     </div>
                                                     {visiblePresets.map(p => {
@@ -187,7 +187,7 @@ const ControlHud = ({
                                                             <button
                                                                 key={p.originalIdx}
                                                                 onClick={() => { applyPreset(p.originalIdx); setIsPresetOpen(false); }}
-                                                                className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-[#C2A475] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                                className={`w-full px-3 py-2 text-sm text-left rounded-md transition-colors duration-150 ${isActive ? 'bg-gold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                                                             >
                                                                 {p.name}{isActive && isCustomSettings ? ' *' : ''}
                                                             </button>
@@ -199,12 +199,12 @@ const ControlHud = ({
                                     </div>
                                     {presetCanScrollUp && (
                                         <div className="absolute top-0 right-2 pointer-events-none">
-                                            <div className="bg-gray-700/90 rounded-full p-0.5 mt-1"><ChevronUp size={12} className="text-[#C2A475]" /></div>
+                                            <div className="bg-gray-700/90 rounded-full p-0.5 mt-1"><ChevronUp size={12} className="text-gold" /></div>
                                         </div>
                                     )}
                                     {presetCanScrollDown && (
                                         <div className="absolute bottom-0 right-2 pointer-events-none">
-                                            <div className="bg-gray-700/90 rounded-full p-0.5 mb-1"><ChevronDown size={12} className="text-[#C2A475]" /></div>
+                                            <div className="bg-gray-700/90 rounded-full p-0.5 mb-1"><ChevronDown size={12} className="text-gold" /></div>
                                         </div>
                                     )}
                                     <div className="px-3 py-2 border-t border-white/10 text-center text-xs font-semibold text-white tracking-wider">壓縮器預設集</div>
@@ -220,7 +220,7 @@ const ControlHud = ({
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
 
                         {/* GATE MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors">
                             <div className="flex flex-col items-center gap-1.5 self-stretch pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
                                 {expandedModule === 'gate'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -237,7 +237,7 @@ const ControlHud = ({
                         </div>
 
                         {/* COMPRESSOR MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
                             <div className="flex flex-col items-center gap-1.5 self-stretch pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
                                 {expandedModule === 'comp'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -258,7 +258,7 @@ const ControlHud = ({
                         </div>
 
                         {/* OUTPUT MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors">
                             <div className="flex flex-col items-center gap-1.5 pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
                                 {expandedModule === 'output'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />

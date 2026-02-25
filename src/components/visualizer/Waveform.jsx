@@ -958,7 +958,7 @@ const Waveform = ({
     return (
         <div
             ref={containerRef}
-            className="flex-1 relative bg-[#202020] rounded-xl border border-white/30 shadow-2xl overflow-hidden flex cursor-crosshair select-none touch-none"
+            className="flex-1 relative bg-panel rounded-xl border border-white/30 shadow-2xl overflow-hidden flex cursor-crosshair select-none touch-none"
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}

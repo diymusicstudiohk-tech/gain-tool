@@ -286,7 +286,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className="h-dvh flex flex-col bg-[#202020] text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative">
+        <div className="h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative">
             <Header
                 fileName={engine.fileName}
                 currentSourceId={engine.currentSourceId} lastPracticeSourceId={engine.lastPracticeSourceId}
