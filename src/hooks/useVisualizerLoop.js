@@ -73,16 +73,29 @@ const useVisualizerLoop = ({
     const hoverLineRef = useRef(hoverLine);
     useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
 
+    // Use refs for bypass state + visual data so animate() picks up changes
+    // immediately without waiting for useCallback recreation + RAF restart.
+    const isGateBypassRef = useRef(isGateBypass);
+    useEffect(() => { isGateBypassRef.current = isGateBypass; }, [isGateBypass]);
+    const isCompBypassRef = useRef(isCompBypass);
+    useEffect(() => { isCompBypassRef.current = isCompBypass; }, [isCompBypass]);
+    const visualResultRef = useRef(visualResult);
+    useEffect(() => { visualResultRef.current = visualResult; }, [visualResult]);
+    const mipmapsRef = useRef(mipmaps);
+    useEffect(() => { mipmapsRef.current = mipmaps; }, [mipmaps]);
+    const mixMipmapsRef = useRef(mixMipmaps);
+    useEffect(() => { mixMipmapsRef.current = mixMipmaps; }, [mixMipmaps]);
+
     const activeGainKnob = draggingGainKnob || ((hoveredKnob === 'makeup' || hoveredKnob === 'dryGain') ? hoveredKnob : null);
     const isGainKnobActive = !!activeGainKnob;
     const interactionDPR = null; // Always full DPR — cache handles performance during drag
 
-    // Invalidate draw key + waveform cache when DSP data changes (e.g. after mouseup)
+    // Invalidate draw key + waveform cache when DSP data or bypass state changes
     // so the animate loop doesn't skip the redraw via stale key comparison.
     useEffect(() => {
         lastWaveformDrawKeyRef.current = null;
         if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
-    }, [visualResult, mipmaps, mixMipmaps]);
+    }, [visualResult, mipmaps, mixMipmaps, isGateBypass, isCompBypass]);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -116,16 +129,23 @@ const useVisualizerLoop = ({
             outputPlayheadRef.current.style.opacity = (pct < 0 || pct > 100) ? 0 : 1;
         }
 
-        if (visualResult) {
+        // Read latest visual data + bypass state from refs (avoids stale closure)
+        const liveVisualResult = visualResultRef.current;
+        const liveMipmaps = mipmapsRef.current;
+        const liveMixMipmaps = mixMipmapsRef.current;
+        const liveIsGateBypass = isGateBypassRef.current;
+        const liveIsCompBypass = isCompBypassRef.current;
+
+        if (liveVisualResult) {
             // RMS Calculation
             const step = visualStep;
             // Prevent negative index access which causes NaNs
             const visualIndex = Math.max(0, Math.floor((currentPosition * audioContext.sampleRate) / step));
             const windowSize = Math.max(1, Math.floor(2048 / step));
-            const endIdx = Math.min(visualIndex + windowSize, visualResult.outputData.length);
+            const endIdx = Math.min(visualIndex + windowSize, liveVisualResult.outputData.length);
 
             let currentGR = 0;
-            if (visualIndex < visualResult.grCurve.length && visualIndex >= 0) currentGR = visualResult.grCurve[visualIndex];
+            if (visualIndex < liveVisualResult.grCurve.length && visualIndex >= 0) currentGR = liveVisualResult.grCurve[visualIndex];
 
             let maxMix = 0; let maxInput = 0; let sumSqInput = 0; let sumSqMix = 0; let sampleCount = 0;
 
@@ -140,22 +160,22 @@ const useVisualizerLoop = ({
             const dryLinear = Math.exp(currentDryGain * LN10_OVER_20);
 
             for (let i = visualIndex; i < endIdx; i++) {
-                if (i >= visualResult.outputData.length) break;
-                const dry = visualResult.visualInput[i] || 0; // Guard undefined
+                if (i >= liveVisualResult.outputData.length) break;
+                const dry = liveVisualResult.visualInput[i] || 0; // Guard undefined
                 const dryAbs = Math.abs(dry);
                 if (dryAbs > maxInput) maxInput = dryAbs;
                 sumSqInput += dry * dry;
 
                 let mix = 0;
                 if (isProcessed) {
-                    const wet = visualResult.outputData[i] || 0; // Guard undefined
+                    const wet = liveVisualResult.outputData[i] || 0; // Guard undefined
                     if (isDeltaMode) {
                         mix = wet - dry;
                     } else {
                         mix = wet + (dry * dryLinear);
                     }
                 } else {
-                    mix = visualResult.visualInput[i] || 0; // Guard undefined
+                    mix = liveVisualResult.visualInput[i] || 0; // Guard undefined
                 }
 
                 const abs = Math.abs(mix);
@@ -210,7 +230,7 @@ const useVisualizerLoop = ({
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${thresholdRef.current}_${gateThresholdRef.current}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${isGateBypass}_${isCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${thresholdRef.current}_${gateThresholdRef.current}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${liveIsGateBypass}_${liveIsCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -221,7 +241,7 @@ const useVisualizerLoop = ({
                     drawMainWaveform({
                         canvas: waveformCanvasRef.current,
                         canvasDims,
-                        visualResult,
+                        visualResult: liveVisualResult,
                         originalBuffer,
                         zoomX: liveZoomX, zoomY, panOffset: livePanOffset, panOffsetY,
                         playingType, lastPlayedType, isDeltaMode, dryGain: currentDryGain,
@@ -232,11 +252,11 @@ const useVisualizerLoop = ({
                         isGateAdjusting, hasGateBeenAdjusted,
                         hoverGrRef,
                         isHoveringGRAreaRef,
-                        isGateBypass, isCompBypass,
+                        isGateBypass: liveIsGateBypass, isCompBypass: liveIsCompBypass,
                         isGainKnobActive,
                         activeGainKnob,
                         isGainKnobDragging,
-                        mipmaps, mixMipmaps,
+                        mipmaps: liveMipmaps, mixMipmaps: liveMixMipmaps,
                         waveformCacheRef,
                         interactionDPR,
                     });

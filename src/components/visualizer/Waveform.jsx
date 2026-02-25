@@ -159,7 +159,7 @@ export const drawMainWaveform = ({
     // Excludes: threshold, gateThreshold, mousePos, hoverLine, isDraggingLine
     // (those only affect the overlay drawn in Phase 2)
     const adjustBit = (isCompAdjusting || isGateAdjusting) ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}_${isGateBypass?1:0}_${isCompBypass?1:0}`;
 
     const cache = waveformCacheRef?.current;
     const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
