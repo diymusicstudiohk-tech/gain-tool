@@ -217,13 +217,13 @@ const ControlHud = ({
 
                         {/* GATE MODULE */}
                         <div className="flex items-start gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
+                            <div className="flex flex-col items-center gap-1.5 self-stretch select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
                                 {expandedModule === 'gate'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
                                 <span className={`text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
-                                <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
+                                <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} className="mt-auto" />
                             </div>
                             <div className={`flex gap-6 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'gate' ? 'max-w-[600px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="gold" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
@@ -234,13 +234,13 @@ const ControlHud = ({
 
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-start gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                            <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
+                            <div className="flex flex-col items-center gap-1.5 self-stretch select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
                                 {expandedModule === 'comp'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
                                 <span className={`text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
-                                <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
+                                <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} className="mt-auto" />
                             </div>
                             <div className={`flex gap-4 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'comp' ? 'max-w-[800px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
