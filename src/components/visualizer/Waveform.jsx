@@ -312,8 +312,8 @@ export const drawMainWaveform = ({
             else if (isDeltaMode) {
                 // Cyan outer (larger of input vs mix) — difference band visible
                 drawPolygonWithPeakFade(ctx, diffOuterPoints, '#2DD4BF', width, centerY, 0.85, 0.25);
-                // White inner (smaller/overlap area) on top
-                drawPolygonWithPeakFade(ctx, diffInnerPoints, '#ffffff', width, centerY, 1.0, 0.2);
+                // White inner hidden (0% alpha) — only cyan difference band shows
+                drawPolygonWithPeakFade(ctx, diffInnerPoints, '#202020', width, centerY, 1.0, 0.0);
             }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
