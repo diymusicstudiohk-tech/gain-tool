@@ -37,10 +37,21 @@ const useAudioEngine = ({
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
     const [fileName, setFileName] = useState('');
 
-    const userBufferRef = useRef(null);
-    const userFileNameRef = useRef("");
-    const practiceSessionRef = useRef(null);
-    const uploadSessionRef = useRef(null);
+    // Consolidated session state: user upload, practice session, upload session
+    const sessionRef = useRef({
+        user: { buffer: null, fileName: '' },
+        practice: null,
+        upload: null,
+    });
+    // Stable ref-like proxies for backward-compatible public API
+    const [userBufferRef] = useState(() => ({
+        get current() { return sessionRef.current.user.buffer; },
+        set current(v) { sessionRef.current.user.buffer = v; },
+    }));
+    const [userFileNameRef] = useState(() => ({
+        get current() { return sessionRef.current.user.fileName; },
+        set current(v) { sessionRef.current.user.fileName = v; },
+    }));
     const hasInitialLoadRun = useRef(false);
     const fileInputRef = useRef(null);
     const currentSourceIdRef = useRef(null);
@@ -162,8 +173,8 @@ const useAudioEngine = ({
 
     const saveSessionState = useCallback((mode) => {
         const snapshot = getCurrentStateSnapshot();
-        if (mode === 'practice') practiceSessionRef.current = { ...snapshot, sourceId: currentSourceId, fileName };
-        else if (mode === 'upload') uploadSessionRef.current = { ...snapshot, fileName: userFileNameRef.current };
+        if (mode === 'practice') sessionRef.current.practice = { ...snapshot, sourceId: currentSourceId, fileName };
+        else if (mode === 'upload') sessionRef.current.upload = { ...snapshot, fileName: userFileNameRef.current };
     }, [getCurrentStateSnapshot, currentSourceId, fileName]);
 
     const restoreUserUpload = useCallback(() => {
@@ -188,8 +199,8 @@ const useAudioEngine = ({
 
         if (currentSourceId === 'upload') saveSessionState('upload');
 
-        if (practiceSessionRef.current) {
-            const snap = practiceSessionRef.current;
+        if (sessionRef.current.practice) {
+            const snap = sessionRef.current.practice;
             setCurrentSourceId(snap.sourceId);
             setFileName(snap.fileName);
             const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
@@ -212,8 +223,8 @@ const useAudioEngine = ({
 
         if (currentSourceId !== 'upload') saveSessionState('practice');
 
-        if (uploadSessionRef.current) {
-            const snap = uploadSessionRef.current;
+        if (sessionRef.current.upload) {
+            const snap = sessionRef.current.upload;
             applyStateSnapshot(snap);
             setCurrentSourceId('upload');
             setFileName(snap.fileName);
@@ -232,7 +243,7 @@ const useAudioEngine = ({
     const clearUserUpload = useCallback(() => {
         userBufferRef.current = null;
         userFileNameRef.current = "";
-        uploadSessionRef.current = null;
+        sessionRef.current.upload = null;
         if (currentSourceId === 'upload') switchToPractice();
     }, [currentSourceId, switchToPractice]);
 
