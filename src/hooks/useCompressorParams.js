@@ -8,7 +8,7 @@ const calculateRatioFromControl = (ctrl) =>
 const calculateControlFromRatio = (r) =>
     r <= 5 ? (r - 1) / 4 * 50 : (r <= 10 ? 50 + (r - 5) / 5 * 25 : 75 + (r - 10) / 90 * 25);
 
-// Piecewise control-to-dB mapping for gain knobs
+// Piecewise control-to-dB mapping for dry gain knob
 // Positions: fully CCW → -∞ | 9 o'clock → -15dB | 12 o'clock → 0dB | fully CW → +5dB
 const gainControlToDb = (ctrl) => {
     if (ctrl <= 0) return -200;
@@ -27,8 +27,19 @@ const gainDbToControl = (dB) => {
 // Aliases for backward compatibility
 const dryGainControlToDb = gainControlToDb;
 const dryGainDbToControl = gainDbToControl;
-const wetGainControlToDb = gainControlToDb;
-const wetGainDbToControl = gainDbToControl;
+// Wet gain: fully CCW → -∞ | 9 o'clock → -15dB | 12 o'clock → 0dB | fully CW → +15dB
+const wetGainControlToDb = (ctrl) => {
+    if (ctrl <= 0) return -200;
+    if (ctrl <= 16.67) return -60 + (ctrl / 16.67) * 45;
+    if (ctrl <= 50) return -15 + ((ctrl - 16.67) / 33.33) * 15;
+    return ((ctrl - 50) / 50) * 15;
+};
+const wetGainDbToControl = (dB) => {
+    if (dB <= -60) return 0;
+    if (dB <= -15) return ((dB + 60) / 45) * 16.67;
+    if (dB <= 0) return 16.67 + ((dB + 15) / 15) * 33.33;
+    return 50 + (dB / 15) * 50;
+};
 
 /**
  * Uses ref-based callbacks to break circular dependency with usePlayback.
@@ -160,7 +171,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setRatioControl(calculateControlFromRatio(p.params.ratio));
         setAttack(p.params.attack); setRelease(p.params.release);
         setKnee(p.params.knee); setLookahead(p.params.lookahead);
-        const clampedMakeup = Math.max(-200, Math.min(5, p.params.makeupGain));
+        const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
         setMakeupGain(clampedMakeup);
         setWetGainControl(wetGainDbToControl(clampedMakeup));
         setDryGain(p.params.dryGain);
@@ -205,7 +216,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const getDefaultSnapshot = useCallback(() => {
         const def = PRESETS_DATA[0].params;
-        const clampedMakeup = Math.max(-200, Math.min(5, def.makeupGain));
+        const clampedMakeup = Math.max(-200, Math.min(15, def.makeupGain));
         return {
             ...def, makeupGain: clampedMakeup,
             ratioControl: calculateControlFromRatio(def.ratio),
