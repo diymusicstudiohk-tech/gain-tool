@@ -40,6 +40,10 @@ export async function resolveTrackUrl(trackName, trackType = 'practice') {
         }
     }
 
+    if (!supabase) {
+        throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env');
+    }
+
     // Query the track_urls table
     const { data, error } = await supabase
         .from('track_urls')
