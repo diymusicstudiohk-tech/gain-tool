@@ -740,7 +740,7 @@ export const drawMainWaveform = ({
 
             // Horizontal gradient for line stroke (fades at left/right edges, opaque at center)
             const baseAlpha = isCompHighlight ? 1.0 : 0.9;
-            const edgeAlpha = 0.1;
+            const edgeAlpha = isCompHighlight ? 0.9 : 0.6;
             const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
             strokeGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
             strokeGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, ${baseAlpha})`);
