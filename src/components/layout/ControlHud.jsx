@@ -122,7 +122,7 @@ const ControlHud = ({
                                     ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
                                     : isDeltaMode
                                         ? 'breathe-delta border-[#618C71]'
-                                        : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
+                                        : 'bg-[#202020] hover:bg-[#618C71] border-[#C2A475]/30'
                             }`}
                         >
                             <Triangle size={14} fill={isDeltaMode ? "white" : "none"} className="relative z-10 text-white" />
