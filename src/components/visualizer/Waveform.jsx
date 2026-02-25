@@ -1,6 +1,10 @@
 import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
+import {
+    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED, GREEN,
+    COMP_BLUE, COMP_TOOLTIP_BG, BG_PANEL, INACTIVE, TEXT_DIM,
+} from '../../utils/colors';
 
 // --- Helper Drawing Functions ---
 
@@ -145,8 +149,8 @@ export const drawMainWaveform = ({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     if (!visualResult) {
-        ctx.setLineDash([]); ctx.fillStyle = '#202020'; ctx.fillRect(0, 0, width, height);
-        ctx.fillStyle = '#666'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = TEXT_DIM; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('請載入音訊...', width / 2, height / 2); return;
     }
 
@@ -162,7 +166,7 @@ export const drawMainWaveform = ({
 
     // ── PHASE 1: Waveform background (skip when cache hit) ────────────────────
     if (!cacheHit) {
-        ctx.setLineDash([]); ctx.fillStyle = '#202020'; ctx.fillRect(0, 0, width, height);
+        ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
 
         try {
             const srcInput = visualResult.visualInput;
@@ -300,18 +304,18 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else if (isDeltaMode) {
                 // Cyan outer (larger of input vs mix) — difference band visible
-                drawPolygonWithPeakFade(ctx, diffOuterPoints, '#618C71', width, centerY, 0.85, 0.25);
+                drawPolygonWithPeakFade(ctx, diffOuterPoints, GREEN, width, centerY, 0.85, 0.25);
                 // White inner hidden (0% alpha) — only cyan difference band shows
-                drawPolygonWithPeakFade(ctx, diffInnerPoints, '#202020', width, centerY, 1.0, 0.0);
+                drawPolygonWithPeakFade(ctx, diffInnerPoints, BG_PANEL, width, centerY, 1.0, 0.0);
             }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
-                drawPolygonWithPeakFade(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
+                drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, redOpacity);
 
                 // Output mix
                 drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
@@ -319,15 +323,15 @@ export const drawMainWaveform = ({
                 if (isGainKnobActive) {
                     if (activeGainKnob === 'makeup') {
                         // Wet knob: solid gold for wet only, no hatching
-                        drawPolygon(ctx, outPoints, '#C2A475', width, centerY);
+                        drawPolygon(ctx, outPoints, GOLD, width, centerY);
                     } else if (activeGainKnob === 'dryGain') {
                         // Dry knob: gold hatched for dry, white for wet on top
-                        drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
+                        drawHatchedPolygon(ctx, mixPoints, GOLD, width, centerY);
                         drawPolygon(ctx, outPoints, '#ffffff', width, centerY);
                     }
                 }
             }
-            if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
+            if (grPoints.length > 0) drawGRLine(ctx, grPoints, CLIP_RED);
 
 
 
@@ -488,10 +492,10 @@ export const drawMainWaveform = ({
             }
             // Wet hover: only solid gold; Dry hover: hatched dry, wet turns white
             if (isHoveringOnDryArea) {
-                drawHatchedPolygon(ctx, mixPts, '#C2A475', width, centerY);
+                drawHatchedPolygon(ctx, mixPts, GOLD, width, centerY);
                 drawPolygon(ctx, outPts, '#ffffff', width, centerY);
             } else {
-                drawPolygon(ctx, outPts, '#C2A475', width, centerY);
+                drawPolygon(ctx, outPts, GOLD, width, centerY);
             }
         }
 
@@ -543,7 +547,7 @@ export const drawMainWaveform = ({
                 mxPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
             // Bright red input, then white mix on top to mask center
-            drawPolygonWithPeakFade(ctx, inPts, '#E15D42', width, centerY);
+            drawPolygonWithPeakFade(ctx, inPts, HOVER_RED, width, centerY);
             drawPolygonWithPeakFade(ctx, mxPts, '#ffffff', width, centerY, 1.0, 0.2);
         }
 
@@ -616,7 +620,7 @@ export const drawMainWaveform = ({
                 // Horizontal dotted line from GR curve at mouse X to right border
                 ctx.beginPath();
                 ctx.setLineDash([4, 4]);
-                ctx.strokeStyle = '#E05E42';
+                ctx.strokeStyle = CLIP_RED;
                 ctx.lineWidth = 1.5;
                 ctx.moveTo(mousePos.x, grCurveY);
                 ctx.lineTo(width, grCurveY);
@@ -734,7 +738,7 @@ export const drawMainWaveform = ({
                 const hI = displayAmp(mxIn) * ampScale;
                 inPts.push({ x, yTop: centerY - hI, yBot: centerY + hI });
             }
-            drawPolygonWithPeakFade(ctx, inPts, '#E15D42', width, centerY);
+            drawPolygonWithPeakFade(ctx, inPts, HOVER_RED, width, centerY);
 
             // Legend
             const bgX = mousePos.x + 12;
@@ -801,7 +805,7 @@ export const drawMainWaveform = ({
         if (gX + gW > width) gX = mousePos.x - gW - 12;
         if (gY < 2) gY = mousePos.y + 12;
 
-        ctx.fillStyle = 'rgb(194, 164, 117)';
+        ctx.fillStyle = GOLD;
         ctx.fillRect(gX, gY, gW, gH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(gainText, gX + gPadX, gY + 16);
@@ -809,14 +813,13 @@ export const drawMainWaveform = ({
 
     // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
     const isDry = lastPlayedType === 'original';
-    const inactiveColor = '#555';
 
     if (!isCompBypass && !isDeltaMode) {
         const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
             const tBot = centerY + threshY;
-            const compColor = isDry || isCompBypass ? inactiveColor : '#9AB2DD';
+            const compColor = isDry || isCompBypass ? INACTIVE : COMP_BLUE;
             const isCompHighlight = hoverLine === 'comp' || isDraggingLine === 'comp';
 
             // Parse color to RGB for gradient
@@ -863,7 +866,7 @@ export const drawMainWaveform = ({
         const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
         if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-            const gateColor = isDry || isGateBypass ? inactiveColor : '#618C71';
+            const gateColor = isDry || isGateBypass ? INACTIVE : GREEN;
             const isGateHighlight = hoverLine === 'gate' || isDraggingLine === 'gate';
 
             // Parse color to RGB for gradient
@@ -917,7 +920,7 @@ export const drawMainWaveform = ({
         let tBgY = mousePos.y - tBgH - 8;
         if (tBgX + tBgW > width) tBgX = mousePos.x - tBgW - 12;
         if (tBgY < 2) tBgY = mousePos.y + 12;
-        ctx.fillStyle = '#4D5B72';
+        ctx.fillStyle = COMP_TOOLTIP_BG;
         ctx.fillRect(tBgX, tBgY, tBgW, tBgH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(threshText, tBgX + tPadX, tBgY + 16);
@@ -932,7 +935,7 @@ export const drawMainWaveform = ({
         let gtBgY = mousePos.y - gtBgH - 8;
         if (gtBgX + gtBgW > width) gtBgX = mousePos.x - gtBgW - 12;
         if (gtBgY < 2) gtBgY = mousePos.y + 12;
-        ctx.fillStyle = '#618C71';
+        ctx.fillStyle = GREEN;
         ctx.fillRect(gtBgX, gtBgY, gtBgW, gtBgH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(gateText, gtBgX + gtPadX, gtBgY + 16);
