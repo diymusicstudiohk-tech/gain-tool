@@ -284,23 +284,84 @@ const App = () => {
         return () => clearTimeout(timer);
     }, [engine.currentSourceId, comp.getCurrentStateSnapshot, engine.isLoading]);
 
+    // --- Prop Groups for ControlHud ---
+    const gateProps = {
+        gateThreshold: comp.gateThreshold,
+        gateAttack: comp.gateAttack,
+        gateRelease: comp.gateRelease,
+        handleGateThresholdChange: comp.handleGateThresholdChange,
+        updateParam: comp.updateGateParam,
+        handleGateDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsGateAdjusting(isActive); },
+        hasGateBeenAdjusted: comp.hasGateBeenAdjusted,
+        isGateBypass: comp.isGateBypass,
+        setIsGateBypass: (v) => { comp.setIsGateBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
+    };
+    const compProps = {
+        threshold: comp.threshold, ratio: comp.ratio, ratioControl: comp.ratioControl,
+        attack: comp.attack, release: comp.release, knee: comp.knee, lookahead: comp.lookahead,
+        handleThresholdChange: comp.handleThresholdChange,
+        updateRatio: comp.updateRatio,
+        handleCompKnobChange: comp.handleCompKnobChange,
+        handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
+        hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
+        isCompBypass: comp.isCompBypass,
+        setIsCompBypass: (v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
+    };
+    const playbackProps = {
+        playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,
+        isDryMode: playback.isDryMode, isDeltaMode: playback.isDeltaMode,
+        handleModeChange: playback.handleModeChange,
+        toggleDeltaMode: playback.toggleDeltaMode,
+        togglePlayback: playback.togglePlayback,
+    };
+    const presetProps = {
+        selectedPresetIdx: comp.selectedPresetIdx, isCustomSettings: comp.isCustomSettings,
+        applyPreset: comp.applyPreset, currentSourceId: engine.currentSourceId,
+    };
+    const outputProps = {
+        wetGainControl: comp.wetGainControl, dryGainControl: comp.dryGainControl,
+        handleGainChange: comp.handleGainChange,
+    };
+    const uiProps = {
+        isDraggingKnobRef,
+        handleNormalDragState: (isActive) => {
+            waveform.setIsKnobDragging(isActive);
+            waveform.setIsGainKnobDragging(isActive);
+            waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
+        },
+        handleKnobEnter: (k) => view.setHoveredKnob(k),
+        handleKnobLeave: () => view.setHoveredKnob(null),
+        resetAllParams: () => {
+            comp.resetAllParams();
+            view.resetView();
+            playback.setIsDeltaMode(false);
+            setRegionStart(0);
+            setRegionEnd(1);
+        },
+    };
+
     // --- Render ---
     return (
         <div className="h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative">
             <Header
-                fileName={engine.fileName}
-                currentSourceId={engine.currentSourceId} lastPracticeSourceId={engine.lastPracticeSourceId}
-                handleFileUpload={engine.handleFileUpload} restoreUserUpload={engine.restoreUserUpload}
-                clearUserUpload={engine.clearUserUpload}
-                switchToPractice={engine.switchToPractice}
+                engine={{
+                    fileName: engine.fileName,
+                    currentSourceId: engine.currentSourceId,
+                    lastPracticeSourceId: engine.lastPracticeSourceId,
+                    handleFileUpload: engine.handleFileUpload,
+                    clearUserUpload: engine.clearUserUpload,
+                    restoreUserUpload: engine.restoreUserUpload,
+                    switchToPractice: engine.switchToPractice,
+                    userBufferRef: engine.userBufferRef,
+                    userFileNameRef: engine.userFileNameRef,
+                    handleDownload: engine.handleDownload,
+                    isLoading: engine.isLoading,
+                    loadPreset: engine.loadAudio,
+                    fileInputRef: engine.fileInputRef,
+                    loadCustomAudio: engine.loadCustomAudio,
+                }}
                 handleFactoryReset={softReset}
                 stopAudio={playback.stopAudio}
-                userBufferRef={engine.userBufferRef} userFileNameRef={engine.userFileNameRef}
-                handleDownload={engine.handleDownload} isLoading={engine.isLoading}
-                loadPreset={engine.loadAudio}
-                loadCustomAudio={engine.loadCustomAudio}
-
-                fileInputRef={engine.fileInputRef}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
@@ -343,51 +404,12 @@ const App = () => {
             />
 
             <ControlHud
-                gateThreshold={comp.gateThreshold}
-                gateAttack={comp.gateAttack} gateRelease={comp.gateRelease}
-                handleGateThresholdChange={comp.handleGateThresholdChange}
-                updateParam={comp.updateGateParam}
-                handleGateDragState={(isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsGateAdjusting(isActive); }}
-                hasGateBeenAdjusted={comp.hasGateBeenAdjusted}
-                isGateBypass={comp.isGateBypass}
-                setIsGateBypass={(v) => { comp.setIsGateBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); }}
-                threshold={comp.threshold} ratio={comp.ratio} ratioControl={comp.ratioControl}
-                attack={comp.attack} release={comp.release} knee={comp.knee} lookahead={comp.lookahead}
-                handleThresholdChange={comp.handleThresholdChange}
-                updateRatio={comp.updateRatio}
-                handleCompKnobChange={comp.handleCompKnobChange}
-                handleCompDragState={(isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); }}
-                hasThresholdBeenAdjusted={comp.hasThresholdBeenAdjusted}
-                isCompBypass={comp.isCompBypass}
-                setIsCompBypass={(v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); }}
-                playingType={playback.playingType} lastPlayedType={playback.lastPlayedType}
-                isDryMode={playback.isDryMode} isDeltaMode={playback.isDeltaMode}
-                handleModeChange={playback.handleModeChange}
-                toggleDeltaMode={playback.toggleDeltaMode}
-                togglePlayback={playback.togglePlayback}
-                selectedPresetIdx={comp.selectedPresetIdx}
-                isCustomSettings={comp.isCustomSettings}
-                applyPreset={comp.applyPreset}
-                currentSourceId={engine.currentSourceId}
-                wetGainControl={comp.wetGainControl} dryGainControl={comp.dryGainControl}
-                handleGainChange={comp.handleGainChange}
-                isDraggingKnobRef={isDraggingKnobRef}
-                handleNormalDragState={(isActive) => {
-                    waveform.setIsKnobDragging(isActive);
-                    waveform.setIsGainKnobDragging(isActive);
-                    waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
-                }}
-                handleKnobEnter={(k) => {
-                    view.setHoveredKnob(k);
-                }}
-                handleKnobLeave={() => view.setHoveredKnob(null)}
-                resetAllParams={() => {
-                    comp.resetAllParams();
-                    view.resetView();
-                    playback.setIsDeltaMode(false);
-                    setRegionStart(0);
-                    setRegionEnd(1);
-                }}
+                gate={gateProps}
+                compressor={compProps}
+                playback={playbackProps}
+                preset={presetProps}
+                output={outputProps}
+                ui={uiProps}
             />
 
             {engine.errorMsg && (

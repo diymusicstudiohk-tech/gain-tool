@@ -18,28 +18,13 @@ const CUSTOM_ALLOWED_MIME_TYPES = [
     'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
 ];
 
-const Header = ({
-    fileName,
-    currentSourceId,
-    lastPracticeSourceId,
-    handleFileUpload,
-
-
-    clearUserUpload,
-    restoreUserUpload,
-    switchToPractice,
-    userBufferRef,
-    userFileNameRef,
-    handleDownload,
-    isLoading,
-    loadPreset,
-    fileInputRef,
-
-    handleFactoryReset,
-    stopAudio,
-    loadCustomAudio,
-
-}) => {
+const Header = ({ engine: engineProps, handleFactoryReset, stopAudio }) => {
+    const {
+        fileName, currentSourceId, lastPracticeSourceId,
+        handleFileUpload, clearUserUpload, restoreUserUpload, switchToPractice,
+        userBufferRef, userFileNameRef, handleDownload, isLoading,
+        loadPreset, fileInputRef, loadCustomAudio,
+    } = engineProps;
     const [showAbout, setShowAbout] = useState(false);
 
     // Confirmation Modal State
