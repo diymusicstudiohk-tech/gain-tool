@@ -779,19 +779,55 @@ export const drawMainWaveform = ({
         }
     }
 
-    const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
-    if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
-        const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
-        const gateColor = isDry || isGateBypass ? inactiveColor : '#B54C35';
-        ctx.strokeStyle = gateColor; ctx.setLineDash([3, 3]);
-        ctx.lineWidth = (hoverLine === 'gate' || isDraggingLine === 'gate') ? 3 : 2;
-        ctx.beginPath(); ctx.moveTo(0, gTop); ctx.lineTo(width, gTop); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, gBot); ctx.lineTo(width, gBot); ctx.stroke();
-        drawLabel(`Gate: ${gateThreshold}dB`, 0, gTop + 16, gateColor, 'left');
+    if (hasGateBeenAdjusted || isGateAdjusting || hoverLine === 'gate' || isGateBypass) {
+        const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
+        if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
+            const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
+            const gateColor = isDry || isGateBypass ? inactiveColor : '#618C71';
+            const isGateHighlight = hoverLine === 'gate' || isDraggingLine === 'gate';
+
+            // Parse color to RGB for gradient
+            const gResult = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(gateColor);
+            const gR = gResult ? parseInt(gResult[1], 16) : 85;
+            const gG = gResult ? parseInt(gResult[2], 16) : 85;
+            const gB = gResult ? parseInt(gResult[3], 16) : 85;
+
+            // Gradient fill between the two threshold lines (fades toward center)
+            const gFillAlpha = isGateHighlight ? 0.22 : 0.12;
+            const gFillGrad = ctx.createLinearGradient(0, gTop, 0, gBot);
+            gFillGrad.addColorStop(0, `rgba(${gR}, ${gG}, ${gB}, ${gFillAlpha})`);
+            gFillGrad.addColorStop(0.5, `rgba(${gR}, ${gG}, ${gB}, 0)`);
+            gFillGrad.addColorStop(1, `rgba(${gR}, ${gG}, ${gB}, ${gFillAlpha})`);
+            ctx.fillStyle = gFillGrad;
+            ctx.fillRect(0, gTop, width, gBot - gTop);
+
+            // Horizontal gradient for line stroke (fades at left/right edges, opaque at center)
+            const gBaseAlpha = isGateHighlight ? 1.0 : 0.9;
+            const gEdgeAlpha = isGateHighlight ? 0.9 : 0.6;
+            const gStrokeGrad = ctx.createLinearGradient(0, 0, width, 0);
+            gStrokeGrad.addColorStop(0, `rgba(${gR}, ${gG}, ${gB}, ${gEdgeAlpha})`);
+            gStrokeGrad.addColorStop(0.5, `rgba(${gR}, ${gG}, ${gB}, ${gBaseAlpha})`);
+            gStrokeGrad.addColorStop(1, `rgba(${gR}, ${gG}, ${gB}, ${gEdgeAlpha})`);
+
+            // Draw solid lines with glow on hover
+            ctx.setLineDash([]);
+            if (isGateHighlight) {
+                ctx.save();
+                ctx.shadowColor = `rgba(${gR}, ${gG}, ${gB}, 0.8)`;
+                ctx.shadowBlur = 12;
+            }
+            ctx.strokeStyle = gStrokeGrad;
+            ctx.lineWidth = isGateHighlight ? 3 : 2;
+            ctx.beginPath();
+            ctx.moveTo(0, gTop); ctx.lineTo(width, gTop);
+            ctx.moveTo(0, gBot); ctx.lineTo(width, gBot);
+            ctx.stroke();
+            if (isGateHighlight) ctx.restore();
+        }
     }
     ctx.setLineDash([]);
 
-    // ── Comp Threshold Tooltip — drawn last so it's on top of everything ──
+    // ── Threshold Tooltips — drawn last so they're on top of everything ──
     if ((hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
         ctx.font = 'bold 12px sans-serif';
         const threshText = `Comp Threshold: ${threshold} dB`;
@@ -805,6 +841,21 @@ export const drawMainWaveform = ({
         ctx.fillRect(tBgX, tBgY, tBgW, tBgH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
         ctx.fillText(threshText, tBgX + tPadX, tBgY + 16);
+    }
+
+    if ((hoverLine === 'gate' || isDraggingLine === 'gate') && mousePos.x >= 0) {
+        ctx.font = 'bold 12px sans-serif';
+        const gateText = `Gate Threshold: ${gateThreshold} dB`;
+        const gateMetrics = ctx.measureText(gateText);
+        const gtPadX = 8; const gtBgW = gateMetrics.width + gtPadX * 2; const gtBgH = 24;
+        let gtBgX = mousePos.x + 12;
+        let gtBgY = mousePos.y - gtBgH - 8;
+        if (gtBgX + gtBgW > width) gtBgX = mousePos.x - gtBgW - 12;
+        if (gtBgY < 2) gtBgY = mousePos.y + 12;
+        ctx.fillStyle = '#618C71';
+        ctx.fillRect(gtBgX, gtBgY, gtBgW, gtBgH);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+        ctx.fillText(gateText, gtBgX + gtPadX, gtBgY + 16);
     }
 };
 
