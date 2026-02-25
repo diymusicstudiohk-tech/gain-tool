@@ -246,7 +246,7 @@ const useVisualizerLoop = ({
         if (currentPosition >= regionEndTime) {
             if (playBufferRef.current) {
                 const targetBuffer = playingType === 'original' ? originalBuffer :
-                    (fullAudioDataRef.current ? (isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer) : null);
+                    (isDeltaMode ? (fullAudioDataRef.current ? fullAudioDataRef.current.deltaBuffer : null) : originalBuffer);
 
                 if (targetBuffer) {
                     playBufferRef.current(targetBuffer, playingType, regionStartTime);

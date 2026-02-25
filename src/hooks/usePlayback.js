@@ -111,7 +111,7 @@ const usePlayback = ({
                 isPlayingRef.current = false;
             }
         }
-    }, [audioContext, originalBuffer, dryGain, isDeltaMode, paramsRef,
+    }, [audioContext, originalBuffer, paramsRef,
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, animateRef]);
 

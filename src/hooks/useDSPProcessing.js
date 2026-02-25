@@ -110,7 +110,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         const inputData = originalBuffer.getChannelData(0);
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
-        const params = { ...currentParams, dryGain, isDeltaMode };
+        const params = { ...debouncedParams, dryGain: debouncedDryGain, isDeltaMode };
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
@@ -124,7 +124,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
 
             currentIndex = endIndex;
             if (currentIndex < length) {
-                processingTaskRef.current = setTimeout(processChunk, 0);
+                processingTaskRef.current = setTimeout(processChunk, 4);
             } else {
                 const outBuf = audioContext.createBuffer(1, length, sampleRate);
                 outBuf.copyToChannel(outData, 0);
@@ -139,7 +139,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         processingTaskRef.current = setTimeout(processChunk, 150);
 
         return () => { if (processingTaskRef.current) clearTimeout(processingTaskRef.current); };
-    }, [originalBuffer, audioContext, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing]);
+    }, [originalBuffer, audioContext, debouncedParams, debouncedDryGain, isDeltaMode, setIsProcessing]);
 
     return {
         visualResult,
