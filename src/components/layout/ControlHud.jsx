@@ -219,7 +219,7 @@ const ControlHud = ({
                         <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
                                 <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} />
-                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
                                 {expandedModule === 'gate'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -236,7 +236,7 @@ const ControlHud = ({
                         <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
                                 <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} />
-                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
                                 {expandedModule === 'comp'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
@@ -256,7 +256,7 @@ const ControlHud = ({
                         {/* OUTPUT MODULE */}
                         <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
                             <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
-                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUT</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUT</span>
                                 {expandedModule === 'output'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
