@@ -700,7 +700,7 @@ export const drawMainWaveform = ({
             const cB = cResult ? parseInt(cResult[3], 16) : 85;
 
             // Gradient fill between the two threshold lines (fades toward center)
-            const fillAlpha = isCompHighlight ? 0.18 : 0.10;
+            const fillAlpha = isCompHighlight ? 0.22 : 0.12;
             const fillGrad = ctx.createLinearGradient(0, tTop, 0, tBot);
             fillGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${fillAlpha})`);
             fillGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, 0)`);
@@ -710,7 +710,7 @@ export const drawMainWaveform = ({
 
             // Horizontal gradient for line stroke (fades at left/right edges, opaque at center)
             const baseAlpha = isCompHighlight ? 1.0 : 0.9;
-            const edgeAlpha = 0.05;
+            const edgeAlpha = 0.06;
             const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
             strokeGrad.addColorStop(0, `rgba(${cR}, ${cG}, ${cB}, ${edgeAlpha})`);
             strokeGrad.addColorStop(0.5, `rgba(${cR}, ${cG}, ${cB}, ${baseAlpha})`);
