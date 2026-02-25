@@ -408,30 +408,32 @@ const Header = ({
                 </div>
 
                 {/* Prev/Next source navigation buttons */}
-                <button
-                    onClick={handlePrev}
-                    disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
-                    className={`w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
-                        ${!currentSourceId || currentSourceId === 'upload' || isLoading
-                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
-                        }`}
-                    title="上一首"
-                >
-                    <ChevronLeft size={16} />
-                </button>
-                <button
-                    onClick={handleNext}
-                    disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
-                    className={`w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
-                        ${!currentSourceId || currentSourceId === 'upload' || isLoading
-                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
-                        }`}
-                    title="下一首"
-                >
-                    <ChevronRight size={16} />
-                </button>
+                <div className="flex self-stretch">
+                    <button
+                        onClick={handlePrev}
+                        disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
+                        className={`w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                            ${!currentSourceId || currentSourceId === 'upload' || isLoading
+                                ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                                : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                            }`}
+                        title="上一首"
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
+                        className={`w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                            ${!currentSourceId || currentSourceId === 'upload' || isLoading
+                                ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                                : 'bg-[#202020] border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                            }`}
+                        title="下一首"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
 
                 {/* Download processed audio button */}
                 <button
