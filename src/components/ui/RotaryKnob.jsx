@@ -30,7 +30,7 @@ const RotaryKnob = ({
     const startY = useRef(0);
     const startVal = useRef(0);
     const paramsRef = useRef({ value, min, max, step });
-    const callbacksRef = useRef({ onChange, onDragStateChange });
+    const callbacksRef = useRef({ onChange, onDragStateChange, onLeave });
     const lastMoveTimeRef = useRef(0);
     const lastClientYRef = useRef(0);
     const handleEndRef = useRef(null); // ref to avoid circular dep with handleGlobalMouseMove
@@ -38,7 +38,7 @@ const RotaryKnob = ({
     // 每次 Render 更新 Params Ref 和 Callbacks Ref
     useEffect(() => {
         paramsRef.current = { value, min, max, step };
-        callbacksRef.current = { onChange, onDragStateChange };
+        callbacksRef.current = { onChange, onDragStateChange, onLeave };
     });
 
     const colors = {
@@ -94,6 +94,8 @@ const RotaryKnob = ({
         }
         lastMoveTimeRef.current = 0;
         isDraggingRef.current = false;
+        setIsHovered(false);
+        if (callbacksRef.current.onLeave) callbacksRef.current.onLeave();
         if (dragLockRef) dragLockRef.current = false;
         if (callbacksRef.current.onDragStateChange) callbacksRef.current.onDragStateChange(false);
         document.body.style.cursor = 'default';
@@ -141,7 +143,7 @@ const RotaryKnob = ({
 
     if (compact) {
         return (
-            <div className={`flex flex-col items-center relative select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { setIsHovered(false); onLeave && onLeave(); }}>
+            <div className={`flex flex-col items-center relative select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }}>
                 <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                     <svg className="w-full h-full transform -rotate-90">
                         <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
@@ -161,7 +163,7 @@ const RotaryKnob = ({
     }
 
     return (
-        <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { setIsHovered(false); onLeave && onLeave(); }}>
+        <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }}>
             <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
