@@ -255,7 +255,7 @@ const ControlHud = ({
 
                         {/* OUTPUT MODULE */}
                         <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1.5 pt-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
+                            <div className="flex flex-col items-center gap-1.5 pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
                                 {expandedModule === 'output'
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
