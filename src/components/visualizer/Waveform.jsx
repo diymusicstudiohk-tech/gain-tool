@@ -695,20 +695,21 @@ export const drawMainWaveform = ({
         const gainText = Number.isFinite(gainDb) ? `${gainDb.toFixed(1)} dB` : '-∞ dB';
 
         // Gold tooltip at top-right of cursor
-        ctx.font = 'bold 11px sans-serif';
+        // Matches Comp Threshold tooltip position/size so blue fully overlaps gold
+        ctx.font = 'bold 12px sans-serif';
         const gm = ctx.measureText(gainText);
-        const gPadX = 6;
+        const gPadX = 8;
         const gW = gm.width + gPadX * 2;
-        const gH = 20;
+        const gH = 24;
         let gX = mousePos.x + 12;
-        let gY = mousePos.y - gH - 4;
+        let gY = mousePos.y - gH - 8;
         if (gX + gW > width) gX = mousePos.x - gW - 12;
-        if (gY < 2) gY = mousePos.y + 8;
+        if (gY < 2) gY = mousePos.y + 12;
 
         ctx.fillStyle = 'rgba(194, 164, 117, 0.8)';
         ctx.fillRect(gX, gY, gW, gH);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-        ctx.fillText(gainText, gX + gPadX, gY + 14);
+        ctx.fillText(gainText, gX + gPadX, gY + 16);
     }
 
     // ── Threshold Lines — drawn above ALL waveform layers (including hover overlays) ──
