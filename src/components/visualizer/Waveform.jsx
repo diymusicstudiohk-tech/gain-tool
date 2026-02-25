@@ -301,9 +301,7 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (isDeltaMode) {
-                // Delta mode: no waveform, only GR curve drawn below
-            } else if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
 
