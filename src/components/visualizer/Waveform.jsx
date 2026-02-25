@@ -628,7 +628,7 @@ export const drawMainWaveform = ({
 
         // --- Positioning for legend + threshold tooltip ---
         const bgHeight = 20;
-        const bgX = mousePos.x + 8;
+        const bgX = mousePos.x + 12;
 
 
         // Legend box above GR label (only when hovering on waveform)
