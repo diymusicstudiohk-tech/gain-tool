@@ -216,7 +216,7 @@ export const drawMainWaveform = ({
             }
             ctx.globalAlpha = 1;
 
-            const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = []; const deltaPoints = [];
+            const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = [];
             const dryLinear = Math.pow(10, dryGain / 20);
 
             // Determine which channels are needed before the loop
@@ -247,7 +247,7 @@ export const drawMainWaveform = ({
                 const end = Math.floor((vX + 1) * step);
                 if (start < 0 || start >= srcLength) continue;
                 const safeEnd = Math.min(srcLength, end);
-                let maxIn = 0; let maxOut = 0; let minGR = 0; let maxMix = 0; let maxDelta = 0;
+                let maxIn = 0; let maxOut = 0; let minGR = 0; let maxMix = 0;
                 const loopStartIdx = Math.max(start, 0);
                 const count = safeEnd - loopStartIdx;
 
@@ -272,19 +272,12 @@ export const drawMainWaveform = ({
                             const mixStart = Math.floor(loopStartIdx / mixBS); const mixEnd = Math.ceil(safeEnd / mixBS);
                             for (let i = mixStart; i < mixEnd && i < mixLevel.length; i++) { const a = Math.abs(mixLevel[i]); if (a > maxMix) maxMix = a; }
                         }
-                        // Delta: no mipmap exists, compute from raw samples
-                        if (isDeltaMode) {
-                            let maxD = 0;
-                            for (let i = loopStartIdx; i < safeEnd; i++) { const d = Math.abs(srcInput[i] - srcOutput[i]); if (d > maxD) maxD = d; }
-                            maxDelta = maxD;
-                        }
                     } else {
                         for (let i = loopStartIdx; i < safeEnd; i++) {
                             const absIn = Math.abs(srcInput[i]); const grVal = srcGR[i];
                             if (absIn > maxIn) maxIn = absIn; if (grVal < minGR) minGR = grVal;
                             if (needsOutChannel) { const absOut = Math.abs(srcOutput[i]); if (absOut > maxOut) maxOut = absOut; }
                             if (lastPlayedType === 'processed') { const mixVal = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mixVal > maxMix) maxMix = mixVal; }
-                            if (isDeltaMode) { const d = Math.abs(srcInput[i] - srcOutput[i]); if (d > maxDelta) maxDelta = d; }
                         }
                     }
                 } else {
@@ -293,7 +286,6 @@ export const drawMainWaveform = ({
                         maxIn = Math.abs(srcInput[idx]); minGR = srcGR[idx];
                         if (needsOutChannel) maxOut = Math.abs(srcOutput[idx]);
                         if (lastPlayedType === 'processed') maxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
-                        if (isDeltaMode) maxDelta = Math.abs(srcInput[idx] - srcOutput[idx]);
                     }
                 }
 
@@ -301,24 +293,24 @@ export const drawMainWaveform = ({
                 inPoints.push({ x, yTop: centerY - hIn, yBot: centerY + hIn });
                 if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
-                if (isDeltaMode) { const hD = displayAmp(maxDelta) * ampScale; deltaPoints.push({ x, yTop: centerY - hD, yBot: centerY + hD }); }
                 if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
             }
 
             // Draw Polygons
-            if (isDeltaMode) {
-                // Delta mode: only draw the true delta (input - output) waveform
-                drawPolygonWithPeakFade(ctx, deltaPoints, '#E15D42', width, centerY);
-            } else if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
             else {
-                const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
+                const redOpacity = (isCompAdjusting || isGateAdjusting || isDeltaMode) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
                 drawPolygonWithPeakFade(ctx, inPoints, '#B54C35', width, centerY, redOpacity);
 
-                // Output mix
-                drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
+                // Output mix — always visible (dark when delta mode hides it behind background)
+                if (isDeltaMode) {
+                    drawPolygon(ctx, mixPoints, '#202020', width, centerY);
+                } else {
+                    drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
+                }
 
                 if (showAllLayers) {
                     if (activeGainKnob === 'makeup') {
@@ -329,12 +321,13 @@ export const drawMainWaveform = ({
                         drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                         drawPolygon(ctx, outPoints, '#ffffff', width, centerY);
                     } else {
+                        // Delta mode or other: original behavior
                         drawHatchedPolygon(ctx, mixPoints, '#C2A475', width, centerY);
                         drawPolygonWithStroke(ctx, outPoints, '#ffffff', '#7D93B7', width, centerY);
                     }
                 }
             }
-            if (!isDeltaMode && grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
+            if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 
 
 
@@ -382,8 +375,8 @@ export const drawMainWaveform = ({
         ctx.fillStyle = '#fff'; ctx.textAlign = align; ctx.fillText(text, x + (align === 'right' ? -4 : 4), y);
     };
 
-    // Mouse GR Inspection + Hover Layers (skip in delta mode)
-    if (mousePos.x >= 0 && lastPlayedType === 'processed' && !isDeltaMode) {
+    // Mouse GR Inspection + Hover Layers
+    if (mousePos.x >= 0 && lastPlayedType === 'processed') {
         // --- Detect hover on wet area, dry-contribution area, or brick-red area ---
         let isHoveringOnWetArea = false;
         let isHoveringOnDryArea = false;
@@ -738,7 +731,7 @@ export const drawMainWaveform = ({
     const isDry = lastPlayedType === 'original';
     const inactiveColor = '#555';
 
-    if (!isCompBypass && !isDeltaMode) {
+    if (!isCompBypass) {
         const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
@@ -786,7 +779,7 @@ export const drawMainWaveform = ({
         }
     }
 
-    if (!isGateBypass && !isDeltaMode) {
+    if (!isGateBypass) {
         const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
         if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
@@ -835,7 +828,7 @@ export const drawMainWaveform = ({
     ctx.setLineDash([]);
 
     // ── Threshold Tooltips — drawn last so they're on top of everything ──
-    if (!isDeltaMode && (hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
+    if ((hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
         ctx.font = 'bold 12px sans-serif';
         const threshText = `Comp Threshold: ${threshold} dB`;
         const threshMetrics = ctx.measureText(threshText);
@@ -850,7 +843,7 @@ export const drawMainWaveform = ({
         ctx.fillText(threshText, tBgX + tPadX, tBgY + 16);
     }
 
-    if (!isDeltaMode && (hoverLine === 'gate' || isDraggingLine === 'gate') && mousePos.x >= 0) {
+    if ((hoverLine === 'gate' || isDraggingLine === 'gate') && mousePos.x >= 0) {
         ctx.font = 'bold 12px sans-serif';
         const gateText = `Gate Threshold: ${gateThreshold} dB`;
         const gateMetrics = ctx.measureText(gateText);
