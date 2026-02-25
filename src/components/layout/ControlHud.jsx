@@ -3,6 +3,7 @@ import { Triangle, Power, Play, Pause, ChevronRight, ChevronLeft, ChevronDown, C
 import RotaryKnob from '../ui/RotaryKnob';
 import PowerButton from '../ui/PowerButton';
 import { PRESETS_DATA, AUDIO_SOURCES } from '../../utils/constants';
+import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl } from '../../hooks/useCompressorParams';
 
 const CATEGORY_ZH = {
     General: '通用', Bass: '貝斯', 'Acoustic Guitar': '木吉他', 'Electric Guitar': '電吉他',
@@ -28,13 +29,16 @@ const ControlHud = ({
     // Presets
     selectedPresetIdx, isCustomSettings, applyPreset, currentSourceId,
 
+    // Gain Params
+    wetGainControl, dryGainControl, handleGainChange,
+
     // UI Interaction
     isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave,
     resetAllParams,
 }) => {
     const [expandedModule, setExpandedModule] = useState('comp');
     const cycleModule = (current) => {
-        const order = ['gate', 'comp'];
+        const order = ['gate', 'comp', 'output'];
         return order[(order.indexOf(current) + 1) % order.length];
     };
 
@@ -247,6 +251,21 @@ const ControlHud = ({
 
                                 <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="KNEE" value={knee} min={0} max={30} step={1} unit="dB" color="gold" onChange={(v) => handleCompKnobChange('knee', v)} onDragStateChange={handleCompDragState} tooltipKey="knee" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                                 <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" value={lookahead} min={0} max={100} step={1} unit="ms" color="gold" onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
+                            </div>
+                        </div>
+
+                        {/* OUTPUT MODULE */}
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-[#C2A475]/30 flex-none transition-colors">
+                            <div className="flex flex-col items-center gap-1.5 select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
+                                <span className={`text-xs font-bold tracking-widest transition-colors mt-1 ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUT</span>
+                                {expandedModule === 'output'
+                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                }
+                            </div>
+                            <div className={`flex gap-4 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'output' ? 'max-w-[400px] opacity-100' : 'max-w-0 opacity-0'}`}>
+                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET OUTPUT" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
+                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY OUTPUT" value={dryGainControl} min={0} max={100} step={0.5} defaultValue={0} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => dryGainDbToControl(v)} />
                             </div>
                         </div>
                     </div>

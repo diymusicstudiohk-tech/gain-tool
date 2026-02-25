@@ -4,8 +4,6 @@ import {
     Download, FolderOpen, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
-import RotaryKnob from '../ui/RotaryKnob';
-import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl } from '../../hooks/useCompressorParams';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
@@ -41,11 +39,6 @@ const Header = ({
     handleFactoryReset,
     stopAudio,
     loadCustomAudio,
-
-    // Gain knobs
-    wetGainControl, dryGainControl, handleGainChange,
-    isDryMode, isDraggingKnobRef, handleNormalDragState,
-    handleKnobEnter, handleKnobLeave,
 
 }) => {
     const [showAbout, setShowAbout] = useState(false);
@@ -411,13 +404,6 @@ const Header = ({
                     <Download size={16} />
                 </button>
 
-                <div className="w-px self-stretch bg-white/10"></div>
-
-                {/* WET/DRY OUTPUT Knobs */}
-                <div className="flex items-center gap-3">
-                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET OUTPUT" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
-                    <RotaryKnob compact disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY OUTPUT" value={dryGainControl} min={0} max={100} step={0.5} defaultValue={0} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => dryGainDbToControl(v)} />
-                </div>
             </div>
         </div >
     );

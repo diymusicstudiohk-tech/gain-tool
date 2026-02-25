@@ -285,19 +285,6 @@ const App = () => {
                     setRegionStart(0);
                     setRegionEnd(1);
                 }}
-                wetGainControl={comp.wetGainControl} dryGainControl={comp.dryGainControl}
-                handleGainChange={comp.handleGainChange}
-                isDryMode={playback.isDryMode}
-                isDraggingKnobRef={isDraggingKnobRef}
-                handleNormalDragState={(isActive) => {
-                    waveform.setIsKnobDragging(isActive);
-                    waveform.setIsGainKnobDragging(isActive);
-                    waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
-                }}
-                handleKnobEnter={(k) => {
-                    view.setHoveredKnob(k);
-                }}
-                handleKnobLeave={() => view.setHoveredKnob(null)}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
@@ -362,8 +349,14 @@ const App = () => {
                 isCustomSettings={comp.isCustomSettings}
                 applyPreset={comp.applyPreset}
                 currentSourceId={engine.currentSourceId}
+                wetGainControl={comp.wetGainControl} dryGainControl={comp.dryGainControl}
+                handleGainChange={comp.handleGainChange}
                 isDraggingKnobRef={isDraggingKnobRef}
-                handleNormalDragState={waveform.setIsKnobDragging}
+                handleNormalDragState={(isActive) => {
+                    waveform.setIsKnobDragging(isActive);
+                    waveform.setIsGainKnobDragging(isActive);
+                    waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
+                }}
                 handleKnobEnter={(k) => {
                     view.setHoveredKnob(k);
                 }}
