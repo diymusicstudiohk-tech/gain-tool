@@ -686,6 +686,88 @@ export const drawMainWaveform = ({
 
     }
 
+    // Bypass (original) mode: hover detection + legend for brick-red waveform
+    if (mousePos.x >= 0 && lastPlayedType === 'original') {
+        let isHoveringOnOriginalWaveform = false;
+        const srcInput = visualResult.visualInput;
+        const hvX = mousePos.x - panOffset;
+        const hStart = Math.floor(hvX * step);
+        const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
+        if (hStart >= 0 && hStart < srcLength) {
+            let maxIn = 0;
+            if (useMipmaps && mipmaps && mipmaps.input) {
+                const mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
+                const inLv = mmIn.level; const inBs = mmIn.blockSize;
+                const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
+                for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
+            } else {
+                for (let i = hStart; i < hEnd; i++) {
+                    const a = Math.abs(srcInput[i]);
+                    if (a > maxIn) maxIn = a;
+                }
+            }
+            const hIn = displayAmp(maxIn) * ampScale;
+            if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
+                isHoveringOnOriginalWaveform = true;
+            }
+        }
+
+        if (isHoveringOnOriginalWaveform) {
+            // Hover overlay: bright red
+            const inPts = [];
+            const brStartX = Math.max(0, Math.floor(panOffset) - 1);
+            const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
+            let hmIn;
+            if (useMipmaps && mipmaps && mipmaps.input) {
+                hmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
+            }
+            for (let x = brStartX; x < brEndX; x++) {
+                const vx = x - panOffset;
+                const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
+                if (s < 0 || s >= srcLength) continue;
+                const se = Math.min(srcLength, e);
+                let mxIn = 0;
+                const ls = Math.max(s, 0);
+                if (se - ls > 0) {
+                    if (useMipmaps && hmIn) {
+                        const iL = hmIn.level; const iB = hmIn.blockSize;
+                        const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
+                        for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
+                    } else {
+                        for (let i = ls; i < se; i++) {
+                            const aI = Math.abs(srcInput[i]); if (aI > mxIn) mxIn = aI;
+                        }
+                    }
+                } else {
+                    const idx = Math.min(Math.floor(ls), srcLength - 1);
+                    if (idx >= 0) { mxIn = Math.abs(srcInput[idx]); }
+                }
+                const hI = displayAmp(mxIn) * ampScale;
+                inPts.push({ x, yTop: centerY - hI, yBot: centerY + hI });
+            }
+            drawPolygonWithPeakFade(ctx, inPts, '#E15D42', width, centerY);
+
+            // Legend
+            const bgX = mousePos.x + 12;
+            const legendText = '紅色 = 原始未處理訊號 (Bypass)';
+            ctx.font = 'bold 11px sans-serif';
+            const lw = ctx.measureText(legendText).width;
+            const legendPadX = 10;
+            const legendW = lw + legendPadX * 2;
+            const legendH = 28;
+            const goldTooltipBottom = mousePos.y - 24 - 8;
+            let legendX = bgX;
+            let legendY = goldTooltipBottom - legendH - 4;
+            if (legendX + legendW > width) legendX = width - legendW - 2;
+            if (legendY < 2) legendY = mousePos.y + 8;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
+        }
+    }
+
     // ── Crosshair + Gain Tooltip — always visible when mouse is on canvas ──
     if (mousePos.x >= 0 && mousePos.y >= 0) {
         // Vertical crosshair line
