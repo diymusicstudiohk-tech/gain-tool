@@ -229,7 +229,7 @@ export const drawMainWaveform = ({
             // Select mipmap levels
             const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
             const mipmapBias = interactionDPR ? 1 : 0;
-            let mmIn, mmOut, mmGR, mmMix, mmDelta;
+            let mmIn, mmOut, mmGR, mmMix;
             if (useMipmaps) {
                 mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
                 if (needsOutChannel) mmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
@@ -237,7 +237,6 @@ export const drawMainWaveform = ({
                 if (mixMipmaps && lastPlayedType === 'processed') {
                     mmMix = selectMipmapLevel(mixMipmaps, step, mipmapBias);
                 }
-                if (isDeltaMode && mipmaps.delta) mmDelta = selectMipmapLevel(mipmaps.delta, step, mipmapBias);
             }
 
             // Waveform Calculation Loop
@@ -272,11 +271,7 @@ export const drawMainWaveform = ({
                             const mixStart = Math.floor(loopStartIdx / mixBS); const mixEnd = Math.ceil(safeEnd / mixBS);
                             for (let i = mixStart; i < mixEnd && i < mixLevel.length; i++) { const a = Math.abs(mixLevel[i]); if (a > maxMix) maxMix = a; }
                         }
-                        if (isDeltaMode && mmDelta) {
-                            const dLevel = mmDelta.level; const dBS = mmDelta.blockSize;
-                            const dStart = Math.floor(loopStartIdx / dBS); const dEnd = Math.ceil(safeEnd / dBS);
-                            for (let i = dStart; i < dEnd && i < dLevel.length; i++) { const a = Math.abs(dLevel[i]); if (a > maxDelta) maxDelta = a; }
-                        }
+                        if (isDeltaMode) maxDelta = Math.abs(maxIn - maxOut);
                     } else {
                         for (let i = loopStartIdx; i < safeEnd; i++) {
                             const absIn = Math.abs(srcInput[i]); const grVal = srcGR[i];

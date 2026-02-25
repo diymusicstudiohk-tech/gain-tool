@@ -75,19 +75,13 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step);
     }, [visualSourceCache, audioContext, debouncedParams]);
 
-    // Build mipmaps for input, output, GR, and delta curves
+    // Build mipmaps for input, output, and GR curves
     const mipmaps = useMemo(() => {
         if (!visualResult) return null;
-        const len = visualResult.visualInput.length;
-        const deltaData = new Float32Array(len);
-        for (let i = 0; i < len; i++) {
-            deltaData[i] = visualResult.outputData[i] - visualResult.visualInput[i];
-        }
         return {
             input: buildMipmaps(visualResult.visualInput, 'absMax'),
             output: buildMipmaps(visualResult.outputData, 'absMax'),
             gr: buildMipmaps(visualResult.grCurve, 'min'),
-            delta: buildMipmaps(deltaData, 'absMax'),
         };
     }, [visualResult]);
 
