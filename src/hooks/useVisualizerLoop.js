@@ -1,7 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-
-const LN10_OVER_20 = Math.LN10 / 20;       // Math.exp(db * LN10_OVER_20) ≡ Math.pow(10, db/20)
-const TWENTY_LOG10E = 20 * Math.LOG10E;    // Math.log(x) * TWENTY_LOG10E ≡ 20 * Math.log10(x)
+import { LN10_OVER_20, TWENTY_LOG10E } from '../utils/dspConstants';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
 import { drawDualMeter } from '../components/visualizer/Meters';
 

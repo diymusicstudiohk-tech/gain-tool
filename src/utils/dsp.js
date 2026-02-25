@@ -1,6 +1,4 @@
-// Pre-computed constants to replace Math.log10/Math.pow(10, x/20) in hot loops
-const LN10_OVER_20 = Math.LN10 / 20;        // Math.exp(db * LN10_OVER_20) ≡ Math.pow(10, db/20)
-const TWENTY_LOG10E = 20 * Math.LOG10E;      // Math.log(x) * TWENTY_LOG10E ≡ 20 * Math.log10(x)
+import { LN10_OVER_20, TWENTY_LOG10E, LOG_FLOOR } from './dspConstants';
 
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
@@ -38,7 +36,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         let gateGainLinear = 1;
         let gateGaindB = 0;
         if (!isGateBypass) {
-            const gateDetectorLeveldB = Math.log(inputLevel + 1e-6) * TWENTY_LOG10E;
+            const gateDetectorLeveldB = Math.log(inputLevel + LOG_FLOOR) * TWENTY_LOG10E;
             const gateIsOpen = gateDetectorLeveldB >= gateThreshold;
             const gateGainTarget = gateIsOpen ? 1.0 : 0.0;
             if (gateGainTarget > gateGainEnvelope)
@@ -46,7 +44,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
             else
                 gateGainEnvelope += gateRelCoeff * (gateGainTarget - gateGainEnvelope);
             gateGainLinear = gateGainEnvelope;
-            gateGaindB = Math.log(gateGainEnvelope + 1e-6) * TWENTY_LOG10E;
+            gateGaindB = Math.log(gateGainEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
         }
 
         // Comp
@@ -54,7 +52,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
         else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
 
-        let compEnvdB = Math.log(compEnvelope + 1e-6) * TWENTY_LOG10E;
+        let compEnvdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
         let compGainReductiondB = 0;
 
         if (!isCompBypass) {
@@ -168,7 +166,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 // Gate — separated detection + gain transition
                 let gateGainLinear = 1;
                 if (!_isGateBypass) {
-                    const gateDetectorLeveldB = Math.log(inputLevel + 1e-6) * TWENTY_LOG10E;
+                    const gateDetectorLeveldB = Math.log(inputLevel + LOG_FLOOR) * TWENTY_LOG10E;
                     const gateIsOpen = gateDetectorLeveldB >= gateThreshold;
                     const gateGainTarget = gateIsOpen ? 1.0 : 0.0;
                     if (gateGainTarget > gateGainEnvelope)
@@ -185,7 +183,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                     else compEnvelope += _compRelCoeff * (gatedDetectorLevel - compEnvelope);
                 }
 
-                let compEnvdB = Math.log(compEnvelope + 1e-6) * TWENTY_LOG10E;
+                let compEnvdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
                 let compGainReductiondB = 0;
 
                 if (!_isCompBypass) {
