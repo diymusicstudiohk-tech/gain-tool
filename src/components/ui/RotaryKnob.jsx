@@ -170,7 +170,7 @@ const RotaryKnob = ({
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `rotate(${rotation}deg)` }}><div className={`w-1 h-1 rounded-full mx-auto mt-1 shadow-sm ${disabled ? 'bg-slate-500' : 'bg-white'}`}></div></div>
             </div>
             <div className="text-center group/label relative" onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
-                <div className="flex flex-col items-center justify-end cursor-help pb-2">
+                <div className="flex flex-col items-center justify-end pb-2">
                     <div className="flex items-center gap-0.5 mb-1">
                         {isHovered
                             ? <div className="text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
