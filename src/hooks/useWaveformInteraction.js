@@ -206,8 +206,8 @@ const useWaveformInteraction = ({
             const distToGateTop = Math.abs(relY - (centerY - gateThreshPx));
             const distToGateBot = Math.abs(relY - (centerY + gateThreshPx));
 
-            if (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE) touchHoverLine = 'gate';
-            if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) touchHoverLine = 'comp';
+            if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) touchHoverLine = 'gate';
+            if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) touchHoverLine = 'comp';
         }
 
         if (touchHoverLine) {
@@ -276,12 +276,13 @@ const useWaveformInteraction = ({
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
-        if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
+        if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
     }, [threshold, gateThreshold, zoomY, panOffsetY,
+        isCompBypass, isGateBypass,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
     const handleMouseLeave = useCallback(() => {
