@@ -178,7 +178,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setDryGain(p.params.dryGain);
         setDryGainControl(dryGainDbToControl(p.params.dryGain));
         setGateThreshold(p.params.gateThreshold);
-        setIsGateBypass(false); setIsCompBypass(false);
+        setIsGateBypass(p.params.isGateBypass || false); setIsCompBypass(false);
         if (idx === 0) setGateRatio(4);
         ensureProcessedMode();
     }, [logAction, ensureProcessedMode]);

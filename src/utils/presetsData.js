@@ -5,7 +5,7 @@ export const PRESETS_DATA = [
         name: "General: 1. Gentle Leveling (溫和平整)",
         category: "General",
         explanation: "【特色】\n非常輕微的壓縮，幾乎聽不出來，只控制最高峰值。適用於任何音源。\n\n【建議調整】\nThreshold 設在峰值附近，GR 偶爾出現 -1dB 至 -2dB。\n\n【音色變化】\n若覺得不夠明顯，可稍微降低 Threshold 或提高 Ratio。",
-        params: { threshold: -18, ratio: 2, attack: 20, release: 200, knee: 15, lookahead: 0, makeupGain: 0, dryGain: -200, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100 }
+        params: { threshold: -18, ratio: 2, attack: 20, release: 200, knee: 15, lookahead: 0, makeupGain: 0, dryGain: -200, gateThreshold: -60, gateRatio: 4, gateAttack: 2, gateRelease: 100, isGateBypass: true }
     },
     {
         name: "General: 2. All-Purpose Glue (萬用黏合)",
