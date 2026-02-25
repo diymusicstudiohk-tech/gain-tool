@@ -1,5 +1,9 @@
 import { linearFromDisplay } from './displayMath';
 import { GOLD, COMP_TOOLTIP_BG, GREEN } from './colors';
+import {
+    TOOLTIP_OFFSET_X, TOOLTIP_OFFSET_Y, TOOLTIP_HEIGHT,
+    TOOLTIP_PAD_X, TOOLTIP_TEXT_BASELINE, TOOLTIP_EDGE_CLAMP,
+} from './canvasConstants';
 
 /**
  * Draw crosshair lines at mouse position.
@@ -41,18 +45,16 @@ export const drawGainTooltip = (ctx, mousePos, centerY, ampScale, width) => {
 
     ctx.font = 'bold 12px sans-serif';
     const gm = ctx.measureText(gainText);
-    const gPadX = 8;
-    const gW = gm.width + gPadX * 2;
-    const gH = 24;
-    let gX = mousePos.x + 12;
-    let gY = mousePos.y - gH - 8;
-    if (gX + gW > width) gX = mousePos.x - gW - 12;
-    if (gY < 2) gY = mousePos.y + 12;
+    const gW = gm.width + TOOLTIP_PAD_X * 2;
+    let gX = mousePos.x + TOOLTIP_OFFSET_X;
+    let gY = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
+    if (gX + gW > width) gX = mousePos.x - gW - TOOLTIP_OFFSET_X;
+    if (gY < TOOLTIP_EDGE_CLAMP) gY = mousePos.y + TOOLTIP_OFFSET_X;
 
     ctx.fillStyle = GOLD;
-    ctx.fillRect(gX, gY, gW, gH);
+    ctx.fillRect(gX, gY, gW, TOOLTIP_HEIGHT);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-    ctx.fillText(gainText, gX + gPadX, gY + 16);
+    ctx.fillText(gainText, gX + TOOLTIP_PAD_X, gY + TOOLTIP_TEXT_BASELINE);
 };
 
 /**
@@ -64,13 +66,13 @@ export const drawThresholdTooltip = (ctx, mousePos, type, thresholdDb, width) =>
         ? `Comp Threshold: ${thresholdDb} dB`
         : `Gate Threshold: ${thresholdDb} dB`;
     const metrics = ctx.measureText(text);
-    const padX = 8; const bgW = metrics.width + padX * 2; const bgH = 24;
-    let bgX = mousePos.x + 12;
-    let bgY = mousePos.y - bgH - 8;
-    if (bgX + bgW > width) bgX = mousePos.x - bgW - 12;
-    if (bgY < 2) bgY = mousePos.y + 12;
+    const bgW = metrics.width + TOOLTIP_PAD_X * 2;
+    let bgX = mousePos.x + TOOLTIP_OFFSET_X;
+    let bgY = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
+    if (bgX + bgW > width) bgX = mousePos.x - bgW - TOOLTIP_OFFSET_X;
+    if (bgY < TOOLTIP_EDGE_CLAMP) bgY = mousePos.y + TOOLTIP_OFFSET_X;
     ctx.fillStyle = type === 'comp' ? COMP_TOOLTIP_BG : GREEN;
-    ctx.fillRect(bgX, bgY, bgW, bgH);
+    ctx.fillRect(bgX, bgY, bgW, TOOLTIP_HEIGHT);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-    ctx.fillText(text, bgX + padX, bgY + 16);
+    ctx.fillText(text, bgX + TOOLTIP_PAD_X, bgY + TOOLTIP_TEXT_BASELINE);
 };

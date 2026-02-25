@@ -1,5 +1,10 @@
 import React from 'react';
 import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
+import {
+    METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
+    METER_BAR_WIDTH, METER_BAR_RADIUS, METER_OVERFLOW_CLAMP, METER_GR_NEAR_ZERO,
+    GR_MAX_HEIGHT_RATIO, CF_DB_MIN, CF_DB_MAX, CF_TOP_RATIO, CF_BOTTOM_MARGIN,
+} from '../../utils/canvasConstants';
 
 // --- CF Heat Map Constants ---
 const CF_HEAT_BUCKETS = 50;
@@ -46,7 +51,7 @@ function applyCfHeatDecay(heatArray) {
 
 function updateCfHeatMap(heatArray, cfDb) {
     // Map CF dB (3-20) to bucket index (0-49)
-    const cfMin = 3, cfMax = 20;
+    const cfMin = CF_DB_MIN, cfMax = CF_DB_MAX;
     const normalized = (cfDb - cfMin) / (cfMax - cfMin);
     const centerBucket = normalized * (CF_HEAT_BUCKETS - 1);
     for (let i = -CF_GAUSSIAN_SPREAD; i <= CF_GAUSSIAN_SPREAD; i++) {
@@ -114,19 +119,19 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const centerY = height / 2;
 
     // Meter State Logic (Decay)
-    if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= 0.92;
-    if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = 60; }
-    else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= 0.98; }
+    if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= METER_PEAK_DECAY;
+    if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
+    else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
 
-    if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= 0.92;
-    if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = 60; }
-    else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= 0.98; }
+    if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
+    if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
+    else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
 
     // GR State Logic
     const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
     meterState.grPeakLevel = reductionLinear;
-    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = 60; }
-    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= 0.95; }
+    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
+    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
 
     // Drawing
     ctx.clearRect(0, 0, width, height);
@@ -135,10 +140,10 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
 
     // --- Background bars (semi-transparent light gray behind each meter) ---
     const bgColor = 'rgba(255, 255, 255, 0.06)';
-    const grMaxPixelHeight = maxPixelHeight * 0.5;
+    const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
     // 3 bars: 11 left, 22 bar, 5.5 gap, 22 bar, 5.5 gap, 22 bar, 16 right
-    const barWidth = 22;
+    const barWidth = METER_BAR_WIDTH;
     const grCenterX = 11 + 11;              // 22
     const dryCenterX = 11 + 22 + 5.5 + 11;  // 49.5
     const outCenterX = 11 + 22 + 5.5 + 22 + 5.5 + 11; // 77
@@ -147,7 +152,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const outX = outCenterX - (barWidth / 2);
 
     ctx.fillStyle = bgColor;
-    const bgRadius = 4;
+    const bgRadius = METER_BAR_RADIUS;
     for (const bx of [grX, dryX, outX]) {
         ctx.beginPath();
         ctx.roundRect(bx, 0, barWidth, height, bgRadius);
@@ -155,11 +160,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     }
 
     // --- GR Bar (top-down) ---
-    if (meterState.grPeakLevel > 0.001) {
+    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) {
         const barHeight = meterState.grPeakLevel * grMaxPixelHeight;
         ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, 0, barWidth, barHeight);
     }
-    if (meterState.grHoldPeakLevel > 0.001) {
+    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
         const holdHeight = meterState.grHoldPeakLevel * grMaxPixelHeight;
         ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, holdHeight, barWidth, 2);
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
@@ -177,7 +182,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     }
 
     // --- Dry Bar (center-outward) ---
-    const dryBarDist = Math.min(meterState.dryPeakLevel, 1.4) * maxPixelHeight;
+    const dryBarDist = Math.min(meterState.dryPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (dryBarDist > 0) {
         const grad = getCachedGradient(canvas, ctx, 'dry', width, height, PADDING, (c, w, h, p) => {
             const mph = (h / 2) - p;
@@ -188,7 +193,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         ctx.fillStyle = grad; ctx.fillRect(dryX, centerY - dryBarDist, barWidth, dryBarDist * 2);
     }
 
-    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, 1.4) * maxPixelHeight;
+    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (dryHoldDist > 0) { ctx.fillStyle = GOLD_LIGHT; ctx.fillRect(dryX, centerY - dryHoldDist, barWidth, 2); ctx.fillRect(dryX, centerY + dryHoldDist - 2, barWidth, 2); }
 
     // Clipping detection: latch on when output peak exceeds 0dB
@@ -197,12 +202,12 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const outColor = isClipping ? CLIP_RED : GOLD;
 
     // --- Output Bar (center-outward) ---
-    const outBarDist = Math.min(meterState.peakLevel, 1.4) * maxPixelHeight;
+    const outBarDist = Math.min(meterState.peakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (outBarDist > 0) {
         ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
     }
 
-    const outHoldDist = Math.min(meterState.holdPeakLevel, 1.4) * maxPixelHeight;
+    const outHoldDist = Math.min(meterState.holdPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2); ctx.fillRect(outX, centerY + outHoldDist - 2, barWidth, 2); }
 
     // Ghost Peaks
@@ -214,10 +219,10 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4); ctx.fillRect(outX, height - 4, barWidth, 4); }
 
     // --- Crest Factor (below GR, same column) ---
-    const cfTop = height * 0.65;
-    const cfBottom = height - 8;
+    const cfTop = height * CF_TOP_RATIO;
+    const cfBottom = height - CF_BOTTOM_MARGIN;
     const cfHeight = cfBottom - cfTop;
-    const cfMinDb = 3; const cfMaxDb = 20; const cfRange = cfMaxDb - cfMinDb;
+    const cfMinDb = CF_DB_MIN; const cfMaxDb = CF_DB_MAX; const cfRange = cfMaxDb - cfMinDb;
     const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, crestFactor));
     const cfPct = (cfVal - cfMinDb) / cfRange;
     const cfY = cfBottom - (cfPct * cfHeight);
@@ -262,14 +267,14 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
     const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
 
     meterState.grPeakLevel = reductionLinear;
-    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = 60; }
-    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= 0.95; }
+    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
+    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
 
     ctx.clearRect(0, 0, w, h);
-    const PADDING = 0; const maxPixelHeight = ((h / 2) - PADDING) * 0.5;
+    const PADDING = 0; const maxPixelHeight = ((h / 2) - PADDING) * GR_MAX_HEIGHT_RATIO;
 
-    if (meterState.grPeakLevel > 0.001) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = BRICK_RED; ctx.fillRect(0, 0, w, barHeight); }
-    if (meterState.grHoldPeakLevel > 0.001) {
+    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = BRICK_RED; ctx.fillRect(0, 0, w, barHeight); }
+    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
         const holdHeight = meterState.grHoldPeakLevel * maxPixelHeight;
         ctx.fillStyle = BRICK_RED; ctx.fillRect(0, holdHeight, w, 2);
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
@@ -296,8 +301,8 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
     ctx.clearRect(0, 0, width, height);
 
     // Scale range: 3dB (bottom) to 20dB (top)
-    const minDb = 3;
-    const maxDb = 20;
+    const minDb = CF_DB_MIN;
+    const maxDb = CF_DB_MAX;
     const range = maxDb - minDb;
 
     // Value Indicator

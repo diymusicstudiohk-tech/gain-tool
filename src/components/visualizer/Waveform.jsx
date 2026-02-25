@@ -10,6 +10,11 @@ import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawThresholdLine } from '../../utils/canvasThresholdLines';
 import { drawCrosshair, drawGainTooltip, drawThresholdTooltip } from '../../utils/canvasOverlay';
+import {
+    TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
+    LEGEND_HEIGHT, LEGEND_PAD_X, LEGEND_TEXT_BASELINE, LEGEND_BG,
+    GR_HOVER_THRESHOLD_DB, GR_HOVER_DASH,
+} from '../../utils/canvasConstants';
 
 // --- Main Draw Logic (Exported for App.jsx) ---
 
@@ -317,7 +322,7 @@ export const drawMainWaveform = ({
         if (hoverGrRef) hoverGrRef.current = hoverGR;
 
         // --- GR Area Hover Detection + Gradient Fill ---
-        if (isHoveringGRAreaRef && playingType === 'none' && lastPlayedType === 'processed' && hoverGR < -0.1) {
+        if (isHoveringGRAreaRef && playingType === 'none' && lastPlayedType === 'processed' && hoverGR < GR_HOVER_THRESHOLD_DB) {
             const grCurveY = (1.0 - Math.pow(10, hoverGR / 20)) * grMaxHeight;
             if (mousePos.y >= 0 && mousePos.y <= grCurveY) {
                 isHoveringGRAreaRef.current = true;
@@ -358,7 +363,7 @@ export const drawMainWaveform = ({
                 ctx.fill();
 
                 ctx.beginPath();
-                ctx.setLineDash([4, 4]);
+                ctx.setLineDash(GR_HOVER_DASH);
                 ctx.strokeStyle = CLIP_RED;
                 ctx.lineWidth = 1.5;
                 ctx.moveTo(mousePos.x, grCurveY);
@@ -370,7 +375,7 @@ export const drawMainWaveform = ({
         }
 
         // --- Legends ---
-        const bgX = mousePos.x + 12;
+        const bgX = mousePos.x + TOOLTIP_OFFSET_X;
 
         if (isHoveringOnWetArea || isHoveringOnDryArea) {
             const legendText = isHoveringOnWetArea
@@ -378,38 +383,34 @@ export const drawMainWaveform = ({
                 : '金色斜線 = 額外補回的乾訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
-            const legendPadX = 10;
-            const legendW = lw + legendPadX * 2;
-            const legendH = 28;
-            const goldTooltipBottom = mousePos.y - 24 - 8;
+            const legendW = lw + LEGEND_PAD_X * 2;
+            const goldTooltipBottom = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
             let legendX = bgX;
-            let legendY = goldTooltipBottom - legendH - 4;
+            let legendY = goldTooltipBottom - LEGEND_HEIGHT - 4;
             if (legendX + legendW > width) legendX = width - legendW - 2;
-            if (legendY < 2) legendY = mousePos.y + 8;
+            if (legendY < 2) legendY = mousePos.y + TOOLTIP_OFFSET_Y;
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = LEGEND_BG;
+            ctx.fillRect(legendX, legendY, legendW, LEGEND_HEIGHT);
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
+            ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
         }
 
         if (isHoveringOnBrickRed) {
             const legendText = '紅色 = 被壓縮處理減少了的訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
-            const legendPadX = 10;
-            const legendW = lw + legendPadX * 2;
-            const legendH = 28;
-            const goldTooltipBottom = mousePos.y - 24 - 8;
+            const legendW = lw + LEGEND_PAD_X * 2;
+            const goldTooltipBottom = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
             let legendX = bgX;
-            let legendY = goldTooltipBottom - legendH - 4;
+            let legendY = goldTooltipBottom - LEGEND_HEIGHT - 4;
             if (legendX + legendW > width) legendX = width - legendW - 2;
-            if (legendY < 2) legendY = mousePos.y + 8;
+            if (legendY < 2) legendY = mousePos.y + TOOLTIP_OFFSET_Y;
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = LEGEND_BG;
+            ctx.fillRect(legendX, legendY, legendW, LEGEND_HEIGHT);
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
+            ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
         }
 
     }
@@ -474,23 +475,21 @@ export const drawMainWaveform = ({
             }
             drawPolygonWithPeakFade(ctx, inPts, HOVER_RED, width, centerY);
 
-            const bgX = mousePos.x + 12;
+            const bgX = mousePos.x + TOOLTIP_OFFSET_X;
             const legendText = '紅色 = 原始未處理訊號 (Bypass)';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
-            const legendPadX = 10;
-            const legendW = lw + legendPadX * 2;
-            const legendH = 28;
-            const goldTooltipBottom = mousePos.y - 24 - 8;
+            const legendW = lw + LEGEND_PAD_X * 2;
+            const goldTooltipBottom = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
             let legendX = bgX;
-            let legendY = goldTooltipBottom - legendH - 4;
+            let legendY = goldTooltipBottom - LEGEND_HEIGHT - 4;
             if (legendX + legendW > width) legendX = width - legendW - 2;
-            if (legendY < 2) legendY = mousePos.y + 8;
+            if (legendY < 2) legendY = mousePos.y + TOOLTIP_OFFSET_Y;
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(legendX, legendY, legendW, legendH);
+            ctx.fillStyle = LEGEND_BG;
+            ctx.fillRect(legendX, legendY, legendW, LEGEND_HEIGHT);
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendText, legendX + legendPadX, legendY + 18);
+            ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
         }
     }
 

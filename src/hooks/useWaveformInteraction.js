@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../utils/displayMath';
+import {
+    HIT_TOLERANCE_MOUSE, HIT_TOLERANCE_TOUCH,
+    COMP_THRESHOLD_FLOOR_DB, GATE_THRESHOLD_FLOOR_DB,
+} from '../utils/canvasConstants';
 
 // Extract clientX/clientY from mouse or touch events
 const getEventCoords = (e) => {
@@ -68,12 +72,12 @@ const useWaveformInteraction = ({
             if (newDb > 0) newDb = 0;
 
             if (isDraggingLineRef.current === 'comp') {
-                if (newDb < -60) newDb = -60;
+                if (newDb < COMP_THRESHOLD_FLOOR_DB) newDb = COMP_THRESHOLD_FLOOR_DB;
                 setThreshold(Math.round(newDb));
                 setHasThresholdBeenAdjusted(true);
                 setIsCompAdjusting(true);
             } else if (isDraggingLineRef.current === 'gate') {
-                if (newDb < -80) newDb = -80;
+                if (newDb < GATE_THRESHOLD_FLOOR_DB) newDb = GATE_THRESHOLD_FLOOR_DB;
                 setGateThreshold(Math.round(newDb));
                 setHasGateBeenAdjusted(true);
                 setIsGateAdjusting(true);
@@ -187,7 +191,7 @@ const useWaveformInteraction = ({
             const relY = clientY - rect.top;
             const height = rect.height;
             const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
-            const HIT_TOLERANCE = 20;
+            const HIT_TOLERANCE = HIT_TOLERANCE_TOUCH;
 
             const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
             const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
@@ -253,7 +257,7 @@ const useWaveformInteraction = ({
 
         setMousePos({ x: relX, y: relY });
 
-        const HIT_TOLERANCE = 8;
+        const HIT_TOLERANCE = HIT_TOLERANCE_MOUSE;
         const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
 
