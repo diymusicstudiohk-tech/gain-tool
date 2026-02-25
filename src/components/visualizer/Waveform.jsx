@@ -217,6 +217,7 @@ export const drawMainWaveform = ({
             ctx.globalAlpha = 1;
 
             const inPoints = []; const outPoints = []; const mixPoints = []; const grPoints = []; const deltaPoints = [];
+            const diffOuterPoints = []; const diffInnerPoints = [];
             const dryLinear = Math.pow(10, dryGain / 20);
 
             // Determine which channels are needed before the loop
@@ -296,12 +297,24 @@ export const drawMainWaveform = ({
                 if (needsOutChannel) { const hOut = displayAmp(maxOut) * ampScale; outPoints.push({ x, yTop: centerY - hOut, yBot: centerY + hOut }); }
                 if (isDeltaMode) { const hDelta = displayAmp(maxDelta) * ampScale; deltaPoints.push({ x, yTop: centerY - hDelta, yBot: centerY + hDelta }); }
                 if (lastPlayedType === 'processed') mixPoints.push({ x, yTop: centerY - hMix, yBot: centerY + hMix });
+                if (isDeltaMode && lastPlayedType === 'processed') {
+                    const hLarger = Math.max(hIn, hMix);
+                    const hSmaller = Math.min(hIn, hMix);
+                    diffOuterPoints.push({ x, yTop: centerY - hLarger, yBot: centerY + hLarger });
+                    diffInnerPoints.push({ x, yTop: centerY - hSmaller, yBot: centerY + hSmaller });
+                }
                 if (minGR < 0 && lastPlayedType === 'processed') { const yPos = (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight; grPoints.push({ x, y: yPos }); }
                 else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
             }
 
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
+            else if (isDeltaMode) {
+                // Cyan outer (larger of input vs mix) — difference band visible
+                drawPolygonWithPeakFade(ctx, diffOuterPoints, '#2DD4BF', width, centerY, 0.85, 0.25);
+                // White inner (smaller/overlap area) on top
+                drawPolygonWithPeakFade(ctx, diffInnerPoints, '#ffffff', width, centerY, 1.0, 0.2);
+            }
             else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
 
