@@ -731,7 +731,7 @@ export const drawMainWaveform = ({
     const isDry = lastPlayedType === 'original';
     const inactiveColor = '#555';
 
-    if (!isCompBypass && (hasThresholdBeenAdjusted || isCompAdjusting || hoverLine === 'comp')) {
+    if (!isCompBypass) {
         const threshY = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
         if (centerY - threshY > -20 && centerY - threshY < height + 20) {
             const tTop = centerY - threshY;
@@ -779,7 +779,7 @@ export const drawMainWaveform = ({
         }
     }
 
-    if (!isGateBypass && (hasGateBeenAdjusted || isGateAdjusting || hoverLine === 'gate')) {
+    if (!isGateBypass) {
         const gateThreshY = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
         if (centerY - gateThreshY > -20 && centerY - gateThreshY < height + 20) {
             const gTop = centerY - gateThreshY; const gBot = centerY + gateThreshY;
