@@ -101,12 +101,15 @@ const ControlHud = ({
                         {/* Bypass Button */}
                         <button
                             onMouseDown={(e) => e.stopPropagation()}
-                            onClick={() => handleModeChange(isDryMode ? 'processed' : 'original')}
+                            onClick={() => !isDeltaMode && handleModeChange(isDryMode ? 'processed' : 'original')}
+                            disabled={isDeltaMode}
                             title={isDryMode ? "關閉 Bypass" : "開啟 Bypass"}
                             className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
-                                isDryMode
-                                    ? 'breathe-brick-red border-[#B54C35]'
-                                    : 'bg-[#202020] hover:bg-[#B54C35] border-[#C2A475]/30'
+                                isDeltaMode
+                                    ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
+                                    : isDryMode
+                                        ? 'breathe-brick-red border-[#B54C35]'
+                                        : 'bg-[#202020] hover:bg-[#B54C35] border-[#C2A475]/30'
                             }`}
                         >
                             <Power size={18} className="relative z-10 text-white" strokeWidth={2.5} />
