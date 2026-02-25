@@ -643,9 +643,9 @@ export const drawMainWaveform = ({
             const legendPadX = 10;
             const legendW = lw + legendPadX * 2;
             const legendH = 28;
-            const grBoxTop = mousePos.y - bgHeight - 4;
+            const goldTooltipBottom = mousePos.y - 24 - 8;
             let legendX = bgX;
-            let legendY = grBoxTop - legendH - 4;
+            let legendY = goldTooltipBottom - legendH - 4;
             if (legendX + legendW > width) legendX = width - legendW - 2;
             if (legendY < 2) legendY = mousePos.y + 8;
 
@@ -663,9 +663,9 @@ export const drawMainWaveform = ({
             const legendPadX = 10;
             const legendW = lw + legendPadX * 2;
             const legendH = 28;
-            const grBoxTop = mousePos.y - bgHeight - 4;
+            const goldTooltipBottom = mousePos.y - 24 - 8;
             let legendX = bgX;
-            let legendY = grBoxTop - legendH - 4;
+            let legendY = goldTooltipBottom - legendH - 4;
             if (legendX + legendW > width) legendX = width - legendW - 2;
             if (legendY < 2) legendY = mousePos.y + 8;
 
