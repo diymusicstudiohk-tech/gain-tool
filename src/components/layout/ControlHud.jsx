@@ -121,7 +121,7 @@ const ControlHud = ({
                                 isDryMode
                                     ? 'bg-[#313131] border-gray-600 cursor-not-allowed opacity-50'
                                     : isDeltaMode
-                                        ? 'breathe-blue border-[#2563eb]'
+                                        ? 'breathe-delta border-[#618C71]'
                                         : 'bg-[#202020] hover:bg-[#C1A475] border-[#C2A475]/30'
                             }`}
                         >

@@ -62,6 +62,22 @@
   animation: breathe-blue 1.5s infinite ease-in-out;
 }
 
+@keyframes breathe-delta {
+  0%, 100% {
+    background-color: #4a7059;
+    box-shadow: 0 0 5px rgba(97, 140, 113, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #618C71;
+    box-shadow: 0 0 25px rgba(97, 140, 113, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-delta {
+  animation: breathe-delta 1.5s infinite ease-in-out;
+}
+
 /* 強制設定背景色，確保網頁滿版，禁止 scroll */
 html, body, #root {
   touch-action: manipulation; /* prevent double-tap zoom on iOS */
