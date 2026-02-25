@@ -59,7 +59,9 @@ const useWaveformInteraction = ({
         if (isDraggingLineRef.current) {
             if (!waveformCanvasRef.current) return;
             const rect = waveformCanvasRef.current.getBoundingClientRect();
+            const relX = clientX - rect.left;
             const relY = clientY - rect.top;
+            setMousePos({ x: relX, y: relY });
             const height = rect.height;
             const PADDING = 0;
             const maxH = (height / 2) - PADDING;
