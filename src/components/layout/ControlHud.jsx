@@ -260,7 +260,7 @@ const ControlHud = ({
                                     ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                     : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUT</span>
+                                <span className={`text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>Output</span>
                             </div>
                             <div className={`flex gap-4 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'output' ? 'max-w-[400px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET OUTPUT" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
