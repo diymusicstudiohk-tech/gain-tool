@@ -877,6 +877,8 @@ const Waveform = ({
     onMouseDown,
     onMouseMove,
     onMouseLeave,
+    isLoading,
+    loadingMessage,
     children
 }) => {
     return (
@@ -891,6 +893,15 @@ const Waveform = ({
 
             {/* Playheads */}
             <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20" style={{ left: '0%', opacity: 0 }}></div>
+
+            {/* Loading overlay */}
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm transition-opacity duration-300">
+                    <span className="text-white font-mono text-sm animate-pulse tracking-wider">
+                        {loadingMessage || "載入音檔中..."}
+                    </span>
+                </div>
+            )}
 
             {/* Draggable Overlays & HUDs passed as children */}
             {children}

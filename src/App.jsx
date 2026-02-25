@@ -311,6 +311,8 @@ const App = () => {
                     onMouseDown={waveform.handleWaveformMouseDown}
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleMouseLeave}
+                    isLoading={engine.isLoading}
+                    loadingMessage={engine.loadingMessage}
                 >
                 </Waveform>
 
