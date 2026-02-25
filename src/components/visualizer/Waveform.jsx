@@ -301,11 +301,10 @@ export const drawMainWaveform = ({
             }
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
-            else if (isDeltaMode) {
-                // Delta mode: only draw the difference between input and output
-                drawPolygonWithPeakFade(ctx, deltaPoints, '#E15D42', width, centerY);
-            } else {
+            if (isDeltaMode) {
+                // Delta mode: no waveform, only GR curve drawn below
+            } else if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, '#D05A40', width, centerY); }
+            else {
                 const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
 
                 // Bottom: Brick Red (dry input)
@@ -325,7 +324,7 @@ export const drawMainWaveform = ({
                     }
                 }
             }
-            if (!isDeltaMode && grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
+            if (grPoints.length > 0) drawGRLine(ctx, grPoints, '#E05E42');
 
 
 
@@ -374,7 +373,7 @@ export const drawMainWaveform = ({
     };
 
     // Mouse GR Inspection + Hover Layers
-    if (mousePos.x >= 0 && lastPlayedType === 'processed' && !isDeltaMode) {
+    if (mousePos.x >= 0 && lastPlayedType === 'processed') {
         // --- Detect hover on wet area, dry-contribution area, or brick-red area ---
         let isHoveringOnWetArea = false;
         let isHoveringOnDryArea = false;
@@ -383,6 +382,7 @@ export const drawMainWaveform = ({
         const srcOutput = visualResult.outputData;
         const srcInput = visualResult.visualInput;
         const dryLinear = Math.pow(10, dryGain / 20);
+        if (!isDeltaMode)
         {
             const hvX = mousePos.x - panOffset;
             const hStart = Math.floor(hvX * step);
