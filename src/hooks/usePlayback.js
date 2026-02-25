@@ -14,6 +14,8 @@ const usePlayback = ({
     isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
     // Region bounds (normalized 0-1)
     regionStartRef, regionEndRef,
+    // AudioWorklet
+    workletReady,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
@@ -27,12 +29,22 @@ const usePlayback = ({
 
     const isDryMode = lastPlayedType === 'original';
 
-    // Sync isDeltaMode into paramsRef so ScriptProcessor reads the correct value
+    // Ref to track active AudioWorkletNode for parameter updates
+    const workletNodeRef = useRef(null);
+
+    // Sync isDeltaMode into paramsRef so processor reads the correct value
     useEffect(() => {
         if (paramsRef.current) {
             paramsRef.current = { ...paramsRef.current, isDeltaMode };
         }
     }, [isDeltaMode, paramsRef]);
+
+    // Send parameter updates to AudioWorklet processor via postMessage
+    useEffect(() => {
+        if (workletNodeRef.current && paramsRef.current) {
+            workletNodeRef.current.port.postMessage(paramsRef.current);
+        }
+    });
 
     // Sync Delta Mode
     useEffect(() => {
@@ -56,6 +68,7 @@ const usePlayback = ({
     const playBuffer = useCallback((buffer, type, offset) => {
         if (!audioContext || !buffer) return;
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+        workletNodeRef.current = null;
 
         const runPlayback = async () => {
             try {
@@ -84,14 +97,25 @@ const usePlayback = ({
                 source.buffer = targetBuffer;
 
                 if (type === 'processed') {
-                    const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-                    const compressor = createRealTimeCompressor(audioContext.sampleRate);
-                    scriptNode.onaudioprocess = (e) => {
-                        compressor.processBlock(e.inputBuffer, e.outputBuffer, paramsRef.current);
-                    };
-                    source.connect(scriptNode);
-                    scriptNode.connect(audioContext.destination);
-                    source._scriptNode = scriptNode;
+                    if (workletReady) {
+                        // AudioWorklet path (P1)
+                        const workletNode = new AudioWorkletNode(audioContext, 'compressor-processor');
+                        workletNode.port.postMessage(paramsRef.current);
+                        source.connect(workletNode);
+                        workletNode.connect(audioContext.destination);
+                        source._workletNode = workletNode;
+                        workletNodeRef.current = workletNode;
+                    } else {
+                        // Fallback: ScriptProcessor path
+                        const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                        const compressor = createRealTimeCompressor(audioContext.sampleRate);
+                        scriptNode.onaudioprocess = (e) => {
+                            compressor.processBlock(e.inputBuffer, e.outputBuffer, paramsRef.current);
+                        };
+                        source.connect(scriptNode);
+                        scriptNode.connect(audioContext.destination);
+                        source._scriptNode = scriptNode;
+                    }
                 } else {
                     source.connect(audioContext.destination);
                 }
@@ -111,7 +135,7 @@ const usePlayback = ({
                 isPlayingRef.current = false;
             }
         }
-    }, [audioContext, originalBuffer, paramsRef,
+    }, [audioContext, originalBuffer, paramsRef, workletReady,
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, animateRef]);
 
@@ -178,6 +202,7 @@ const usePlayback = ({
 
     const stopAudio = useCallback(() => {
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
+        workletNodeRef.current = null;
         if (audioContext && audioContext.state === 'running') audioContext.suspend();
         setPlayingType('none');
         isPlayingRef.current = false;

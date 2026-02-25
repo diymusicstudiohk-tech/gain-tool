@@ -55,10 +55,23 @@ const App = () => {
     const handleModeChangeRef = useRef(null);
     const lastPlayedTypeRef = useRef('original');
 
-    // --- Initialize AudioContext ---
+    // --- AudioWorklet readiness ---
+    const [workletReady, setWorkletReady] = useState(false);
+
+    // --- Initialize AudioContext + register AudioWorklet ---
     useEffect(() => {
         const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
         setAudioContext(ctx);
+
+        if (ctx.audioWorklet) {
+            ctx.audioWorklet.addModule('/compressor-processor.js')
+                .then(() => setWorkletReady(true))
+                .catch((err) => {
+                    console.warn('AudioWorklet registration failed, falling back to ScriptProcessor:', err);
+                    setWorkletReady(false);
+                });
+        }
+
         return () => { ctx.close(); };
     }, []);
 
@@ -134,6 +147,7 @@ const App = () => {
         isPlayingRef, rafIdRef, playBufferRef,
         meterStateRef,
         regionStartRef, regionEndRef,
+        workletReady,
     });
 
     // Wire ref-based callbacks

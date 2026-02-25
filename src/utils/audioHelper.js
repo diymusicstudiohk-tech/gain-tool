@@ -9,6 +9,9 @@ export const stopCurrentSource = (sourceNodeRef, drySourceNodeRef) => {
             if (sourceNodeRef.current._scriptNode) {
                 sourceNodeRef.current._scriptNode.disconnect();
             }
+            if (sourceNodeRef.current._workletNode) {
+                sourceNodeRef.current._workletNode.disconnect();
+            }
         } catch (e) { }
         sourceNodeRef.current = null;
     }
