@@ -179,7 +179,8 @@ export const drawMainWaveform = ({
             if (!Number.isFinite(step) || step <= 0) return;
 
             const centerY = (height / 2) + panOffsetY;
-            const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
+            const VERT_PAD = height * 0.05;
+            const maxPixelHeight = (height / 2) - VERT_PAD; const ampScale = maxPixelHeight * zoomY;
             const grMaxHeight = maxPixelHeight * 0.5;
 
             // Grid — horizontal dB lines with gradient fade
@@ -356,7 +357,8 @@ export const drawMainWaveform = ({
     if (!Number.isFinite(step) || step <= 0) return;
 
     const centerY = (height / 2) + panOffsetY;
-    const maxPixelHeight = height / 2; const ampScale = maxPixelHeight * zoomY;
+    const VERT_PAD = height * 0.05;
+    const maxPixelHeight = (height / 2) - VERT_PAD; const ampScale = maxPixelHeight * zoomY;
     const grMaxHeight = maxPixelHeight * 0.5;
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
