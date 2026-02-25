@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Gauge, Info } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 
-import { PRESETS_DATA } from './utils/constants';
 import { saveAppStateToStorage, softReset } from './utils/storage';
 
 import Header from './components/layout/Header';
@@ -310,19 +309,6 @@ const App = () => {
                     onMouseMove={waveform.handleLocalMouseMove}
                     onMouseLeave={waveform.handleMouseLeave}
                 >
-                    {(!comp.isCustomSettings && comp.selectedPresetIdx !== 0 && PRESETS_DATA[comp.selectedPresetIdx]) ? (
-                        <div className="absolute top-4 right-4 z-30 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-2xl flex flex-col w-72 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
-                            <div className="flex items-center gap-2 text-green-400 font-bold mb-2 text-base border-b border-white/10 pb-2">
-                                <Info size={18} />
-                                {PRESETS_DATA[comp.selectedPresetIdx].name.split(' (')[0]}
-                            </div>
-                            <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap font-medium">
-                                {PRESETS_DATA[comp.selectedPresetIdx].explanation}
-                            </div>
-                        </div>
-                    ) : null}
-
-
                 </Waveform>
 
                 <Meters
