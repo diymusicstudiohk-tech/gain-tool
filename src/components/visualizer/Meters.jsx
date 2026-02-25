@@ -136,11 +136,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const bgColor = 'rgba(255, 255, 255, 0.06)';
     const grMaxPixelHeight = maxPixelHeight * 0.5;
 
-    // 3 bars: 11 left, 22 bar, 11 gap, 22 bar, 11 gap, 22 bar, 16 right
+    // 3 bars: 11 left, 22 bar, 5.5 gap, 22 bar, 5.5 gap, 22 bar, 16 right
     const barWidth = 22;
-    const grCenterX = 11 + 11;           // 22
-    const dryCenterX = 11 + 22 + 11 + 11; // 55
-    const outCenterX = 11 + 22 + 11 + 22 + 11 + 11; // 88
+    const grCenterX = 11 + 11;              // 22
+    const dryCenterX = 11 + 22 + 5.5 + 11;  // 49.5
+    const outCenterX = 11 + 22 + 5.5 + 22 + 5.5 + 11; // 77
     const grX = grCenterX - (barWidth / 2);
     const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
@@ -337,7 +337,7 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
     return (
-        <div className="flex-none h-full relative" style={{ width: 115 }}>
+        <div className="flex-none h-full relative" style={{ width: 104 }}>
             <canvas ref={outputCanvasRef} className="w-full h-full" />
             {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />
