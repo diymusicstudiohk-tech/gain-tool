@@ -74,7 +74,7 @@ const useAudioEngine = ({
             setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
             setFileName(preset.name);
 
-            const arrayBuffer = await fetchAudioBuffer(preset.url);
+            const arrayBuffer = await fetchAudioBuffer(preset.trackName);
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
             resetAllParams();
