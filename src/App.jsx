@@ -184,6 +184,7 @@ const App = () => {
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
+        isDeltaMode: playback.isDeltaMode,
         // Seek-related refs
         startOffsetRef, playingTypeRef: playback.playingTypeRef, playBufferRef,
         playheadRef, outputPlayheadRef,

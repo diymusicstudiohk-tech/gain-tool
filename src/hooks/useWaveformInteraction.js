@@ -25,6 +25,7 @@ const useWaveformInteraction = ({
     isCompBypass, setIsCompBypass, isGateBypass, setIsGateBypass,
     lastPlayedType, handleModeChange,
     isDraggingKnobRef,
+    isDeltaMode,
     // Seek-related refs
     startOffsetRef, playingTypeRef, playBufferRef,
     playheadRef, outputPlayheadRef,
@@ -144,7 +145,7 @@ const useWaveformInteraction = ({
     const handleWaveformMouseDown = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
 
-        if (hoverLine) {
+        if (hoverLine && !isDeltaMode) {
             if (hoverLine === 'comp' && isCompBypass) {
                 setIsCompBypass(false);
                 setIsCustomSettings(true);
@@ -165,7 +166,7 @@ const useWaveformInteraction = ({
             // Seek — click on empty space to move playhead
             handleSeekOnWaveform(e.clientX);
         }
-    }, [originalBuffer, hoverLine, isCompBypass, isGateBypass, lastPlayedType,
+    }, [originalBuffer, hoverLine, isDeltaMode, isCompBypass, isGateBypass, lastPlayedType,
         setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, isDraggingKnobRef, handleSeekOnWaveform]);
 
@@ -188,7 +189,7 @@ const useWaveformInteraction = ({
 
         // Detect threshold lines — use a larger hit tolerance than mouse (20px vs 8px)
         let touchHoverLine = null;
-        if (waveformCanvasRef.current) {
+        if (waveformCanvasRef.current && !isDeltaMode) {
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relY = clientY - rect.top;
             const height = rect.height;
@@ -230,7 +231,7 @@ const useWaveformInteraction = ({
             // Seek — tap on empty space to move playhead
             handleSeekOnWaveform(clientX);
         }
-    }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomY, panOffsetY,
+    }, [originalBuffer, isDraggingKnobRef, isDeltaMode, waveformCanvasRef, zoomY, panOffsetY,
         threshold, gateThreshold,
         isCompBypass, isGateBypass, lastPlayedType,
         setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
@@ -276,13 +277,15 @@ const useWaveformInteraction = ({
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
-        if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        if (!isDeltaMode) {
+            if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
+            if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
     }, [threshold, gateThreshold, zoomY, panOffsetY,
-        isCompBypass, isGateBypass,
+        isDeltaMode, isCompBypass, isGateBypass,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
     const handleMouseLeave = useCallback(() => {
