@@ -325,7 +325,7 @@ const App = () => {
             />
 
             <ControlHud
-                gateThreshold={comp.gateThreshold} gateRatio={comp.gateRatio}
+                gateThreshold={comp.gateThreshold}
                 gateAttack={comp.gateAttack} gateRelease={comp.gateRelease}
                 handleGateThresholdChange={comp.handleGateThresholdChange}
                 updateParam={comp.updateGateParam}

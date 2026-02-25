@@ -5,7 +5,7 @@ const TWENTY_LOG10E = 20 * Math.LOG10E;      // Math.log(x) * TWENTY_LOG10E ≡ 
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
         threshold, ratio, attack, release, knee, lookahead,
-        makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease,
+        makeupGain, gateThreshold, gateAttack, gateRelease,
         isGateBypass, isCompBypass
     } = params;
 
@@ -27,23 +27,27 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const lookaheadSamples = Math.floor(((lookahead / 1000) * effectiveSampleRate));
 
     let compEnvelope = 0;
-    let gateEnvelope = 0;
+    let gateGainEnvelope = 0;
 
     for (let i = 0; i < length; i++) {
         let detectorIndex = Math.min(i + lookaheadSamples, length - 1);
         const inputLevel = Math.abs(inputData[detectorIndex]);
         const currentInput = inputData[i];
 
-        // Gate
-        if (inputLevel > gateEnvelope) gateEnvelope += gateAttCoeff * (inputLevel - gateEnvelope);
-        else gateEnvelope += gateRelCoeff * (inputLevel - gateEnvelope);
-
+        // Gate — separated detection + gain transition
+        let gateGainLinear = 1;
         let gateGaindB = 0;
         if (!isGateBypass) {
-            let gateEnvdB = Math.log(gateEnvelope + 1e-6) * TWENTY_LOG10E;
-            if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
+            const gateDetectorLeveldB = Math.log(inputLevel + 1e-6) * TWENTY_LOG10E;
+            const gateIsOpen = gateDetectorLeveldB >= gateThreshold;
+            const gateGainTarget = gateIsOpen ? 1.0 : 0.0;
+            if (gateGainTarget > gateGainEnvelope)
+                gateGainEnvelope += gateAttCoeff * (gateGainTarget - gateGainEnvelope);
+            else
+                gateGainEnvelope += gateRelCoeff * (gateGainTarget - gateGainEnvelope);
+            gateGainLinear = gateGainEnvelope;
+            gateGaindB = Math.log(gateGainEnvelope + 1e-6) * TWENTY_LOG10E;
         }
-        const gateGainLinear = Math.exp(gateGaindB * LN10_OVER_20);
 
         // Comp
         const gatedDetectorLevel = inputLevel * gateGainLinear;
@@ -75,7 +79,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
 
 export const createRealTimeCompressor = (sampleRate) => {
     let compEnvelope = 0;
-    let gateEnvelope = 0;
+    let gateGainEnvelope = 0;
 
     // Coefficient cache — only recalculate when params object identity changes
     let _cachedParams = null;
@@ -93,7 +97,7 @@ export const createRealTimeCompressor = (sampleRate) => {
 
                 const {
                     threshold, ratio, attack, release, knee,
-                    makeupGain, gateThreshold, gateRatio, gateAttack, gateRelease,
+                    makeupGain, gateThreshold, gateAttack, gateRelease,
                     isGateBypass, isCompBypass,
                     isDeltaMode, dryGain
                 } = params;
@@ -119,24 +123,26 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _dryLinear = Math.exp(dryGain * LN10_OVER_20);
             }
 
-            const { gateThreshold, gateRatio } = params;
+            const { gateThreshold } = params;
 
             for (let i = 0; i < length; i++) {
                 const inputSample = inputData[i];
                 const inputLevel = Math.abs(inputSample);
 
-                // Gate
-                if (!_isGateBypass) {
-                    if (inputLevel > gateEnvelope) gateEnvelope += _gateAttCoeff * (inputLevel - gateEnvelope);
-                    else gateEnvelope += _gateRelCoeff * (inputLevel - gateEnvelope);
-                }
-
+                // Gate — separated detection + gain transition
+                let gateGainLinear = 1;
                 let gateGaindB = 0;
                 if (!_isGateBypass) {
-                    let gateEnvdB = Math.log(gateEnvelope + 1e-6) * TWENTY_LOG10E;
-                    if (gateEnvdB < gateThreshold) gateGaindB = -(gateThreshold - gateEnvdB) * (gateRatio - 1);
+                    const gateDetectorLeveldB = Math.log(inputLevel + 1e-6) * TWENTY_LOG10E;
+                    const gateIsOpen = gateDetectorLeveldB >= gateThreshold;
+                    const gateGainTarget = gateIsOpen ? 1.0 : 0.0;
+                    if (gateGainTarget > gateGainEnvelope)
+                        gateGainEnvelope += _gateAttCoeff * (gateGainTarget - gateGainEnvelope);
+                    else
+                        gateGainEnvelope += _gateRelCoeff * (gateGainTarget - gateGainEnvelope);
+                    gateGainLinear = gateGainEnvelope;
+                    gateGaindB = Math.log(gateGainEnvelope + 1e-6) * TWENTY_LOG10E;
                 }
-                const gateGainLinear = Math.exp(gateGaindB * LN10_OVER_20);
                 const gatedDetectorLevel = inputLevel * gateGainLinear;
 
                 // Compressor
@@ -174,7 +180,7 @@ export const createRealTimeCompressor = (sampleRate) => {
         },
         reset: () => {
             compEnvelope = 0;
-            gateEnvelope = 0;
+            gateGainEnvelope = 0;
         }
     };
 };

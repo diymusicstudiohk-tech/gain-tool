@@ -13,7 +13,7 @@ const CATEGORY_ZH = {
 
 const ControlHud = ({
     // Gate Params
-    gateThreshold, gateRatio, gateAttack, gateRelease,
+    gateThreshold, gateAttack, gateRelease,
     handleGateThresholdChange, updateParam, handleGateDragState, hasGateBeenAdjusted,
     isGateBypass, setIsGateBypass,
 
@@ -227,7 +227,6 @@ const ControlHud = ({
                             </div>
                             <div className={`flex gap-6 overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'gate' ? 'max-w-[600px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="gold" onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
-                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RATIO" value={gateRatio} min={1} max={8} step={0.1} unit=":1" color="gold" onChange={(v) => updateParam('gateRatio', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRatio" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                                 <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="gold" onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                                 <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={gateRelease} min={10} max={500} step={1} unit="ms" color="gold" onChange={(v) => updateParam('gateRelease', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRelease" onHover={handleKnobEnter} onLeave={handleKnobLeave} />
                             </div>
