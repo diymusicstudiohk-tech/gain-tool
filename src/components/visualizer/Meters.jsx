@@ -471,7 +471,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             text = `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
         }
 
-        const GAP = 2;
+        const GAP = 4;
         // Position at cursor, use transform so browser measures actual width
         const flipX = tooltipPos.x < 200; // near left edge → show right of cursor
         const flipY = tooltipPos.y < 50;  // near top edge → show below cursor
