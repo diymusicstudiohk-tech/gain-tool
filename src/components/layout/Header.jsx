@@ -398,7 +398,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                 </div>
 
                 {/* Prev/Next source navigation buttons */}
-                <div className="flex self-stretch">
+                <div className="hidden min-[740px]:flex self-stretch">
                     <button
                         onClick={handlePrev}
                         disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
