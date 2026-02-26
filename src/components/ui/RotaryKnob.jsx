@@ -204,7 +204,7 @@ const RotaryKnob = ({
                     className="pointer-events-none"
                     style={{ position: 'fixed', left: mousePos.x + 12, top: mousePos.y + 16, zIndex: 9999 }}
                 >
-                    <div className="bg-black/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-[11px] font-medium text-slate-300 max-w-[220px]">
+                    <div className="bg-black/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-[11px] font-medium text-slate-300 max-w-[320px] whitespace-pre-line">
                         {TOOLTIPS[tooltipKey].desc}
                     </div>
                 </div>
