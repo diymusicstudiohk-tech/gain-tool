@@ -7,6 +7,9 @@ const TWENTY_LOG10E = 20 * Math.LOG10E;
 // Max look-ahead: 100ms @ 48kHz = 4800 samples
 const MAX_LOOKAHEAD_SAMPLES = 4800;
 
+// Feature-detect high-res timer (not all AudioWorklet scopes expose performance)
+const _now = typeof performance !== 'undefined' ? () => performance.now() : Date.now;
+
 class CompressorProcessor extends AudioWorkletProcessor {
     constructor() {
         super();
@@ -96,7 +99,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs, outputs) {
-        const t0 = performance.now();
+        const t0 = _now();
         const input = inputs[0];
         const output = outputs[0];
 
@@ -221,7 +224,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.dryGain = sDryGain;
 
         // DSP load metering
-        const elapsed = performance.now() - t0;
+        const elapsed = _now() - t0;
         this._loadAccum += elapsed;
         this._loadCounter++;
         if (this._loadCounter >= this._loadReportInterval) {
