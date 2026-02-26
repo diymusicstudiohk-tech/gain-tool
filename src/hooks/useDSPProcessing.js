@@ -102,16 +102,23 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     const visualStep = visualSourceCache.step;
 
     // Full Audio Processing (Async Chunking)
+    // NOTE: isDeltaMode is intentionally NOT in the dependency array.
+    // The offline processing always computes with isDeltaMode=false to produce
+    // a stable outputBuffer + deltaBuffer. Real-time delta mode is handled by
+    // the AudioWorklet via paramsRef. Including isDeltaMode here caused a race
+    // condition: toggling delta triggered a ~500-900ms reprocess that nulled
+    // fullAudioDataRef, breaking playback and loop restart.
     useEffect(() => {
         if (!originalBuffer || !audioContext) return;
-        console.warn(`[DELTA-DBG] Full audio reprocess STARTED — isDeltaMode=${isDeltaMode}, clearing fullAudioDataRef`);
+        console.warn(`[DELTA-DBG] Full audio reprocess STARTED, clearing fullAudioDataRef`);
         fullAudioDataRef.current = null;
         if (processingTaskRef.current) clearTimeout(processingTaskRef.current);
 
         const inputData = originalBuffer.getChannelData(0);
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
-        const params = { ...debouncedParams, dryGain: debouncedDryGain, isDeltaMode };
+        // Always process with isDeltaMode=false — delta buffer is derived post-processing
+        const params = { ...debouncedParams, dryGain: debouncedDryGain, isDeltaMode: false };
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
@@ -143,7 +150,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
                     else if (!isFinite(v)) deltaInf++;
                     else if (Math.abs(v) > deltaMax) deltaMax = Math.abs(v);
                 }
-                console.warn(`[DELTA-DBG] Full audio reprocess DONE in ${(performance.now() - startTime).toFixed(0)}ms — length=${length}, deltaMax=${deltaMax.toFixed(6)}, deltaNaN=${deltaNaN}, deltaInf=${deltaInf}, isDeltaMode=${isDeltaMode}`);
+                console.warn(`[DELTA-DBG] Full audio reprocess DONE in ${(performance.now() - startTime).toFixed(0)}ms — length=${length}, deltaMax=${deltaMax.toFixed(6)}, deltaNaN=${deltaNaN}, deltaInf=${deltaInf}`);
 
                 fullAudioDataRef.current = { outputBuffer: outBuf, deltaBuffer: deltaBuf };
                 setIsProcessing(false);
@@ -152,7 +159,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         processingTaskRef.current = setTimeout(processChunk, 150);
 
         return () => { if (processingTaskRef.current) clearTimeout(processingTaskRef.current); };
-    }, [originalBuffer, audioContext, debouncedParams, debouncedDryGain, isDeltaMode, setIsProcessing]);
+    }, [originalBuffer, audioContext, debouncedParams, debouncedDryGain, setIsProcessing]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         visualResult,
