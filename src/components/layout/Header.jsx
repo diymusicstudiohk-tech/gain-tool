@@ -227,7 +227,11 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                                         setTooltipsOff(!tooltipsOff);
                                         setShowAbout(false);
                                     }}
-                                    className="w-full max-w-[240px] px-6 py-2.5 rounded-lg bg-gold text-black hover:bg-gold-light transition-colors font-medium text-sm shadow-lg shadow-gold/30"
+                                    className={`w-full max-w-[240px] px-6 py-2.5 rounded-lg text-white transition-colors font-medium text-sm shadow-lg ${
+                                        tooltipsOff
+                                            ? 'bg-green hover:brightness-110 shadow-green/30'
+                                            : 'bg-brick-red hover:brightness-110 shadow-brick-red/30'
+                                    }`}
                                 >
                                     {tooltipsOff ? '開啟按鈕說明' : '關閉按鈕說明'}
                                 </button>
@@ -237,7 +241,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                                         stopAudio();
                                         handleFactoryReset();
                                     }}
-                                    className="w-full max-w-[240px] px-6 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-medium text-sm shadow-lg shadow-red-900/50"
+                                    className="w-full max-w-[240px] px-6 py-2.5 rounded-lg bg-gold text-black hover:bg-gold-light transition-colors font-medium text-sm shadow-lg shadow-gold/30"
                                 >
                                     還原本程式所有設定
                                 </button>
