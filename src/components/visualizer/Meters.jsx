@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
 import {
     METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
@@ -391,6 +391,21 @@ const METER_IN_RIGHT_RATIO = 63.25 / 104; // midpoint between In bar end and Out
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
+    const [, setTick] = useState(0);
+    const rafRef = useRef(null);
+
+    // RAF loop — force re-render every frame while tooltip is visible so dB values stay live
+    useEffect(() => {
+        if (!tooltipPos.visible) return;
+        let running = true;
+        const loop = () => {
+            if (!running) return;
+            setTick(t => t + 1);
+            rafRef.current = requestAnimationFrame(loop);
+        };
+        rafRef.current = requestAnimationFrame(loop);
+        return () => { running = false; cancelAnimationFrame(rafRef.current); };
+    }, [tooltipPos.visible]);
 
     // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
     const frozenRedraw = useCallback(() => {
