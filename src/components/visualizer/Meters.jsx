@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
 import {
     METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
@@ -105,7 +105,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -157,6 +157,21 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         ctx.beginPath();
         ctx.roundRect(bx, 0, barWidth, height, bgRadius);
         ctx.fill();
+    }
+
+    // --- Hover gold border ---
+    if (hoveredMeter) {
+        const hoverMap = { gr: grX, cf: grX, in: dryX, out: outX };
+        const hx = hoverMap[hoveredMeter];
+        if (hx !== undefined) {
+            ctx.save();
+            ctx.strokeStyle = GOLD;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(hx - 1, -1, barWidth + 2, height + 2, bgRadius + 1);
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     // --- GR Bar (top-down) ---
@@ -341,9 +356,37 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
 // --- Component ---
 
-const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
+// Meter hit-zone boundaries (CSS pixels, matching drawDualMeter layout)
+const METER_GR_RIGHT = 33;   // midpoint between GR bar end (33) and In bar start (38.5)
+const METER_IN_RIGHT = 63.25; // midpoint between In bar end (60.5) and Out bar start (66)
+
+const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef }) => {
+    const handleMouseMove = useCallback((e) => {
+        if (!hoveredMeterRef) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const h = rect.height;
+        const cfTop = h * CF_TOP_RATIO;
+
+        if (x < METER_GR_RIGHT) {
+            hoveredMeterRef.current = y < cfTop ? 'gr' : 'cf';
+        } else if (x < METER_IN_RIGHT) {
+            hoveredMeterRef.current = 'in';
+        } else {
+            hoveredMeterRef.current = 'out';
+        }
+    }, [hoveredMeterRef]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (hoveredMeterRef) hoveredMeterRef.current = null;
+    }, [hoveredMeterRef]);
+
     return (
-        <div className="flex-none h-full relative" style={{ width: 104 }}>
+        <div className="flex-none h-full relative" style={{ width: 104 }}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+        >
             <canvas ref={outputCanvasRef} className="w-full h-full" />
             {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />

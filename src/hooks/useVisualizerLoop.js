@@ -52,6 +52,7 @@ const useVisualizerLoop = ({
     outputPlayheadRef,
     regionStartRef,
     regionEndRef,
+    hoveredMeterRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
@@ -213,9 +214,9 @@ const useVisualizerLoop = ({
 
             // Draw Meters
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             }
 
             // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting or hovering
@@ -319,7 +320,7 @@ const useVisualizerLoop = ({
         }
 
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,

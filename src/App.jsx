@@ -40,6 +40,7 @@ const App = () => {
     const playBufferRef = useRef(null);
     const isDraggingKnobRef = useRef(false);
     const animateRef = useRef(null);
+    const hoveredMeterRef = useRef(null);
     const fullAudioDataRef = useRef(null);
     const meterStateRef = useRef({
         peakLevel: 0, holdPeakLevel: 0, holdTimer: 0,
@@ -250,6 +251,7 @@ const App = () => {
         lastPlayedTypeRef: playback.lastPlayedTypeRef,
         outputPlayheadRef,
         regionStartRef, regionEndRef,
+        hoveredMeterRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)
@@ -403,6 +405,7 @@ const App = () => {
                     outputCanvasRef={outputMeterCanvasRef}
                     cfMeterCanvasRef={cfMeterCanvasRef}
                     height={view.canvasDims.height}
+                    hoveredMeterRef={hoveredMeterRef}
                 />
             </div>
 
