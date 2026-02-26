@@ -5,11 +5,7 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
     const dimsRef = useRef({ width: 0, height: 0 });
 
     const drawOutputWaveform = useCallback((canvas, data, levels, rStart, rEnd) => {
-        if (!canvas || !data || data.length === 0) {
-            if (!canvas) console.warn('[DELTA-DBG] OutputWaveform: no canvas');
-            else if (!data) console.warn('[DELTA-DBG] OutputWaveform: no data');
-            return;
-        }
+        if (!canvas || !data || data.length === 0) return;
         const ctx = canvas.getContext('2d');
         const { width, height } = dimsRef.current;
         if (width === 0 || height === 0) return;

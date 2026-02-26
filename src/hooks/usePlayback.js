@@ -36,7 +36,6 @@ const usePlayback = ({
     useEffect(() => {
         if (paramsRef.current) {
             paramsRef.current = { ...paramsRef.current, isDeltaMode };
-            console.warn(`[DELTA-DBG] paramsRef synced: isDeltaMode=${isDeltaMode}`);
         }
     }, [isDeltaMode, paramsRef]);
 
@@ -49,21 +48,12 @@ const usePlayback = ({
 
     // Sync Delta Mode
     useEffect(() => {
-        if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) {
-            if (isDeltaMode) {
-                console.warn(`[DELTA-DBG] Sync skipped: playingType=${playingType}, lastPlayedType=${lastPlayedType}, fullAudioData=${!!fullAudioDataRef.current}`);
-            }
-            return;
-        }
+        if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) return;
         const targetBuffer = isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer;
-        console.warn(`[DELTA-DBG] Sync Delta buffer switch: isDelta=${isDeltaMode}, targetBuffer=${!!targetBuffer}, bufferDuration=${targetBuffer?.duration?.toFixed(3)}, deltaBuffer=${!!fullAudioDataRef.current.deltaBuffer}, outputBuffer=${!!fullAudioDataRef.current.outputBuffer}`);
         if (targetBuffer && audioContext) {
             const elapsed = audioContext.currentTime - startTimeRef.current;
             const currentPos = startOffsetRef.current + elapsed;
-            console.warn(`[DELTA-DBG] Switching playback buffer at pos=${currentPos.toFixed(3)}`);
             playBufferRef.current?.(targetBuffer, 'processed', currentPos);
-        } else {
-            console.error(`[DELTA-DBG] !! No targetBuffer available for delta switch! isDelta=${isDeltaMode}`);
         }
     }, [isDeltaMode, playingType, lastPlayedType, fullAudioDataRef, audioContext,
         startTimeRef, startOffsetRef, playBufferRef]);
@@ -77,13 +67,6 @@ const usePlayback = ({
 
     const playBuffer = useCallback((buffer, type, offset) => {
         if (!audioContext || !buffer) return;
-
-        // [LOOP-FLICKER] Log playBuffer entry with delta state (read from paramsRef — always current)
-        const _liveIsDelta = paramsRef.current?.isDeltaMode;
-        if (_liveIsDelta) {
-            console.warn(`[LOOP-FLICKER] playBuffer ENTER: type=${type} offset=${offset?.toFixed(3)} isDelta=${_liveIsDelta} bufferDuration=${buffer.duration?.toFixed(3)} ctxState=${audioContext.state}`);
-        }
-
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
         workletNodeRef.current = null;
 
@@ -141,15 +124,8 @@ const usePlayback = ({
                 source.start(0, safeOffset);
                 setPlayingType(type);
                 setLastPlayedType(type);
-                // Kick off animation using ref (latest animate from useVisualizerLoop)
-                cancelAnimationFrame(rafIdRef.current);
-                if (animateRef.current) {
-                    rafIdRef.current = requestAnimationFrame(animateRef.current);
-                }
-                // [LOOP-FLICKER] Log RAF restart in playBuffer
-                if (_liveIsDelta) {
-                    console.warn(`[LOOP-FLICKER] playBuffer startSource done: type=${type} offset=${safeOffset.toFixed(3)} isDelta=${_liveIsDelta} workletReady=${workletReady} animateRef=${!!animateRef.current} rafId=${rafIdRef.current}`);
-                }
+                // RAF loop is managed by App.jsx effect — no self-scheduling here.
+                // The effect restarts the loop when playingType or animate changes.
             } catch (e) {
                 console.error("BS/Script creation error", e);
                 setPlayingType('none');
@@ -157,8 +133,7 @@ const usePlayback = ({
             }
         }
     }, [audioContext, originalBuffer, paramsRef, workletReady,
-        sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, animateRef]);
+        sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef]);
 
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer, playBufferRef]);
 
@@ -218,12 +193,8 @@ const usePlayback = ({
     const toggleDeltaMode = useCallback((e) => {
         e.stopPropagation();
         if (lastPlayedType === 'original') return;
-        setIsDeltaMode(prev => {
-            const next = !prev;
-            console.warn(`[DELTA-DBG] toggleDeltaMode: ${prev} → ${next}, playingType=${playingType}, lastPlayedType=${lastPlayedType}, fullAudioData=${!!fullAudioDataRef.current}, deltaBuffer=${!!fullAudioDataRef.current?.deltaBuffer}, outputBuffer=${!!fullAudioDataRef.current?.outputBuffer}`);
-            return next;
-        });
-    }, [lastPlayedType, playingType, fullAudioDataRef]);
+        setIsDeltaMode(prev => !prev);
+    }, [lastPlayedType]);
 
     const stopAudio = useCallback(() => {
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }

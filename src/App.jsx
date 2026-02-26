@@ -255,16 +255,24 @@ const App = () => {
     // Wire animate ref (for usePlayback to use latest animate)
     animateRef.current = animate;
 
-    // --- RAF restart effect (needs both playingType and animate) ---
+    // --- RAF loop effect ---
+    // Uses a stable `loop` wrapper that reads animateRef.current each frame.
+    // This prevents zombie RAF loops: when `animate` is recreated (e.g. isDeltaMode
+    // changes), the old closure is NOT self-scheduling — only `loop` schedules,
+    // and it always delegates to the latest animate via the ref.
     useEffect(() => {
-        if (playback.playingType !== 'none') {
-            rafIdRef.current = requestAnimationFrame(animate);
-            // [LOOP-FLICKER] Log RAF restart from effect (animate recreated or playingType changed)
-            if (playback.isDeltaMode) {
-                console.warn(`[LOOP-FLICKER] App RAF effect fired: playingType=${playback.playingType} isDelta=${playback.isDeltaMode} lastPlayed=${playback.lastPlayedType}`);
-            }
-        }
-        return () => cancelAnimationFrame(rafIdRef.current);
+        if (playback.playingType === 'none') return;
+        let active = true;
+        const loop = () => {
+            if (!active) return;
+            animateRef.current?.();
+            rafIdRef.current = requestAnimationFrame(loop);
+        };
+        rafIdRef.current = requestAnimationFrame(loop);
+        return () => {
+            active = false;
+            cancelAnimationFrame(rafIdRef.current);
+        };
     }, [playback.playingType, animate]);
 
     // --- Keyboard listener ---

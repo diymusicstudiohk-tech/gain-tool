@@ -16,16 +16,6 @@ import {
     GR_HOVER_THRESHOLD_DB, GR_HOVER_DASH,
 } from '../../utils/canvasConstants';
 
-// Throttled logger for delta waveform debug
-const _wfDbgTimers = {};
-const wfDbgThrottle = (key, ...args) => {
-    const now = Date.now();
-    if (!_wfDbgTimers[key] || now - _wfDbgTimers[key] > 500) {
-        _wfDbgTimers[key] = now;
-        console.warn(...args);
-    }
-};
-
 // --- Main Draw Logic (Exported for App.jsx) ---
 
 export const drawMainWaveform = ({
@@ -68,13 +58,6 @@ export const drawMainWaveform = ({
     const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
     const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
 
-    // [LOOP-FLICKER] Log cache state when in delta mode
-    if (isDeltaMode && cache?.key && cache.key !== cacheKey) {
-        const cachedDelta = cache.key.includes('_1_') ? 'delta=1' : 'delta=0';
-        const currentDelta = isDeltaMode ? 'delta=1' : 'delta=0';
-        wfDbgThrottle('cacheMismatch', `[LOOP-FLICKER] Cache MISS: cached(${cachedDelta}) vs current(${currentDelta}) isAnyDrag=${isAnyDrag} cachedKey=${cache.key.substring(0,50)} newKey=${cacheKey.substring(0,50)}`);
-    }
-
     // ── PHASE 1: Waveform background (skip when cache hit) ──
     if (!cacheHit) {
         ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
@@ -95,36 +78,8 @@ export const drawMainWaveform = ({
             });
 
             // Draw Polygons
-            // [LOOP-FLICKER] Log which rendering path is taken
-            if (isDeltaMode && lastPlayedType !== 'original') {
-                wfDbgThrottle('renderPath', `[LOOP-FLICKER] Render path: DELTA GREEN (isDelta=${isDeltaMode} lastPlayed=${lastPlayedType} diffOuter=${diffOuterPoints.length} diffInner=${diffInnerPoints.length})`);
-            } else if (!isDeltaMode && lastPlayedType === 'processed') {
-                // This is the WHITE waveform path — if we see this log while delta should be on, it's the bug!
-                wfDbgThrottle('renderPathWhite', `[LOOP-FLICKER] !! Render path: WHITE MIX (isDelta=${isDeltaMode} lastPlayed=${lastPlayedType} playingType=${playingType}) — if delta should be ON, this is the flicker bug!`);
-            }
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else if (isDeltaMode) {
-                // Delta mode debug: check for data anomalies
-                if (diffOuterPoints.length > 0) {
-                    let hasNaN = false, hasHuge = false, outerMax = 0, innerMax = 0;
-                    for (let dp = 0; dp < diffOuterPoints.length; dp++) {
-                        const op = diffOuterPoints[dp];
-                        const ip = diffInnerPoints[dp];
-                        if (isNaN(op.yTop) || isNaN(op.yBot)) hasNaN = true;
-                        if (ip && (isNaN(ip.yTop) || isNaN(ip.yBot))) hasNaN = true;
-                        const oh = Math.abs(op.yBot - op.yTop);
-                        const ih = ip ? Math.abs(ip.yBot - ip.yTop) : 0;
-                        if (oh > outerMax) outerMax = oh;
-                        if (ih > innerMax) innerMax = ih;
-                        if (oh > height * 2 || ih > height * 2) hasHuge = true;
-                    }
-                    if (hasNaN || hasHuge) {
-                        console.error(`[DELTA-DBG] !! Waveform draw anomaly: hasNaN=${hasNaN}, hasHuge=${hasHuge}, outerMax=${outerMax.toFixed(1)}, innerMax=${innerMax.toFixed(1)}, points=${diffOuterPoints.length}, canvasH=${height}`);
-                    }
-                    wfDbgThrottle('deltaDraw', `[DELTA-DBG] Delta draw: outerPts=${diffOuterPoints.length}, innerPts=${diffInnerPoints.length}, outerMax=${outerMax.toFixed(1)}, innerMax=${innerMax.toFixed(1)}`);
-                } else {
-                    wfDbgThrottle('deltaEmpty', `[DELTA-DBG] !! Delta draw with EMPTY diffOuterPoints`);
-                }
                 drawPolygonWithPeakFade(ctx, diffOuterPoints, GREEN, width, centerY, 0.85, 0.25);
                 drawPolygonWithPeakFade(ctx, diffInnerPoints, BG_PANEL, width, centerY, 1.0, 0.0);
             }
@@ -152,7 +107,7 @@ export const drawMainWaveform = ({
             }
 
         } catch (e) {
-            console.error(`[DELTA-DBG] Draw error (isDelta=${isDeltaMode}, lastType=${lastPlayedType}):`, e);
+            console.error("Waveform draw error:", e);
             return;
         }
     } else {
