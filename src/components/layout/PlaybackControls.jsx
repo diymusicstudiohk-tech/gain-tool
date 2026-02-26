@@ -64,7 +64,7 @@ const PlaybackControls = ({ playback, preset }) => {
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => !isDeltaMode && handleModeChange(isDryMode ? 'processed' : 'original')}
                 disabled={isDeltaMode}
-                data-tooltip={isDryMode ? "關閉旁通模式" : "旁通：聆聽未處理的原始聲音"}
+                data-tooltip={isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經處理前的聲音"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                     isDeltaMode
                         ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
@@ -80,7 +80,7 @@ const PlaybackControls = ({ playback, preset }) => {
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={toggleDeltaMode}
                 disabled={isDryMode}
-                data-tooltip={isDeltaMode ? "關閉差異監聽" : "差異監聽：只聽被壓縮器移除的部分"}
+                data-tooltip={isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被壓縮器移除的部分"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                     isDryMode
                         ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
