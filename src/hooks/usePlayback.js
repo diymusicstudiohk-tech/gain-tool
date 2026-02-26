@@ -106,13 +106,7 @@ const usePlayback = ({
                         source.connect(workletNode);
                         workletNode.connect(audioContext.destination);
                         if (dspLoadRef) {
-                            let _debugCount = 0;
                             workletNode.port.onmessage = (e) => {
-                                // [DSP-DEBUG] checkpoint 2: main thread receives message
-                                if (_debugCount < 3) {
-                                    console.log('[DSP-DEBUG] main onmessage:', JSON.stringify(e.data));
-                                    _debugCount++;
-                                }
                                 if (e.data.type === 'dsp-load') {
                                     dspLoadRef.current = {
                                         loadMs: e.data.loadMs,
