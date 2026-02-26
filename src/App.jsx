@@ -16,6 +16,9 @@ import useVisualizerLoop from './hooks/useVisualizerLoop';
 import usePlayback from './hooks/usePlayback';
 import useAudioEngine from './hooks/useAudioEngine';
 import useWaveformInteraction from './hooks/useWaveformInteraction';
+import useDSPMeter from './hooks/useDSPMeter';
+
+import StatusBar from './components/layout/StatusBar';
 
 const App = () => {
     // --- Core State (shared between hooks) ---
@@ -132,6 +135,9 @@ const App = () => {
         meterStateRef,
     });
 
+    // --- 3b. DSP Load Meter ---
+    const { dspLoadRef, dspLoad } = useDSPMeter();
+
     // --- 4. Playback (uses animateRef to break cycle) ---
     const playback = usePlayback({
         audioContext, originalBuffer,
@@ -147,6 +153,7 @@ const App = () => {
         meterStateRef,
         regionStartRef, regionEndRef,
         workletReady,
+        dspLoadRef,
     });
 
     // Wire ref-based callbacks
@@ -411,6 +418,8 @@ const App = () => {
                 output={outputProps}
                 ui={uiProps}
             />
+
+            <StatusBar dspLoad={dspLoad} />
 
             {engine.errorMsg && (
                 <div className="fixed top-4 right-4 bg-red-900/90 text-white p-4 rounded shadow-xl border border-red-500 max-w-sm z-50">

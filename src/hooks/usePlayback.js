@@ -16,6 +16,8 @@ const usePlayback = ({
     regionStartRef, regionEndRef,
     // AudioWorklet
     workletReady,
+    // DSP load metering
+    dspLoadRef,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
@@ -103,14 +105,38 @@ const usePlayback = ({
                         workletNode.port.postMessage(paramsRef.current);
                         source.connect(workletNode);
                         workletNode.connect(audioContext.destination);
+                        if (dspLoadRef) {
+                            workletNode.port.onmessage = (e) => {
+                                if (e.data.type === 'dsp-load') {
+                                    dspLoadRef.current = {
+                                        loadMs: e.data.loadMs,
+                                        budgetMs: e.data.budgetMs,
+                                        timestamp: performance.now(),
+                                    };
+                                }
+                            };
+                        }
                         source._workletNode = workletNode;
                         workletNodeRef.current = workletNode;
                     } else {
                         // Fallback: ScriptProcessor path
                         const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                         const compressor = createRealTimeCompressor(audioContext.sampleRate);
+                        let spLoadCounter = 0;
+                        const spBudgetMs = (2048 / audioContext.sampleRate) * 1000;
                         scriptNode.onaudioprocess = (e) => {
+                            const t0 = performance.now();
                             compressor.processBlock(e.inputBuffer, e.outputBuffer, paramsRef.current);
+                            const elapsed = performance.now() - t0;
+                            spLoadCounter++;
+                            if (dspLoadRef && spLoadCounter >= 2) {
+                                dspLoadRef.current = {
+                                    loadMs: elapsed,
+                                    budgetMs: spBudgetMs,
+                                    timestamp: performance.now(),
+                                };
+                                spLoadCounter = 0;
+                            }
                         };
                         source.connect(scriptNode);
                         scriptNode.connect(audioContext.destination);
@@ -135,7 +161,7 @@ const usePlayback = ({
                 isPlayingRef.current = false;
             }
         }
-    }, [audioContext, originalBuffer, paramsRef, workletReady,
+    }, [audioContext, originalBuffer, paramsRef, workletReady, dspLoadRef,
         sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, animateRef]);
 

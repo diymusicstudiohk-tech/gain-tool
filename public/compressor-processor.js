@@ -53,6 +53,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Smoothing coefficient (~5ms time constant)
         this.smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
 
+        // DSP load metering
+        this._loadCounter = 0;
+        this._loadReportInterval = 37; // ~10 Hz at 128 samples / 48 kHz
+        this._loadAccum = 0;
+        this._budgetMs = (128 / sampleRate) * 1000;
+
         this.port.onmessage = (e) => {
             const p = e.data;
             this.params = p;
@@ -90,6 +96,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs, outputs) {
+        const t0 = performance.now();
         const input = inputs[0];
         const output = outputs[0];
 
@@ -212,6 +219,20 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.knee = sKnee;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
+
+        // DSP load metering
+        const elapsed = performance.now() - t0;
+        this._loadAccum += elapsed;
+        this._loadCounter++;
+        if (this._loadCounter >= this._loadReportInterval) {
+            this.port.postMessage({
+                type: 'dsp-load',
+                loadMs: this._loadAccum / this._loadCounter,
+                budgetMs: this._budgetMs,
+            });
+            this._loadAccum = 0;
+            this._loadCounter = 0;
+        }
 
         return true;
     }
