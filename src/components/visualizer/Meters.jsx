@@ -471,7 +471,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             text = `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
         }
 
-        const GAP = 4;
+        const GAP = 2;
         // Measure approximate width: longest line ~42 chars at ~7px each
         const TOOLTIP_W = text.length * 7 + 20;
         const TOOLTIP_H = 32;
