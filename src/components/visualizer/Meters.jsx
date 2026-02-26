@@ -472,19 +472,16 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         }
 
         const GAP = 2;
-        // Measure approximate width: longest line ~42 chars at ~7px each
-        const TOOLTIP_W = text.length * 7 + 20;
-        const TOOLTIP_H = 32;
-        let tx = tooltipPos.x - TOOLTIP_W - GAP;
-        let ty = tooltipPos.y - TOOLTIP_H - GAP;
-        if (tx < 4) tx = tooltipPos.x + GAP;
-        if (ty < 4) ty = tooltipPos.y + GAP;
+        // Position at cursor, use transform so browser measures actual width
+        const flipX = tooltipPos.x < 200; // near left edge → show right of cursor
+        const flipY = tooltipPos.y < 50;  // near top edge → show below cursor
 
         tooltipNode = (
             <div style={{
                 position: 'fixed',
-                left: tx,
-                top: ty,
+                left: tooltipPos.x + (flipX ? GAP : -GAP),
+                top: tooltipPos.y + (flipY ? GAP : -GAP),
+                transform: `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`,
                 background: 'rgba(0,0,0,0.75)',
                 color: '#fff',
                 font: 'bold 11px sans-serif',
