@@ -502,7 +502,7 @@ export const drawMainWaveform = ({
     // ── Threshold Lines ──
     const isDry = lastPlayedType === 'original';
 
-    if (!isCompBypass && !isDeltaMode) {
+    if (!isCompBypass) {
         drawThresholdLine(ctx, {
             thresholdDb: threshold,
             color: isDry || isCompBypass ? INACTIVE : COMP_BLUE,
@@ -511,7 +511,7 @@ export const drawMainWaveform = ({
         });
     }
 
-    if (!isGateBypass && !isDeltaMode) {
+    if (!isGateBypass) {
         drawThresholdLine(ctx, {
             thresholdDb: gateThreshold,
             color: isDry || isGateBypass ? INACTIVE : GREEN,
