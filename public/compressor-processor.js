@@ -8,7 +8,8 @@ const TWENTY_LOG10E = 20 * Math.LOG10E;
 const MAX_LOOKAHEAD_SAMPLES = 4800;
 
 // Feature-detect high-res timer (not all AudioWorklet scopes expose performance)
-const _now = typeof performance !== 'undefined' ? () => performance.now() : Date.now;
+const _hasPerfNow = typeof performance !== 'undefined' && typeof performance.now === 'function';
+const _now = _hasPerfNow ? () => performance.now() : Date.now;
 
 class CompressorProcessor extends AudioWorkletProcessor {
     constructor() {
@@ -228,9 +229,17 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this._loadAccum += elapsed;
         this._loadCounter++;
         if (this._loadCounter >= this._loadReportInterval) {
+            const avgLoad = this._loadAccum / this._loadCounter;
+            // [DSP-DEBUG] checkpoint 1: worklet sending dsp-load
+            if (!this._debugLogged) {
+                console.log('[DSP-DEBUG] worklet: timer=', _hasPerfNow ? 'performance.now' : 'Date.now',
+                    'avgLoadMs=', avgLoad.toFixed(4), 'budgetMs=', this._budgetMs.toFixed(4),
+                    'accumMs=', this._loadAccum.toFixed(4));
+                this._debugLogged = true;
+            }
             this.port.postMessage({
                 type: 'dsp-load',
-                loadMs: this._loadAccum / this._loadCounter,
+                loadMs: avgLoad,
                 budgetMs: this._budgetMs,
             });
             this._loadAccum = 0;

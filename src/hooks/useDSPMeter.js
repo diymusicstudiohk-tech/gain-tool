@@ -9,10 +9,20 @@ const useDSPMeter = () => {
     const [dspLoad, setDspLoad] = useState(0);
     const smoothedRef = useRef(0);
 
+    const debugCountRef = useRef(0);
+
     useEffect(() => {
         const id = setInterval(() => {
             const { loadMs, budgetMs, timestamp } = dspLoadRef.current;
             const age = performance.now() - timestamp;
+
+            // [DSP-DEBUG] checkpoint 3: meter polling
+            if (debugCountRef.current < 5) {
+                console.log('[DSP-DEBUG] meter poll: loadMs=', loadMs.toFixed(4),
+                    'budgetMs=', budgetMs.toFixed(4), 'age=', age.toFixed(0) + 'ms',
+                    'stale=', age > STALE_MS);
+                debugCountRef.current++;
+            }
 
             if (age > STALE_MS || budgetMs === 0) {
                 smoothedRef.current *= 0.8; // decay
