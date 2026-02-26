@@ -153,27 +153,25 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
 
-    ctx.fillStyle = bgColor;
     const bgRadius = METER_BAR_RADIUS;
-    for (const bx of [grX, dryX, outX]) {
+    // Hover highlight colors at 40% alpha (matching each meter's bar color)
+    const hoverBgMap = {
+        gr: 'rgba(181, 76, 53, 0.4)',   // BRICK_RED
+        cf: 'rgba(150, 207, 173, 0.4)', // CREST_GREEN
+        in: 'rgba(194, 164, 117, 0.4)', // GOLD
+        out: meterState.outClipping ? 'rgba(224, 94, 66, 0.4)' : 'rgba(194, 164, 117, 0.4)', // CLIP_RED or GOLD
+    };
+    const barKeys = [
+        { x: grX, key: 'gr' },
+        { x: dryX, key: 'in' },
+        { x: outX, key: 'out' },
+    ];
+    for (const { x: bx, key } of barKeys) {
+        ctx.fillStyle = (hoveredMeter === key || (key === 'gr' && hoveredMeter === 'cf'))
+            ? hoverBgMap[hoveredMeter] : bgColor;
         ctx.beginPath();
         ctx.roundRect(bx, 0, barWidth, height, bgRadius);
         ctx.fill();
-    }
-
-    // --- Hover gold border ---
-    if (hoveredMeter) {
-        const hoverMap = { gr: grX, cf: grX, in: dryX, out: outX };
-        const hx = hoverMap[hoveredMeter];
-        if (hx !== undefined) {
-            ctx.save();
-            ctx.strokeStyle = GOLD;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.roundRect(hx - 1, -1, barWidth + 2, height + 2, bgRadius + 1);
-            ctx.stroke();
-            ctx.restore();
-        }
     }
 
     // --- GR Bar (top-down) ---
