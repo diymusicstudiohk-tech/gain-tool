@@ -146,6 +146,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
 
     // 3 bars: scale all positions proportionally from 104px reference width
     const s = width / 104;
+    const hideReadings = s < 1; // below 740px breakpoint, meter is narrower than 104px
     const barWidth = METER_BAR_WIDTH * s;
     const grCenterX = 22 * s;
     const dryCenterX = 49.5 * s;
@@ -206,7 +207,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         const holdHeight = meterState.grHoldPeakLevel * grMaxPixelHeight;
         ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, holdHeight, barWidth, 2 * s);
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
-        if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12 * s); }
+        if (!hideReadings && meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12 * s); }
     }
     if (hoverGrDbVal !== null && hoverGrDbVal < -0.1 && isHoveringGRArea) {
         const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
@@ -214,9 +215,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         ctx.fillStyle = BRICK_RED;
         ctx.fillRect(grX, 0, barWidth, hoverY);
         // Gold dB text below the bar
-        const dbText = hoverGrDbVal.toFixed(1);
-        ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-        ctx.fillText(dbText, grCenterX, hoverY + 12 * s);
+        if (!hideReadings) {
+            const dbText = hoverGrDbVal.toFixed(1);
+            ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
+            ctx.fillText(dbText, grCenterX, hoverY + 12 * s);
+        }
     }
 
     // --- Dry Bar (center-outward) ---
@@ -278,12 +281,14 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
 
     ctx.fillStyle = TEXT_MID; ctx.font = 'bold ' + Math.max(7, Math.round(8 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("CF", grCenterX, cfTop - 2 * s);
-    if (crestFactor > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${crestFactor.toFixed(1)}`, grCenterX, cfY - 5 * s); }
+    if (!hideReadings && crestFactor > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${crestFactor.toFixed(1)}`, grCenterX, cfY - 5 * s); }
 
     // Text Labels
-    ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-    if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), dryCenterX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
-    if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
+    if (!hideReadings) {
+        ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
+        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), dryCenterX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
+        if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
+    }
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif';
     ctx.fillText("GR", grCenterX, 12 * s);
