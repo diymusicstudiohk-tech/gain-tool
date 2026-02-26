@@ -20,7 +20,8 @@ const RotaryKnob = ({
     disabled,
     compact,
     parseEditValue,
-    defaultValue
+    defaultValue,
+    tooltipsOff
 }) => {
     const isDraggingRef = useRef(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -199,7 +200,7 @@ const RotaryKnob = ({
                 </div>
                 {isEditing && <input autoFocus type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleInputBlur} onKeyDown={(e) => { if (e.key === 'Enter') handleInputBlur() }} onClick={(e) => e.stopPropagation()} className="w-12 text-center text-xs bg-slate-800 text-white border border-slate-600 rounded mt-1" />}
             </div>
-            {isHovered && tooltipKey && TOOLTIPS[tooltipKey] && (
+            {isHovered && !tooltipsOff && tooltipKey && TOOLTIPS[tooltipKey] && (
                 <div
                     className="pointer-events-none"
                     style={{ position: 'fixed', left: mousePos.x + 16, top: mousePos.y - 12, transform: 'translateY(-100%)', zIndex: 9999 }}

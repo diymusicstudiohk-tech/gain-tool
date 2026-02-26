@@ -18,7 +18,7 @@ const CUSTOM_ALLOWED_MIME_TYPES = [
     'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
 ];
 
-const Header = ({ engine: engineProps, handleFactoryReset, stopAudio }) => {
+const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff }) => {
     const {
         fileName, currentSourceId, lastPracticeSourceId,
         handleFileUpload, clearUserUpload, restoreUserUpload, switchToPractice,
@@ -224,6 +224,15 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio }) => {
                             <div className="flex flex-col items-center gap-3">
                                 <button
                                     onClick={() => {
+                                        setTooltipsOff(!tooltipsOff);
+                                        setShowAbout(false);
+                                    }}
+                                    className="w-full max-w-[240px] px-6 py-2.5 rounded-lg bg-gold text-black hover:bg-gold-light transition-colors font-medium text-sm shadow-lg shadow-gold/30"
+                                >
+                                    {tooltipsOff ? '開啟按鈕說明' : '關閉按鈕說明'}
+                                </button>
+                                <button
+                                    onClick={() => {
                                         setShowAbout(false);
                                         stopAudio();
                                         handleFactoryReset();
@@ -240,9 +249,9 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio }) => {
 
             <div>
                 <h1
-                    className="text-xl font-bold flex items-center gap-2 text-white tracking-tight cursor-pointer hover:opacity-75 transition-opacity select-none"
+                    className="tooltip-below tooltip-always text-xl font-bold flex items-center gap-2 text-white tracking-tight cursor-pointer hover:opacity-75 transition-opacity select-none"
                     onClick={() => setShowAbout(true)}
-                    title="點擊查看版本資訊"
+                    data-tooltip="點擊彈窗能關閉按鈕說明或還原程式設定"
                 >
                     <svg
                         className="w-6 h-6"

@@ -3,6 +3,7 @@
 const STORAGE_KEY_PARAMS = 'comp_v2_params';
 const STORAGE_KEY_APP_STATE = 'comp_v2_app_state';
 const SOURCE_PARAMS_PREFIX = 'comp_v2_src_';
+const STORAGE_KEY_TOOLTIPS_OFF = 'comp_v2_tooltips_off';
 
 // IndexedDB Config
 const DB_NAME = 'CompVisualizerDB';
@@ -50,7 +51,20 @@ export const loadAppStateFromStorage = () => {
 export const clearLocalStorage = () => {
     localStorage.removeItem(STORAGE_KEY_PARAMS);
     localStorage.removeItem(STORAGE_KEY_APP_STATE);
+    localStorage.removeItem(STORAGE_KEY_TOOLTIPS_OFF);
     clearAllSourceParams();
+};
+
+export const saveTooltipsOff = (off) => {
+    try {
+        if (off) localStorage.setItem(STORAGE_KEY_TOOLTIPS_OFF, '1');
+        else localStorage.removeItem(STORAGE_KEY_TOOLTIPS_OFF);
+    } catch (_) {}
+};
+
+export const loadTooltipsOff = () => {
+    try { return localStorage.getItem(STORAGE_KEY_TOOLTIPS_OFF) === '1'; }
+    catch (_) { return false; }
 };
 
 // --- Per-Source Parameter Storage ---

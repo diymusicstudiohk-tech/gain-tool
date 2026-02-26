@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-import { saveAppStateToStorage, saveParamsForSource, softReset } from './utils/storage';
+import { saveAppStateToStorage, saveParamsForSource, softReset, saveTooltipsOff, loadTooltipsOff } from './utils/storage';
 
 import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
@@ -16,9 +16,6 @@ import useVisualizerLoop from './hooks/useVisualizerLoop';
 import usePlayback from './hooks/usePlayback';
 import useAudioEngine from './hooks/useAudioEngine';
 import useWaveformInteraction from './hooks/useWaveformInteraction';
-import useDSPMeter from './hooks/useDSPMeter';
-
-import StatusBar from './components/layout/StatusBar';
 
 const App = () => {
     // --- Core State (shared between hooks) ---
@@ -56,6 +53,13 @@ const App = () => {
     // Ref-based callbacks (break circular deps)
     const handleModeChangeRef = useRef(null);
     const lastPlayedTypeRef = useRef('original');
+
+    // --- Tooltips toggle ---
+    const [tooltipsOff, setTooltipsOff] = useState(() => loadTooltipsOff());
+    const handleSetTooltipsOff = useCallback((off) => {
+        setTooltipsOff(off);
+        saveTooltipsOff(off);
+    }, []);
 
     // --- AudioWorklet readiness ---
     const [workletReady, setWorkletReady] = useState(false);
@@ -135,9 +139,6 @@ const App = () => {
         meterStateRef,
     });
 
-    // --- 3b. DSP Load Meter ---
-    const { dspLoadRef, dspLoad } = useDSPMeter();
-
     // --- 4. Playback (uses animateRef to break cycle) ---
     const playback = usePlayback({
         audioContext, originalBuffer,
@@ -153,7 +154,6 @@ const App = () => {
         meterStateRef,
         regionStartRef, regionEndRef,
         workletReady,
-        dspLoadRef,
     });
 
     // Wire ref-based callbacks
@@ -349,7 +349,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className="h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative">
+        <div className={`h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative${tooltipsOff ? ' tooltips-off' : ''}`}>
             <Header
                 engine={{
                     fileName: engine.fileName,
@@ -369,6 +369,8 @@ const App = () => {
                 }}
                 handleFactoryReset={softReset}
                 stopAudio={playback.stopAudio}
+                tooltipsOff={tooltipsOff}
+                setTooltipsOff={handleSetTooltipsOff}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
@@ -417,9 +419,8 @@ const App = () => {
                 preset={presetProps}
                 output={outputProps}
                 ui={uiProps}
+                tooltipsOff={tooltipsOff}
             />
-
-            <StatusBar dspLoad={dspLoad} />
 
             {engine.errorMsg && (
                 <div className="fixed top-4 right-4 bg-red-900/90 text-white p-4 rounded shadow-xl border border-red-500 max-w-sm z-50">

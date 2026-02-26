@@ -132,3 +132,7 @@ html, body {
   bottom: auto;
   top: calc(100% + 6px);
 }
+/* Hide tooltips when tooltips-off is active (except elements with .tooltip-always) */
+.tooltips-off [data-tooltip]:not(.tooltip-always):not(:disabled):hover::after {
+  opacity: 0 !important;
+}
