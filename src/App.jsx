@@ -406,6 +406,9 @@ const App = () => {
                     cfMeterCanvasRef={cfMeterCanvasRef}
                     height={view.canvasDims.height}
                     hoveredMeterRef={hoveredMeterRef}
+                    meterStateRef={meterStateRef}
+                    hoverGrRef={waveform.hoverGrRef}
+                    isHoveringGRAreaRef={waveform.isHoveringGRAreaRef}
                 />
             </div>
 

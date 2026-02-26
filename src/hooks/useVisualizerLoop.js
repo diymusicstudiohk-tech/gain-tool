@@ -320,7 +320,7 @@ const useVisualizerLoop = ({
         }
 
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current, true);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,

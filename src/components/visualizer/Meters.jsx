@@ -105,7 +105,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -118,20 +118,22 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const centerY = height / 2;
 
-    // Meter State Logic (Decay)
-    if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= METER_PEAK_DECAY;
-    if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
-    else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
+    // Meter State Logic (Decay) — skip when frozen so meters hold their last values
+    if (!frozen) {
+        if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= METER_PEAK_DECAY;
+        if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
 
-    if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
-    if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
-    else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
+        if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
+        if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
 
-    // GR State Logic
-    const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
-    meterState.grPeakLevel = reductionLinear;
-    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
-    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
+        // GR State Logic
+        const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
+        meterState.grPeakLevel = reductionLinear;
+        if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
+    }
 
     // Drawing
     ctx.clearRect(0, 0, width, height);
@@ -242,10 +244,12 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const cfPct = (cfVal - cfMinDb) / cfRange;
     const cfY = cfBottom - (cfPct * cfHeight);
 
-    // CF Heat Map — lazy init, update, decay, render
+    // CF Heat Map — lazy init, update, decay, render (skip mutation when frozen)
     if (!meterState.cfHeatArray) meterState.cfHeatArray = new Float32Array(CF_HEAT_BUCKETS);
-    if (crestFactor > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
-    applyCfHeatDecay(meterState.cfHeatArray);
+    if (!frozen) {
+        if (crestFactor > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
+        applyCfHeatDecay(meterState.cfHeatArray);
+    }
     renderCfHeatMapVertical(ctx, meterState.cfHeatArray, grX, barWidth, cfTop, cfHeight);
 
     // CF indicator line (on top of glow)
@@ -360,7 +364,14 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 const METER_GR_RIGHT = 33;   // midpoint between GR bar end (33) and In bar start (38.5)
 const METER_IN_RIGHT = 63.25; // midpoint between In bar end (60.5) and Out bar start (66)
 
-const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef }) => {
+const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
+    // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
+    const frozenRedraw = useCallback(() => {
+        if (!outputCanvasRef?.current || !meterStateRef?.current) return;
+        const ms = meterStateRef.current;
+        drawDualMeter(outputCanvasRef.current, 0, 0, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.crestFactor || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
+    }, [outputCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, hoveredMeterRef]);
+
     const handleMouseMove = useCallback((e) => {
         if (!hoveredMeterRef) return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -369,18 +380,27 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         const h = rect.height;
         const cfTop = h * CF_TOP_RATIO;
 
+        let zone;
         if (x < METER_GR_RIGHT) {
-            hoveredMeterRef.current = y < cfTop ? 'gr' : 'cf';
+            zone = y < cfTop ? 'gr' : 'cf';
         } else if (x < METER_IN_RIGHT) {
-            hoveredMeterRef.current = 'in';
+            zone = 'in';
         } else {
-            hoveredMeterRef.current = 'out';
+            zone = 'out';
         }
-    }, [hoveredMeterRef]);
+
+        if (hoveredMeterRef.current !== zone) {
+            hoveredMeterRef.current = zone;
+            frozenRedraw();
+        }
+    }, [hoveredMeterRef, frozenRedraw]);
 
     const handleMouseLeave = useCallback(() => {
-        if (hoveredMeterRef) hoveredMeterRef.current = null;
-    }, [hoveredMeterRef]);
+        if (hoveredMeterRef && hoveredMeterRef.current !== null) {
+            hoveredMeterRef.current = null;
+            frozenRedraw();
+        }
+    }, [hoveredMeterRef, frozenRedraw]);
 
     return (
         <div className="flex-none h-full relative" style={{ width: 104 }}
