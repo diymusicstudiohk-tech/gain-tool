@@ -161,14 +161,36 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         in: 'rgba(194, 164, 117, 0.25)', // GOLD
         out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
     };
-    const barKeys = [
-        { x: grX, key: 'gr' },
-        { x: dryX, key: 'in' },
-        { x: outX, key: 'out' },
-    ];
-    for (const { x: bx, key } of barKeys) {
-        ctx.fillStyle = (hoveredMeter === key || (key === 'gr' && hoveredMeter === 'cf'))
-            ? hoverBgMap[hoveredMeter] : bgColor;
+    const cfTop = height * CF_TOP_RATIO;
+    // GR/CF column: split into two hover zones
+    const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'cf';
+    if (grCfHover) {
+        // Non-hovered portion: default bg
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.fill();
+        // Hovered portion: colored overlay (clip to region)
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.clip();
+        ctx.fillStyle = hoverBgMap[hoveredMeter];
+        if (hoveredMeter === 'gr') {
+            ctx.fillRect(grX, 0, barWidth, cfTop);
+        } else {
+            ctx.fillRect(grX, cfTop, barWidth, height - cfTop);
+        }
+        ctx.restore();
+    } else {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.fill();
+    }
+    // In and Out columns
+    for (const { x: bx, key } of [{ x: dryX, key: 'in' }, { x: outX, key: 'out' }]) {
+        ctx.fillStyle = hoveredMeter === key ? hoverBgMap[key] : bgColor;
         ctx.beginPath();
         ctx.roundRect(bx, 0, barWidth, height, bgRadius);
         ctx.fill();
@@ -234,7 +256,6 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4); ctx.fillRect(outX, height - 4, barWidth, 4); }
 
     // --- Crest Factor (below GR, same column) ---
-    const cfTop = height * CF_TOP_RATIO;
     const cfBottom = height - CF_BOTTOM_MARGIN;
     const cfHeight = cfBottom - cfTop;
     const cfMinDb = CF_DB_MIN; const cfMaxDb = CF_DB_MAX; const cfRange = cfMaxDb - cfMinDb;
