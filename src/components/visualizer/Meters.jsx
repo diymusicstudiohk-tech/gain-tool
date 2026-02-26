@@ -432,25 +432,34 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
     }, [hoveredMeterRef, frozenRedraw]);
 
-    // --- Tooltip content ---
+    // --- Tooltip content (zone-specific) ---
     let tooltipNode = null;
-    if (tooltipPos.visible && meterStateRef?.current) {
+    const activeZone = hoveredMeterRef?.current;
+    if (tooltipPos.visible && activeZone && meterStateRef?.current) {
         const ms = meterStateRef.current;
-        const grDb = ms.grHoldPeakLevel > 0.01
-            ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1)
-            : "0.0";
-        const inDb = ms.dryHoldPeakLevel > 0.01
-            ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1)
-            : "-inf";
-        const outDb = ms.holdPeakLevel > 0.01
-            ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1)
-            : "-inf";
-        const cf = (ms.crestFactor || 0).toFixed(1);
-        const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
+        let text;
+        if (activeZone === 'gr') {
+            const val = ms.grHoldPeakLevel > 0.01
+                ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
+            text = `GR (Gain Reduction 壓縮量) : ${val} dB`;
+        } else if (activeZone === 'in') {
+            const val = ms.dryHoldPeakLevel > 0.01
+                ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
+            text = `In (Input Signal 原始訊號) : ${val} dB`;
+        } else if (activeZone === 'out') {
+            const val = ms.holdPeakLevel > 0.01
+                ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
+            text = `Out (Output Signal 輸出訊號) : ${val} dB`;
+        } else {
+            const cf = (ms.crestFactor || 0).toFixed(1);
+            const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
+            text = `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
+        }
 
-        const TOOLTIP_W = 310;
-        const TOOLTIP_H = 96;
         const GAP = 8;
+        // Measure approximate width: longest line ~42 chars at ~7px each
+        const TOOLTIP_W = text.length * 7 + 20;
+        const TOOLTIP_H = 32;
         let tx = tooltipPos.x - TOOLTIP_W - GAP;
         let ty = tooltipPos.y - TOOLTIP_H - GAP;
         if (tx < 4) tx = tooltipPos.x + GAP;
@@ -464,17 +473,13 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
                 background: 'rgba(0,0,0,0.75)',
                 color: '#fff',
                 font: 'bold 11px sans-serif',
-                padding: '8px 10px',
+                padding: '6px 10px',
                 borderRadius: 4,
                 pointerEvents: 'none',
                 zIndex: 9999,
                 whiteSpace: 'pre',
-                lineHeight: 1.6,
             }}>
-{`GR  (Gain Reduction 壓縮量)             : ${grDb} dB
-In  (Input Signal 原始訊號)            : ${inDb} dB
-Out (Output Signal 輸出訊號)           : ${outDb} dB
-CF  (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`}
+                {text}
             </div>
         );
     }
