@@ -260,7 +260,8 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                         <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
                         <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />
                     </svg>
-                    金耳朵壓縮顯示器
+                    <span className="hidden min-[740px]:inline">金耳朵壓縮顯示器</span>
+                    <span className="inline min-[740px]:hidden">壓縮顯示</span>
                 </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2 relative">
