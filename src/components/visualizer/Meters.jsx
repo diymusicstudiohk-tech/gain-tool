@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
 import {
     METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
@@ -390,6 +390,8 @@ const METER_GR_RIGHT_RATIO = 33 / 104;   // midpoint between GR bar end and In b
 const METER_IN_RIGHT_RATIO = 63.25 / 104; // midpoint between In bar end and Out bar start
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
+
     // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
     const frozenRedraw = useCallback(() => {
         if (!outputCanvasRef?.current || !meterStateRef?.current) return;
@@ -419,6 +421,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             hoveredMeterRef.current = zone;
             frozenRedraw();
         }
+        setTooltipPos({ x: e.clientX, y: e.clientY, visible: true });
     }, [hoveredMeterRef, frozenRedraw]);
 
     const handleMouseLeave = useCallback(() => {
@@ -426,7 +429,55 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             hoveredMeterRef.current = null;
             frozenRedraw();
         }
+        setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
     }, [hoveredMeterRef, frozenRedraw]);
+
+    // --- Tooltip content ---
+    let tooltipNode = null;
+    if (tooltipPos.visible && meterStateRef?.current) {
+        const ms = meterStateRef.current;
+        const grDb = ms.grHoldPeakLevel > 0.01
+            ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1)
+            : "0.0";
+        const inDb = ms.dryHoldPeakLevel > 0.01
+            ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1)
+            : "-inf";
+        const outDb = ms.holdPeakLevel > 0.01
+            ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1)
+            : "-inf";
+        const cf = (ms.crestFactor || 0).toFixed(1);
+        const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
+
+        const TOOLTIP_W = 310;
+        const TOOLTIP_H = 96;
+        const GAP = 8;
+        let tx = tooltipPos.x - TOOLTIP_W - GAP;
+        let ty = tooltipPos.y - TOOLTIP_H - GAP;
+        if (tx < 4) tx = tooltipPos.x + GAP;
+        if (ty < 4) ty = tooltipPos.y + GAP;
+
+        tooltipNode = (
+            <div style={{
+                position: 'fixed',
+                left: tx,
+                top: ty,
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                font: 'bold 11px sans-serif',
+                padding: '8px 10px',
+                borderRadius: 4,
+                pointerEvents: 'none',
+                zIndex: 9999,
+                whiteSpace: 'pre',
+                lineHeight: 1.6,
+            }}>
+{`GR  (Gain Reduction 壓縮量)             : ${grDb} dB
+In  (Input Signal 原始訊號)            : ${inDb} dB
+Out (Output Signal 輸出訊號)           : ${outDb} dB
+CF  (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`}
+            </div>
+        );
+    }
 
     return (
         <div className="flex-none h-full relative w-[14.7%] min-[740px]:w-[104px]"
@@ -437,6 +488,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />
             <canvas ref={cfMeterCanvasRef} className="hidden" />
+            {tooltipNode}
         </div>
     );
 };
