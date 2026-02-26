@@ -3,7 +3,8 @@ import {
     X,
     Download, FolderOpen, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { AUDIO_SOURCES, APP_VERSION } from '../../utils/constants';
+import { AUDIO_SOURCES } from '../../utils/constants';
+import { getVersionDisplay } from '../../utils/version';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
@@ -206,18 +207,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                         <div className="text-center">
                             <h3 className="text-xl font-bold text-white mb-2">金耳朵壓縮顯示器</h3>
                             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-                                最新更新：{(() => {
-                                    try {
-                                        return new Date(__GIT_COMMIT_TIME__).toLocaleString('zh-HK', {
-                                            timeZone: 'Asia/Hong_Kong',
-                                            year: 'numeric', month: '2-digit', day: '2-digit',
-                                            hour: '2-digit', minute: '2-digit', second: '2-digit',
-                                            hour12: false,
-                                        });
-                                    } catch (_) {
-                                        return __GIT_COMMIT_TIME__;
-                                    }
-                                })()}
+                                {getVersionDisplay()}
                             </p>
 
                             {/* Actions */}

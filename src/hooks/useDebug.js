@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { generateDebugReport, copyToClipboard } from '../utils/debugHelper';
-import { APP_VERSION } from '../utils/constants';
+import { VERSION } from '../utils/version';
 
 const useDebug = () => {
     const [copyStatus, setCopyStatus] = useState('idle');
@@ -36,7 +36,7 @@ const useDebug = () => {
                 currentParams,
                 actionLog: actionTrace,
                 waveformCanvas: waveformCanvasRef.current,
-                appVersion: APP_VERSION,
+                appVersion: VERSION,
                 appState
             });
 
