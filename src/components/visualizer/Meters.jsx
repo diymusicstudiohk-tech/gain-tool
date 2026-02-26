@@ -144,13 +144,13 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const bgColor = 'rgba(255, 255, 255, 0.06)';
     const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
-    // 3 bars: scale all positions proportionally from 104px reference width
-    const s = width / 104;
-    const hideReadings = s < 1; // below 740px breakpoint, meter is narrower than 104px
+    // 3 bars: scale all positions proportionally from 82.5px reference width
+    const s = width / 82.5;
+    const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
-    const grCenterX = 38 * s;
-    const dryCenterX = 65.5 * s;
-    const outCenterX = 93 * s;
+    const grCenterX = 16.5 * s;
+    const dryCenterX = 44 * s;
+    const outCenterX = 71.5 * s;
     const grX = grCenterX - (barWidth / 2);
     const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
@@ -385,9 +385,9 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
 // --- Component ---
 
-// Meter hit-zone boundaries as ratios of 104px reference width
-const METER_GR_RIGHT_RATIO = 33 / 104;   // midpoint between GR bar end and In bar start
-const METER_IN_RIGHT_RATIO = 63.25 / 104; // midpoint between In bar end and Out bar start
+// Meter hit-zone boundaries as ratios of 82.5px reference width
+const METER_GR_RIGHT_RATIO = 30.25 / 82.5;   // midpoint between GR bar end and In bar start
+const METER_IN_RIGHT_RATIO = 57.75 / 82.5; // midpoint between In bar end and Out bar start
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
@@ -497,7 +497,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     }
 
     return (
-        <div className="flex-none h-full relative w-[14.7%] min-[740px]:w-[104px]"
+        <div className="flex-none h-full relative w-[11.2%] min-[740px]:w-[82.5px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
