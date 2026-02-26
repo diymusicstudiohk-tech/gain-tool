@@ -156,10 +156,10 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const bgRadius = METER_BAR_RADIUS;
     // Hover highlight colors at 40% alpha (matching each meter's bar color)
     const hoverBgMap = {
-        gr: 'rgba(181, 76, 53, 0.4)',   // BRICK_RED
-        cf: 'rgba(150, 207, 173, 0.4)', // CREST_GREEN
-        in: 'rgba(194, 164, 117, 0.4)', // GOLD
-        out: meterState.outClipping ? 'rgba(224, 94, 66, 0.4)' : 'rgba(194, 164, 117, 0.4)', // CLIP_RED or GOLD
+        gr: 'rgba(181, 76, 53, 0.25)',   // BRICK_RED
+        cf: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
+        in: 'rgba(194, 164, 117, 0.25)', // GOLD
+        out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
     };
     const barKeys = [
         { x: grX, key: 'gr' },
