@@ -259,6 +259,10 @@ const App = () => {
     useEffect(() => {
         if (playback.playingType !== 'none') {
             rafIdRef.current = requestAnimationFrame(animate);
+            // [LOOP-FLICKER] Log RAF restart from effect (animate recreated or playingType changed)
+            if (playback.isDeltaMode) {
+                console.warn(`[LOOP-FLICKER] App RAF effect fired: playingType=${playback.playingType} isDelta=${playback.isDeltaMode} lastPlayed=${playback.lastPlayedType}`);
+            }
         }
         return () => cancelAnimationFrame(rafIdRef.current);
     }, [playback.playingType, animate]);

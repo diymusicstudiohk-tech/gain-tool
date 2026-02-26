@@ -13,6 +13,10 @@ const deltaDbgThrottle = (key, ...args) => {
     }
 };
 
+// Separate counters for loop-flicker investigation
+let _flickerFrameCount = 0;
+let _flickerLastLogTime = 0;
+
 const useVisualizerLoop = ({
     audioContext,
     originalBuffer,
@@ -238,6 +242,17 @@ const useVisualizerLoop = ({
             const liveHoverLine = hoverLineRef.current;
             const isHovering = liveMousePos.x >= 0;
             const isInteracting = isDraggingLineRef.current || isCompAdjusting || isGateAdjusting;
+
+            // [LOOP-FLICKER] Periodic state snapshot during delta mode
+            if (isDeltaMode) {
+                _flickerFrameCount++;
+                const now = Date.now();
+                if (now - _flickerLastLogTime > 2000) {
+                    _flickerLastLogTime = now;
+                    console.warn(`[LOOP-FLICKER] frame#${_flickerFrameCount} isDelta=${isDeltaMode} playingType=${playingType} lastPlayed=${lastPlayedType} isHovering=${isHovering} frameSlot=${waveformFrameRef.current} pos=${currentPosition.toFixed(3)}/${duration.toFixed(3)}`);
+                }
+            }
+
             if (waveformFrameRef.current === 0 || isInteracting || isHovering) {
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
@@ -249,6 +264,12 @@ const useVisualizerLoop = ({
                         lastWaveformDrawKeyRef.current = drawKey;
                     }
                 }
+
+                // [LOOP-FLICKER] Log draw-skip when in delta mode and not hovering
+                if (isDeltaMode && !shouldDraw && !isHovering) {
+                    deltaDbgThrottle('drawSkip', `[LOOP-FLICKER] draw SKIPPED (drawKey unchanged) isDelta=${isDeltaMode} lastPlayed=${lastPlayedType}`);
+                }
+
                 if (shouldDraw) {
                     drawMainWaveform({
                         canvas: waveformCanvasRef.current,
@@ -284,13 +305,19 @@ const useVisualizerLoop = ({
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (isDeltaMode ? (fullAudioDataRef.current ? fullAudioDataRef.current.deltaBuffer : null) : originalBuffer);
 
+                // [LOOP-FLICKER] Comprehensive loop restart log
                 if (isDeltaMode) {
-                    console.warn(`[DELTA-DBG] Loop restart: targetBuffer=${!!targetBuffer}, fullAudioData=${!!fullAudioDataRef.current}, deltaBuffer=${!!fullAudioDataRef.current?.deltaBuffer}`);
+                    console.warn(`[LOOP-FLICKER] === LOOP RESTART (delta ON) === pos=${currentPosition.toFixed(3)} regionEnd=${regionEndTime.toFixed(3)} regionStart=${regionStartTime.toFixed(3)} targetBuffer=${!!targetBuffer} playingType=${playingType} lastPlayed=${lastPlayedType} cacheKey=${waveformCacheRef?.current?.key?.substring(0,40)}...`);
+                    console.warn(`[LOOP-FLICKER] Loop restart buffers: fullAudioData=${!!fullAudioDataRef.current} deltaBuffer=${!!fullAudioDataRef.current?.deltaBuffer} outputBuffer=${!!fullAudioDataRef.current?.outputBuffer}`);
                 }
                 if (targetBuffer) {
                     playBufferRef.current(targetBuffer, playingType, regionStartTime);
+                    // [LOOP-FLICKER] Log post-restart state
+                    if (isDeltaMode) {
+                        console.warn(`[LOOP-FLICKER] playBuffer called. New startOffset=${startOffsetRef.current?.toFixed(3)} isPlaying=${isPlayingRef.current}`);
+                    }
                 } else if (isDeltaMode) {
-                    console.error(`[DELTA-DBG] !! Loop restart FAILED — no targetBuffer for delta mode!`);
+                    console.error(`[LOOP-FLICKER] !! Loop restart FAILED — no targetBuffer for delta mode!`);
                 }
             }
         }

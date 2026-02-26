@@ -77,6 +77,13 @@ const usePlayback = ({
 
     const playBuffer = useCallback((buffer, type, offset) => {
         if (!audioContext || !buffer) return;
+
+        // [LOOP-FLICKER] Log playBuffer entry with delta state (read from paramsRef — always current)
+        const _liveIsDelta = paramsRef.current?.isDeltaMode;
+        if (_liveIsDelta) {
+            console.warn(`[LOOP-FLICKER] playBuffer ENTER: type=${type} offset=${offset?.toFixed(3)} isDelta=${_liveIsDelta} bufferDuration=${buffer.duration?.toFixed(3)} ctxState=${audioContext.state}`);
+        }
+
         stopCurrentSource(sourceNodeRef, drySourceNodeRef);
         workletNodeRef.current = null;
 
@@ -138,6 +145,10 @@ const usePlayback = ({
                 cancelAnimationFrame(rafIdRef.current);
                 if (animateRef.current) {
                     rafIdRef.current = requestAnimationFrame(animateRef.current);
+                }
+                // [LOOP-FLICKER] Log RAF restart in playBuffer
+                if (_liveIsDelta) {
+                    console.warn(`[LOOP-FLICKER] playBuffer startSource done: type=${type} offset=${safeOffset.toFixed(3)} isDelta=${_liveIsDelta} workletReady=${workletReady} animateRef=${!!animateRef.current} rafId=${rafIdRef.current}`);
                 }
             } catch (e) {
                 console.error("BS/Script creation error", e);

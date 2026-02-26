@@ -68,6 +68,13 @@ export const drawMainWaveform = ({
     const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
     const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
 
+    // [LOOP-FLICKER] Log cache state when in delta mode
+    if (isDeltaMode && cache?.key && cache.key !== cacheKey) {
+        const cachedDelta = cache.key.includes('_1_') ? 'delta=1' : 'delta=0';
+        const currentDelta = isDeltaMode ? 'delta=1' : 'delta=0';
+        wfDbgThrottle('cacheMismatch', `[LOOP-FLICKER] Cache MISS: cached(${cachedDelta}) vs current(${currentDelta}) isAnyDrag=${isAnyDrag} cachedKey=${cache.key.substring(0,50)} newKey=${cacheKey.substring(0,50)}`);
+    }
+
     // ── PHASE 1: Waveform background (skip when cache hit) ──
     if (!cacheHit) {
         ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
@@ -88,6 +95,13 @@ export const drawMainWaveform = ({
             });
 
             // Draw Polygons
+            // [LOOP-FLICKER] Log which rendering path is taken
+            if (isDeltaMode && lastPlayedType !== 'original') {
+                wfDbgThrottle('renderPath', `[LOOP-FLICKER] Render path: DELTA GREEN (isDelta=${isDeltaMode} lastPlayed=${lastPlayedType} diffOuter=${diffOuterPoints.length} diffInner=${diffInnerPoints.length})`);
+            } else if (!isDeltaMode && lastPlayedType === 'processed') {
+                // This is the WHITE waveform path — if we see this log while delta should be on, it's the bug!
+                wfDbgThrottle('renderPathWhite', `[LOOP-FLICKER] !! Render path: WHITE MIX (isDelta=${isDeltaMode} lastPlayed=${lastPlayedType} playingType=${playingType}) — if delta should be ON, this is the flicker bug!`);
+            }
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else if (isDeltaMode) {
                 // Delta mode debug: check for data anomalies
