@@ -104,6 +104,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     // Full Audio Processing (Async Chunking)
     useEffect(() => {
         if (!originalBuffer || !audioContext) return;
+        console.warn(`[DELTA-DBG] Full audio reprocess STARTED — isDeltaMode=${isDeltaMode}, clearing fullAudioDataRef`);
         fullAudioDataRef.current = null;
         if (processingTaskRef.current) clearTimeout(processingTaskRef.current);
 
@@ -115,6 +116,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         let currentIndex = 0;
         const outData = new Float32Array(length);
         const compressor = createRealTimeCompressor(sampleRate);
+        const startTime = performance.now();
 
         const processChunk = () => {
             const endIndex = Math.min(currentIndex + CHUNK_SIZE, length);
@@ -132,6 +134,17 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
                 for (let i = 0; i < length; i++) deltaData[i] = outData[i] - inputData[i];
                 const deltaBuf = audioContext.createBuffer(1, length, sampleRate);
                 deltaBuf.copyToChannel(deltaData, 0);
+
+                // Validate delta buffer data
+                let deltaMax = 0, deltaNaN = 0, deltaInf = 0;
+                for (let i = 0; i < Math.min(length, 10000); i++) {
+                    const v = deltaData[i];
+                    if (isNaN(v)) deltaNaN++;
+                    else if (!isFinite(v)) deltaInf++;
+                    else if (Math.abs(v) > deltaMax) deltaMax = Math.abs(v);
+                }
+                console.warn(`[DELTA-DBG] Full audio reprocess DONE in ${(performance.now() - startTime).toFixed(0)}ms — length=${length}, deltaMax=${deltaMax.toFixed(6)}, deltaNaN=${deltaNaN}, deltaInf=${deltaInf}, isDeltaMode=${isDeltaMode}`);
+
                 fullAudioDataRef.current = { outputBuffer: outBuf, deltaBuffer: deltaBuf };
                 setIsProcessing(false);
             }

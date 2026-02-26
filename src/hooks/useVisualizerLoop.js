@@ -3,6 +3,16 @@ import { LN10_OVER_20, TWENTY_LOG10E } from '../utils/dspConstants';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
 import { drawDualMeter } from '../components/visualizer/Meters';
 
+// Throttled logger for delta debug — max once per 500ms per key
+const _deltaDbgTimers = {};
+const deltaDbgThrottle = (key, ...args) => {
+    const now = Date.now();
+    if (!_deltaDbgTimers[key] || now - _deltaDbgTimers[key] > 500) {
+        _deltaDbgTimers[key] = now;
+        console.warn(...args);
+    }
+};
+
 const useVisualizerLoop = ({
     audioContext,
     originalBuffer,
@@ -169,6 +179,10 @@ const useVisualizerLoop = ({
                     const wet = liveVisualResult.outputData[i] || 0; // Guard undefined
                     if (isDeltaMode) {
                         mix = wet - dry;
+                        // Detect anomalous delta values
+                        if (i === visualIndex && (isNaN(mix) || !isFinite(mix) || Math.abs(mix) > 2.0)) {
+                            deltaDbgThrottle('mixAnomaly', `[DELTA-DBG] !! Anomalous delta mix: mix=${mix}, wet=${wet}, dry=${dry}, i=${i}`);
+                        }
                     } else {
                         mix = wet + (dry * dryLinear);
                     }
@@ -270,8 +284,13 @@ const useVisualizerLoop = ({
                 const targetBuffer = playingType === 'original' ? originalBuffer :
                     (isDeltaMode ? (fullAudioDataRef.current ? fullAudioDataRef.current.deltaBuffer : null) : originalBuffer);
 
+                if (isDeltaMode) {
+                    console.warn(`[DELTA-DBG] Loop restart: targetBuffer=${!!targetBuffer}, fullAudioData=${!!fullAudioDataRef.current}, deltaBuffer=${!!fullAudioDataRef.current?.deltaBuffer}`);
+                }
                 if (targetBuffer) {
                     playBufferRef.current(targetBuffer, playingType, regionStartTime);
+                } else if (isDeltaMode) {
+                    console.error(`[DELTA-DBG] !! Loop restart FAILED — no targetBuffer for delta mode!`);
                 }
             }
         }

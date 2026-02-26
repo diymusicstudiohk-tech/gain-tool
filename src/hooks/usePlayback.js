@@ -36,6 +36,7 @@ const usePlayback = ({
     useEffect(() => {
         if (paramsRef.current) {
             paramsRef.current = { ...paramsRef.current, isDeltaMode };
+            console.warn(`[DELTA-DBG] paramsRef synced: isDeltaMode=${isDeltaMode}`);
         }
     }, [isDeltaMode, paramsRef]);
 
@@ -48,12 +49,21 @@ const usePlayback = ({
 
     // Sync Delta Mode
     useEffect(() => {
-        if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) return;
+        if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) {
+            if (isDeltaMode) {
+                console.warn(`[DELTA-DBG] Sync skipped: playingType=${playingType}, lastPlayedType=${lastPlayedType}, fullAudioData=${!!fullAudioDataRef.current}`);
+            }
+            return;
+        }
         const targetBuffer = isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer;
+        console.warn(`[DELTA-DBG] Sync Delta buffer switch: isDelta=${isDeltaMode}, targetBuffer=${!!targetBuffer}, bufferDuration=${targetBuffer?.duration?.toFixed(3)}, deltaBuffer=${!!fullAudioDataRef.current.deltaBuffer}, outputBuffer=${!!fullAudioDataRef.current.outputBuffer}`);
         if (targetBuffer && audioContext) {
             const elapsed = audioContext.currentTime - startTimeRef.current;
             const currentPos = startOffsetRef.current + elapsed;
+            console.warn(`[DELTA-DBG] Switching playback buffer at pos=${currentPos.toFixed(3)}`);
             playBufferRef.current?.(targetBuffer, 'processed', currentPos);
+        } else {
+            console.error(`[DELTA-DBG] !! No targetBuffer available for delta switch! isDelta=${isDeltaMode}`);
         }
     }, [isDeltaMode, playingType, lastPlayedType, fullAudioDataRef, audioContext,
         startTimeRef, startOffsetRef, playBufferRef]);
@@ -197,8 +207,12 @@ const usePlayback = ({
     const toggleDeltaMode = useCallback((e) => {
         e.stopPropagation();
         if (lastPlayedType === 'original') return;
-        setIsDeltaMode(prev => !prev);
-    }, [lastPlayedType]);
+        setIsDeltaMode(prev => {
+            const next = !prev;
+            console.warn(`[DELTA-DBG] toggleDeltaMode: ${prev} → ${next}, playingType=${playingType}, lastPlayedType=${lastPlayedType}, fullAudioData=${!!fullAudioDataRef.current}, deltaBuffer=${!!fullAudioDataRef.current?.deltaBuffer}, outputBuffer=${!!fullAudioDataRef.current?.outputBuffer}`);
+            return next;
+        });
+    }, [lastPlayedType, playingType, fullAudioDataRef]);
 
     const stopAudio = useCallback(() => {
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }

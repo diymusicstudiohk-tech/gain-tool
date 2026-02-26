@@ -105,5 +105,19 @@ export const computeWaveformPoints = ({
         else if (lastPlayedType === 'processed') { grPoints.push({ x, y: 0 }); }
     }
 
+    // Delta data validation
+    if (isDeltaMode && diffOuterPoints.length > 0) {
+        let nanCount = 0, infCount = 0, hugeCount = 0;
+        for (let dp = 0; dp < diffOuterPoints.length; dp++) {
+            const p = diffOuterPoints[dp];
+            if (isNaN(p.yTop) || isNaN(p.yBot)) nanCount++;
+            else if (!isFinite(p.yTop) || !isFinite(p.yBot)) infCount++;
+            else if (Math.abs(p.yBot - p.yTop) > ampScale * 4) hugeCount++;
+        }
+        if (nanCount > 0 || infCount > 0 || hugeCount > 0) {
+            console.error(`[DELTA-DBG] !! computeWaveformPoints anomaly: NaN=${nanCount}, Inf=${infCount}, Huge=${hugeCount}, total=${diffOuterPoints.length}, ampScale=${ampScale.toFixed(1)}, centerY=${centerY.toFixed(1)}`);
+        }
+    }
+
     return { inPoints, outPoints, mixPoints, grPoints, deltaPoints, diffOuterPoints, diffInnerPoints };
 };

@@ -16,6 +16,16 @@ import {
     GR_HOVER_THRESHOLD_DB, GR_HOVER_DASH,
 } from '../../utils/canvasConstants';
 
+// Throttled logger for delta waveform debug
+const _wfDbgTimers = {};
+const wfDbgThrottle = (key, ...args) => {
+    const now = Date.now();
+    if (!_wfDbgTimers[key] || now - _wfDbgTimers[key] > 500) {
+        _wfDbgTimers[key] = now;
+        console.warn(...args);
+    }
+};
+
 // --- Main Draw Logic (Exported for App.jsx) ---
 
 export const drawMainWaveform = ({
@@ -80,6 +90,27 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else if (isDeltaMode) {
+                // Delta mode debug: check for data anomalies
+                if (diffOuterPoints.length > 0) {
+                    let hasNaN = false, hasHuge = false, outerMax = 0, innerMax = 0;
+                    for (let dp = 0; dp < diffOuterPoints.length; dp++) {
+                        const op = diffOuterPoints[dp];
+                        const ip = diffInnerPoints[dp];
+                        if (isNaN(op.yTop) || isNaN(op.yBot)) hasNaN = true;
+                        if (ip && (isNaN(ip.yTop) || isNaN(ip.yBot))) hasNaN = true;
+                        const oh = Math.abs(op.yBot - op.yTop);
+                        const ih = ip ? Math.abs(ip.yBot - ip.yTop) : 0;
+                        if (oh > outerMax) outerMax = oh;
+                        if (ih > innerMax) innerMax = ih;
+                        if (oh > height * 2 || ih > height * 2) hasHuge = true;
+                    }
+                    if (hasNaN || hasHuge) {
+                        console.error(`[DELTA-DBG] !! Waveform draw anomaly: hasNaN=${hasNaN}, hasHuge=${hasHuge}, outerMax=${outerMax.toFixed(1)}, innerMax=${innerMax.toFixed(1)}, points=${diffOuterPoints.length}, canvasH=${height}`);
+                    }
+                    wfDbgThrottle('deltaDraw', `[DELTA-DBG] Delta draw: outerPts=${diffOuterPoints.length}, innerPts=${diffInnerPoints.length}, outerMax=${outerMax.toFixed(1)}, innerMax=${innerMax.toFixed(1)}`);
+                } else {
+                    wfDbgThrottle('deltaEmpty', `[DELTA-DBG] !! Delta draw with EMPTY diffOuterPoints`);
+                }
                 drawPolygonWithPeakFade(ctx, diffOuterPoints, GREEN, width, centerY, 0.85, 0.25);
                 drawPolygonWithPeakFade(ctx, diffInnerPoints, BG_PANEL, width, centerY, 1.0, 0.0);
             }
@@ -107,7 +138,7 @@ export const drawMainWaveform = ({
             }
 
         } catch (e) {
-            console.error("Draw error:", e);
+            console.error(`[DELTA-DBG] Draw error (isDelta=${isDeltaMode}, lastType=${lastPlayedType}):`, e);
             return;
         }
     } else {
