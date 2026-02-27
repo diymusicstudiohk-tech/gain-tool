@@ -43,6 +43,6 @@ export const METER_GR_NEAR_ZERO = 0.001;
 
 // --- Crest Factor ---
 export const CF_DB_MIN = 3;
-export const CF_DB_MAX = 20;
+export const CF_DB_MAX = 12;
 export const CF_TOP_RATIO = 0.65;
 export const CF_BOTTOM_MARGIN = 8;
