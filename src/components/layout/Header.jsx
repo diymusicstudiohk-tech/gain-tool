@@ -206,7 +206,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
 
                         {/* Content */}
                         <div className="text-center">
-                            <h3 className="text-xl font-bold text-white mb-2">金耳朵限幅顯示器</h3>
+                            <h3 className="text-xl font-bold text-white mb-2">金耳朵Limiter顯示器</h3>
                             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
                                 {getVersionDisplay()}
                             </p>
@@ -262,8 +262,8 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                         <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
                         <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />
                     </svg>
-                    <span className="hidden min-[740px]:inline">金耳朵限幅顯示器</span>
-                    <span className="inline min-[740px]:hidden text-[15px]">限幅顯示器</span>
+                    <span className="hidden min-[740px]:inline">金耳朵Limiter顯示器</span>
+                    <span className="inline min-[740px]:hidden text-[15px]">Limiter顯示器</span>
                 </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3 min-[740px]:gap-2 relative scale-[0.7] min-[740px]:scale-100 origin-right">
