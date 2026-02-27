@@ -42,7 +42,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
         let wet = currentInput * compGainLinear * makeUpLinear;
         if (clipDrive > 1.0001) {
-            wet = Math.tanh(clipDrive * wet) / Math.tanh(clipDrive);
+            wet = Math.tanh(clipDrive * wet) / clipDrive;
         }
         outputData[i] = wet;
         grCurve[i] = Math.min(0, compGainReductiondB);
@@ -152,7 +152,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 // Soft clip (normalized tanh waveshaper)
                 const cd = smoothed.clipDrive;
                 if (cd > 1.0001) {
-                    wet = Math.tanh(cd * wet) / Math.tanh(cd);
+                    wet = Math.tanh(cd * wet) / cd;
                 }
 
                 if (_isDeltaMode) {

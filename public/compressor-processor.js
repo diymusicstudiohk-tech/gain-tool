@@ -153,7 +153,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             // Soft clip (normalized tanh waveshaper)
             if (sClipDrive > 1.0001) {
-                wet = Math.tanh(sClipDrive * wet) / Math.tanh(sClipDrive);
+                wet = Math.tanh(sClipDrive * wet) / sClipDrive;
             }
 
             if (isDeltaMode) {
