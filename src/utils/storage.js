@@ -57,14 +57,17 @@ export const clearLocalStorage = () => {
 
 export const saveTooltipsOff = (off) => {
     try {
-        if (off) localStorage.setItem(STORAGE_KEY_TOOLTIPS_OFF, '1');
-        else localStorage.removeItem(STORAGE_KEY_TOOLTIPS_OFF);
+        localStorage.setItem(STORAGE_KEY_TOOLTIPS_OFF, off ? '1' : '0');
     } catch (_) {}
 };
 
 export const loadTooltipsOff = () => {
-    try { return localStorage.getItem(STORAGE_KEY_TOOLTIPS_OFF) === '1'; }
-    catch (_) { return false; }
+    try {
+        const val = localStorage.getItem(STORAGE_KEY_TOOLTIPS_OFF);
+        if (val === null) return true; // default: tooltips off
+        return val === '1';
+    }
+    catch (_) { return true; }
 };
 
 // --- Per-Source Parameter Storage ---

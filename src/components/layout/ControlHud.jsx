@@ -46,12 +46,12 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
     }, []);
 
     const handleTouchKnobLegend = useCallback((key) => {
-        if (TOOLTIPS[key]) showLegendTooltip(TOOLTIPS[key].desc);
-    }, [showLegendTooltip]);
+        if (!tooltipsOff && TOOLTIPS[key]) showLegendTooltip(TOOLTIPS[key].desc);
+    }, [showLegendTooltip, tooltipsOff]);
 
     const handlePlaybackTouchLegend = useCallback((text) => {
-        showLegendTooltip(text, true);
-    }, [showLegendTooltip]);
+        if (!tooltipsOff) showLegendTooltip(text, true);
+    }, [showLegendTooltip, tooltipsOff]);
 
     return (
         <div className="relative flex-none">
