@@ -3,7 +3,7 @@ import { LN10_OVER_20, TWENTY_LOG10E, LOG_FLOOR } from './dspConstants';
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
         threshold, attack, release, lookahead,
-        makeupGain, isCompBypass
+        makeupGain, isCompBypass, clipDrive = 1.0
     } = params;
 
     const length = inputData.length;
@@ -40,7 +40,11 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         }
 
         const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
-        outputData[i] = currentInput * compGainLinear * makeUpLinear;
+        let wet = currentInput * compGainLinear * makeUpLinear;
+        if (clipDrive > 1.0001) {
+            wet = Math.tanh(clipDrive * wet) / Math.tanh(clipDrive);
+        }
+        outputData[i] = wet;
         grCurve[i] = Math.min(0, compGainReductiondB);
     }
 
@@ -59,8 +63,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96 };
-    const targets = { threshold: -24, makeupGain: 0, dryGain: -96 };
+    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96, clipDrive: 1.0 };
+    const targets = { threshold: -24, makeupGain: 0, dryGain: -96, clipDrive: 1.0 };
 
     // Coefficient cache — only recalculate when params object identity changes
     let _cachedParams = null;
@@ -80,13 +84,15 @@ export const createRealTimeCompressor = (sampleRate) => {
                 const {
                     threshold, attack, release,
                     makeupGain, isCompBypass,
-                    isDeltaMode, dryGain, lookahead
+                    isDeltaMode, dryGain, lookahead,
+                    clipDrive = 1.0
                 } = params;
 
                 // Update smoothing targets (P2)
                 targets.threshold = threshold;
                 targets.makeupGain = makeupGain;
                 targets.dryGain = dryGain;
+                targets.clipDrive = clipDrive;
 
                 _isCompBypass = isCompBypass;
                 _isDeltaMode = isDeltaMode;
@@ -109,6 +115,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
                 smoothed.dryGain += smoothCoeff * (targets.dryGain - smoothed.dryGain);
+                smoothed.clipDrive += smoothCoeff * (targets.clipDrive - smoothed.clipDrive);
 
                 const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
                 const dryLinear = Math.exp(smoothed.dryGain * LN10_OVER_20);
@@ -140,7 +147,13 @@ export const createRealTimeCompressor = (sampleRate) => {
                 const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
                 // Output uses delayed sample (P3)
-                const wet = delayedSample * compGainLinear * makeUpLinear;
+                let wet = delayedSample * compGainLinear * makeUpLinear;
+
+                // Soft clip (normalized tanh waveshaper)
+                const cd = smoothed.clipDrive;
+                if (cd > 1.0001) {
+                    wet = Math.tanh(cd * wet) / Math.tanh(cd);
+                }
 
                 if (_isDeltaMode) {
                     outputData[i] = wet - delayedSample;

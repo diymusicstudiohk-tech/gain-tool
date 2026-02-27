@@ -110,6 +110,10 @@ export const TOOLTIPS = {
         title: "Lookahead (預讀)",
         desc: "Lookahead (預讀) 讓壓縮器「偷看」未來的訊號，以提早做出反應。\n\n向右扭 (時間長)：壓縮器能在瞬態發生前就開始壓縮。觀察紅色壓縮(GR)曲線，會發現它比白色波形的峰值「稍微提早」一點點開始下潛。\n\n目的：完美攔截極快的峰值 (Brickwall Limiting)。\n\n常用：2-5ms，主要用於母帶處理或防止數位失真 (Clipping)。"
     },
+    clip: {
+        title: "Soft Clip (柔性削波)",
+        desc: "Soft Clip (柔性削波) 在限幅器之後加入 tanh 飽和曲線，作為最後安全網。\n\n0%：完全關閉，訊號直接通過。\n\n向右扭：逐漸將超過限幅器的峰值圓滑化（round off），增加類似磁帶飽和的溫暖感。\n\n100%：重度飽和效果。\n\n目的：防止數位削波、增加溫暖感。\n\n常用：10-30% 用於透明的峰值保護；50%+ 用於刻意的飽和音色。"
+    },
 
     // --- OUTPUT MODULE ---
     makeup: {

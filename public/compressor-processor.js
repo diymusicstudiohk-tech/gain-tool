@@ -26,12 +26,14 @@ class CompressorProcessor extends AudioWorkletProcessor {
             threshold: -24,
             makeupGain: 0,
             dryGain: -96,
+            clipDrive: 1.0,
         };
         // Smoothing targets
         this.targets = {
             threshold: -24,
             makeupGain: 0,
             dryGain: -96,
+            clipDrive: 1.0,
         };
 
         // Coefficient cache
@@ -52,6 +54,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             this.targets.threshold = p.threshold;
             this.targets.makeupGain = p.makeupGain;
             this.targets.dryGain = p.dryGain;
+            this.targets.clipDrive = p.clipDrive ?? 1.0;
 
             // Recalculate coefficients (these don't need per-sample smoothing)
             const attTime = (p.attack / 1000) * sampleRate;
@@ -100,16 +103,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let sThreshold = this.smoothed.threshold;
         let sMakeupGain = this.smoothed.makeupGain;
         let sDryGain = this.smoothed.dryGain;
+        let sClipDrive = this.smoothed.clipDrive;
 
         const tThreshold = this.targets.threshold;
         const tMakeupGain = this.targets.makeupGain;
         const tDryGain = this.targets.dryGain;
+        const tClipDrive = this.targets.clipDrive;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
             sDryGain += smoothCoeff * (tDryGain - sDryGain);
+            sClipDrive += smoothCoeff * (tClipDrive - sClipDrive);
 
             const makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
             const dryLinear = Math.exp(sDryGain * LN10_OVER_20);
@@ -143,7 +149,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
             const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
             // Output uses delayed sample (P3)
-            const wet = delayedSample * compGainLinear * makeUpLinear;
+            let wet = delayedSample * compGainLinear * makeUpLinear;
+
+            // Soft clip (normalized tanh waveshaper)
+            if (sClipDrive > 1.0001) {
+                wet = Math.tanh(sClipDrive * wet) / Math.tanh(sClipDrive);
+            }
 
             if (isDeltaMode) {
                 outputData[i] = wet - delayedSample;
@@ -160,6 +171,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.threshold = sThreshold;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
+        this.smoothed.clipDrive = sClipDrive;
 
         return true;
     }
