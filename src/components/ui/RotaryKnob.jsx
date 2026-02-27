@@ -192,8 +192,8 @@ const RotaryKnob = ({
                 <div className="flex flex-col items-center justify-end pb-2">
                     <div className="flex items-center gap-0.5 mb-1">
                         {isHovered
-                            ? <div className="text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
-                            : <div className={`text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>
+                            ? <div className="text-[8px] min-[740px]:text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
+                            : <div className={`text-[8px] min-[740px]:text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>
                         }
                     </div>
                     {subLabel && <div className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">{subLabel}</div>}
