@@ -32,6 +32,17 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.delayBuffer = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
         this.writePos = 0;
 
+        // Sliding window maximum (monotonic deque) — pre-allocated, no GC
+        this.dequeValues = new Float64Array(MAX_LOOKAHEAD_SAMPLES);
+        this.dequeIndices = new Int32Array(MAX_LOOKAHEAD_SAMPLES);
+        this.dequeHead = 0;
+        this.dequeTail = 0;
+        this.dequeSampleCounter = 0;
+
+        // True peak detection — 4-sample history buffer
+        this.tpHistory = new Float32Array(4);
+        this.tpPos = 0;
+
         // Current params (with smoothing targets)
         this.params = null;
 
@@ -89,6 +100,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 MAX_LOOKAHEAD_SAMPLES - 1
             );
 
+            // Dynamic attack: derive from lookahead for smooth pre-reduction
+            const effectiveAttackMs = Math.max(ATTACK_MS, (p.lookahead || 0) * 0.7);
+            this.compAttCoeff = 1 - Math.exp(-1 / ((effectiveAttackMs / 1000) * sampleRate));
+
             // Boolean/discrete params (no smoothing needed)
             this.isCompBypass = p.isCompBypass;
             this.isDeltaMode = p.isDeltaMode;
@@ -129,6 +144,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let cfPeak = this.cfPeak;
         let smoothedCF = this.smoothedCF;
 
+        // Sliding window max deque (local copies)
+        const dequeValues = this.dequeValues;
+        const dequeIndices = this.dequeIndices;
+        let dequeHead = this.dequeHead;
+        let dequeTail = this.dequeTail;
+        let dequeSampleCounter = this.dequeSampleCounter;
+        // Window size: at least 1 (current sample) even when lookahead is 0
+        const windowSize = lookaheadSamples > 0 ? lookaheadSamples : 1;
+
+        // True peak detection (local copies)
+        const tpHistory = this.tpHistory;
+        let tpPos = this.tpPos;
+
         // Smoothed values (local copies for hot loop)
         let sThreshold = this.smoothed.threshold;
         let sMakeupGain = this.smoothed.makeupGain;
@@ -158,11 +186,61 @@ class CompressorProcessor extends AudioWorkletProcessor {
             // Read delayed sample for output
             const delayedSample = delayBuffer[(writePos - lookaheadSamples + bufferSize) % bufferSize];
 
-            // Detection uses current (non-delayed) sample
-            const inputLevel = Math.abs(inputSample);
+            // --- True peak detection (4-point Lagrange interpolation) ---
+            const absSample = Math.abs(inputSample);
+            tpHistory[tpPos] = absSample;
+            let truePeak = absSample;
+
+            // Need at least 4 samples of history for interpolation
+            const h0 = tpHistory[(tpPos - 3 + 4) % 4];
+            const h1 = tpHistory[(tpPos - 2 + 4) % 4];
+            const h2 = tpHistory[(tpPos - 1 + 4) % 4];
+            const h3 = absSample;
+
+            // Lagrange interpolation between h1 and h2 at t=0.25, 0.5, 0.75
+            // t=0.25
+            const t1 = -0.75, t1p1 = 0.25, t1p2 = 1.25, t1m1 = -1.75;
+            const v25 = h0 * (t1p1 * t1p2 * t1 / (-6)) +
+                         h1 * (t1m1 * t1p2 * t1 / (2)) +
+                         h2 * (t1m1 * t1p1 * t1 / (-2)) +
+                         h3 * (t1m1 * t1p1 * t1p2 / (6));
+            // Simplified Lagrange at t=0.5
+            const v50 = (-h0 + 9 * h1 + 9 * h2 - h3) / 16;
+            // t=0.75
+            const t3 = 0.25, t3p1 = 1.25, t3p2 = 2.25, t3m1 = -0.75;
+            const v75 = h0 * (t3p1 * t3p2 * t3 / (-6)) +
+                         h1 * (t3m1 * t3p2 * t3 / (2)) +
+                         h2 * (t3m1 * t3p1 * t3 / (-2)) +
+                         h3 * (t3m1 * t3p1 * t3p2 / (6));
+
+            const abs25 = v25 < 0 ? -v25 : v25;
+            const abs50 = v50 < 0 ? -v50 : v50;
+            const abs75 = v75 < 0 ? -v75 : v75;
+            if (abs25 > truePeak) truePeak = abs25;
+            if (abs50 > truePeak) truePeak = abs50;
+            if (abs75 > truePeak) truePeak = abs75;
+
+            tpPos = (tpPos + 1) % 4;
+
+            // --- Sliding window maximum (monotonic deque) ---
+            // Push truePeak into deque, maintaining decreasing order
+            while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES] <= truePeak) {
+                dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES;
+            }
+            dequeValues[dequeTail] = truePeak;
+            dequeIndices[dequeTail] = dequeSampleCounter;
+            dequeTail = (dequeTail + 1) % MAX_LOOKAHEAD_SAMPLES;
+
+            // Remove expired elements from front
+            while (dequeHead !== dequeTail && dequeIndices[dequeHead] <= dequeSampleCounter - windowSize) {
+                dequeHead = (dequeHead + 1) % MAX_LOOKAHEAD_SAMPLES;
+            }
+
+            dequeSampleCounter++;
+            const inputLevel = dequeValues[dequeHead]; // Window maximum
 
             // --- Crest factor measurement ---
-            const sampleSq = inputLevel * inputLevel;
+            const sampleSq = absSample * absSample;
             rmsSum -= rmsBuffer[rmsWritePos];
             rmsBuffer[rmsWritePos] = sampleSq;
             rmsSum += sampleSq;
@@ -170,8 +248,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             const rmsLevel = Math.sqrt(Math.max(0, rmsSum / rmsWindowSize));
 
-            if (inputLevel > cfPeak) cfPeak = inputLevel;
-            else cfPeak += cfPeakCoeff * (inputLevel - cfPeak);
+            if (absSample > cfPeak) cfPeak = absSample;
+            else cfPeak += cfPeakCoeff * (absSample - cfPeak);
 
             const cfRaw = (rmsLevel > LOG_FLOOR && cfPeak > LOG_FLOOR)
                 ? Math.log(cfPeak / rmsLevel) * TWENTY_LOG10E
@@ -246,6 +324,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.rmsWritePos = rmsWritePos;
         this.cfPeak = cfPeak;
         this.smoothedCF = smoothedCF;
+        this.dequeHead = dequeHead;
+        this.dequeTail = dequeTail;
+        this.dequeSampleCounter = dequeSampleCounter;
+        this.tpPos = tpPos;
         this.smoothed.threshold = sThreshold;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
