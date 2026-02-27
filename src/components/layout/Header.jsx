@@ -176,7 +176,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
     };
 
     return (
-        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-app px-2 min-[740px]:px-4 py-3 -mx-2 min-[740px]:-mx-4 -mt-4">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-app px-2 min-[740px]:px-4 py-3 -mx-2 min-[740px]:-mx-4 -mt-4 relative z-10">
 
             <ConfirmationModal
                 isOpen={showConfirmModal}
@@ -286,7 +286,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                     {/* Dropdown panel */}
                     {isCustomDropdownOpen && (
                         <div
-                            className="absolute top-full left-0 mt-1 w-64 bg-black/70 border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)] z-[200] overflow-hidden glass-scrollbar"
+                            className="absolute top-full right-0 mt-1 w-64 max-w-[calc(100vw-1rem)] bg-black/70 border border-white/10 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)] z-[200] overflow-hidden glass-scrollbar"
                             style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
                         >
                             {/* Scrollable list */}
