@@ -13,7 +13,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         // Envelope state
         this.compEnvelope = 0;
-        this.gateGainEnvelope = 0;
 
         // Look-ahead ring buffer (P3)
         this.delayBuffer = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
@@ -42,11 +41,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Coefficient cache
         this.compAttCoeff = 0;
         this.compRelCoeff = 0;
-        this.gateAttCoeff = 0;
-        this.gateRelCoeff = 0;
         this.lookaheadSamples = 0;
-        this.gateThreshold = -80;
-        this.isGateBypass = true;
         this.isCompBypass = false;
         this.isDeltaMode = false;
 
@@ -67,13 +62,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
             // Recalculate coefficients (these don't need per-sample smoothing)
             const attTime = (p.attack / 1000) * sampleRate;
             const relTime = (p.release / 1000) * sampleRate;
-            const gAttTime = (p.gateAttack / 1000) * sampleRate;
-            const gRelTime = (p.gateRelease / 1000) * sampleRate;
 
             this.compAttCoeff = 1 - Math.exp(-1 / attTime);
             this.compRelCoeff = 1 - Math.exp(-1 / relTime);
-            this.gateAttCoeff = 1 - Math.exp(-1 / gAttTime);
-            this.gateRelCoeff = 1 - Math.exp(-1 / gRelTime);
 
             // Look-ahead (P3)
             this.lookaheadSamples = Math.min(
@@ -82,8 +73,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
             );
 
             // Boolean/discrete params (no smoothing needed)
-            this.gateThreshold = p.gateThreshold;
-            this.isGateBypass = p.isGateBypass;
             this.isCompBypass = p.isCompBypass;
             this.isDeltaMode = p.isDeltaMode;
         };
@@ -104,10 +93,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const smoothCoeff = this.smoothCoeff;
         const compAttCoeff = this.compAttCoeff;
         const compRelCoeff = this.compRelCoeff;
-        const gateAttCoeff = this.gateAttCoeff;
-        const gateRelCoeff = this.gateRelCoeff;
-        const gateThreshold = this.gateThreshold;
-        const isGateBypass = this.isGateBypass;
         const isCompBypass = this.isCompBypass;
         const isDeltaMode = this.isDeltaMode;
         const lookaheadSamples = this.lookaheadSamples;
@@ -115,7 +100,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const bufferSize = MAX_LOOKAHEAD_SAMPLES;
 
         let compEnvelope = this.compEnvelope;
-        let gateGainEnvelope = this.gateGainEnvelope;
         let writePos = this.writePos;
 
         // Smoothed values (local copies for hot loop)
@@ -153,24 +137,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
             // Detection uses current (non-delayed) sample
             const inputLevel = Math.abs(inputSample);
 
-            // Gate
-            let gateGainLinear = 1;
-            if (!isGateBypass) {
-                const gateDetectorLeveldB = Math.log(inputLevel + 1e-6) * TWENTY_LOG10E;
-                const gateIsOpen = gateDetectorLeveldB >= gateThreshold;
-                const gateGainTarget = gateIsOpen ? 1.0 : 0.0;
-                if (gateGainTarget > gateGainEnvelope)
-                    gateGainEnvelope += gateAttCoeff * (gateGainTarget - gateGainEnvelope);
-                else
-                    gateGainEnvelope += gateRelCoeff * (gateGainTarget - gateGainEnvelope);
-                gateGainLinear = gateGainEnvelope;
-            }
-
             // Compressor detection
-            const gatedDetectorLevel = inputLevel * gateGainLinear;
             if (!isCompBypass) {
-                if (gatedDetectorLevel > compEnvelope) compEnvelope += compAttCoeff * (gatedDetectorLevel - compEnvelope);
-                else compEnvelope += compRelCoeff * (gatedDetectorLevel - compEnvelope);
+                if (inputLevel > compEnvelope) compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
+                else compEnvelope += compRelCoeff * (inputLevel - compEnvelope);
             }
 
             let compEnvdB = Math.log(compEnvelope + 1e-6) * TWENTY_LOG10E;
@@ -192,7 +162,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
             // Output uses delayed sample (P3)
-            const wet = delayedSample * gateGainLinear * compGainLinear * makeUpLinear;
+            const wet = delayedSample * compGainLinear * makeUpLinear;
 
             if (isDeltaMode) {
                 outputData[i] = wet - delayedSample;
@@ -205,7 +175,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         // Write back state
         this.compEnvelope = compEnvelope;
-        this.gateGainEnvelope = gateGainEnvelope;
         this.writePos = writePos;
         this.smoothed.threshold = sThreshold;
         this.smoothed.ratio = sRatio;

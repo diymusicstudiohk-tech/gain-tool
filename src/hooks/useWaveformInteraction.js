@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../utils/displayMath';
 import {
     HIT_TOLERANCE_MOUSE, HIT_TOLERANCE_TOUCH,
-    COMP_THRESHOLD_FLOOR_DB, GATE_THRESHOLD_FLOOR_DB,
+    COMP_THRESHOLD_FLOOR_DB,
 } from '../utils/canvasConstants';
 
 // Extract clientX/clientY from mouse or touch events
@@ -18,11 +18,11 @@ const getEventCoords = (e) => {
 
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
-    threshold, gateThreshold, setThreshold, setGateThreshold,
+    threshold, setThreshold,
     zoomY, panOffsetY,
     setIsCustomSettings, setIsProcessing,
-    setHasThresholdBeenAdjusted, setHasGateBeenAdjusted,
-    isCompBypass, setIsCompBypass, isGateBypass, setIsGateBypass,
+    setHasThresholdBeenAdjusted,
+    isCompBypass, setIsCompBypass,
     lastPlayedType, handleModeChange,
     isDraggingKnobRef,
     // Seek-related refs
@@ -36,7 +36,6 @@ const useWaveformInteraction = ({
     const [isGainKnobDragging, setIsGainKnobDragging] = useState(false);
     const [draggingGainKnob, setDraggingGainKnob] = useState(null); // 'makeup' | 'dryGain' | null
     const [isCompAdjusting, setIsCompAdjusting] = useState(false);
-    const [isGateAdjusting, setIsGateAdjusting] = useState(false);
 
     const isDraggingLineRef = useRef(null);
     const isDraggingRef = useRef(false);
@@ -75,18 +74,13 @@ const useWaveformInteraction = ({
                 setThreshold(Math.round(newDb));
                 setHasThresholdBeenAdjusted(true);
                 setIsCompAdjusting(true);
-            } else if (isDraggingLineRef.current === 'gate') {
-                if (newDb < GATE_THRESHOLD_FLOOR_DB) newDb = GATE_THRESHOLD_FLOOR_DB;
-                setGateThreshold(Math.round(newDb));
-                setHasGateBeenAdjusted(true);
-                setIsGateAdjusting(true);
             }
             setIsCustomSettings(true); setIsProcessing(true);
             if (lastPlayedType === 'original') handleModeChange('processed');
             return;
         }
     }, [zoomY, panOffsetY, lastPlayedType,
-        setThreshold, setGateThreshold, setHasThresholdBeenAdjusted, setHasGateBeenAdjusted,
+        setThreshold, setHasThresholdBeenAdjusted,
         setIsCustomSettings, setIsProcessing, handleModeChange,
         waveformCanvasRef]);
 
@@ -99,7 +93,6 @@ const useWaveformInteraction = ({
         if (isDraggingLineRef.current) {
             isDraggingLineRef.current = null;
             setIsCompAdjusting(false);
-            setIsGateAdjusting(false);
             setHoverLine(null);
             document.body.style.cursor = 'default';
             return;
@@ -147,12 +140,6 @@ const useWaveformInteraction = ({
                 setIsCustomSettings(true);
                 if (lastPlayedType !== 'processed') handleModeChange('processed');
             }
-            if (hoverLine === 'gate' && isGateBypass) {
-                setIsGateBypass(false);
-                setIsCustomSettings(true);
-                if (lastPlayedType !== 'processed') handleModeChange('processed');
-            }
-
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'ns-resize';
 
@@ -162,8 +149,8 @@ const useWaveformInteraction = ({
             // Seek — click on empty space to move playhead
             handleSeekOnWaveform(e.clientX);
         }
-    }, [originalBuffer, hoverLine, isCompBypass, isGateBypass, lastPlayedType,
-        setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
+    }, [originalBuffer, hoverLine, isCompBypass, lastPlayedType,
+        setIsCompBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, isDraggingKnobRef, handleSeekOnWaveform]);
 
     // Touch equivalent of handleWaveformMouseDown.
@@ -193,25 +180,16 @@ const useWaveformInteraction = ({
             const HIT_TOLERANCE = HIT_TOLERANCE_TOUCH;
 
             const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
-            const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
 
             const distToCompTop = Math.abs(relY - (centerY - compThreshPx));
             const distToCompBot = Math.abs(relY - (centerY + compThreshPx));
-            const distToGateTop = Math.abs(relY - (centerY - gateThreshPx));
-            const distToGateBot = Math.abs(relY - (centerY + gateThreshPx));
 
-            if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) touchHoverLine = 'gate';
             if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) touchHoverLine = 'comp';
         }
 
         if (touchHoverLine) {
             if (touchHoverLine === 'comp' && isCompBypass) {
                 setIsCompBypass(false);
-                setIsCustomSettings(true);
-                if (lastPlayedType !== 'processed') handleModeChange('processed');
-            }
-            if (touchHoverLine === 'gate' && isGateBypass) {
-                setIsGateBypass(false);
                 setIsCustomSettings(true);
                 if (lastPlayedType !== 'processed') handleModeChange('processed');
             }
@@ -225,9 +203,9 @@ const useWaveformInteraction = ({
             handleSeekOnWaveform(clientX);
         }
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomY, panOffsetY,
-        threshold, gateThreshold,
-        isCompBypass, isGateBypass, lastPlayedType,
-        setIsCompBypass, setIsGateBypass, setIsCustomSettings, handleModeChange,
+        threshold,
+        isCompBypass, lastPlayedType,
+        setIsCompBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, handleSeekOnWaveform]);
 
     // Keep refs pointing to the latest handlers so closures stay current.
@@ -258,22 +236,18 @@ const useWaveformInteraction = ({
 
         const HIT_TOLERANCE = HIT_TOLERANCE_MOUSE;
         const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
-        const gateThreshPx = displayAmp(Math.pow(10, gateThreshold / 20)) * ampScale;
 
         const distToCompTop = Math.abs(relY - (centerY - compThreshPx));
         const distToCompBot = Math.abs(relY - (centerY + compThreshPx));
-        const distToGateTop = Math.abs(relY - (centerY - gateThreshPx));
-        const distToGateBot = Math.abs(relY - (centerY + gateThreshPx));
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (!isGateBypass && (distToGateTop < HIT_TOLERANCE || distToGateBot < HIT_TOLERANCE)) { newHoverLine = 'gate'; cursor = 'ns-resize'; }
         if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
-    }, [threshold, gateThreshold, zoomY, panOffsetY,
-        isCompBypass, isGateBypass,
+    }, [threshold, zoomY, panOffsetY,
+        isCompBypass,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
     const handleMouseLeave = useCallback(() => {
@@ -288,7 +262,6 @@ const useWaveformInteraction = ({
         isGainKnobDragging, setIsGainKnobDragging,
         draggingGainKnob, setDraggingGainKnob,
         isCompAdjusting, setIsCompAdjusting,
-        isGateAdjusting, setIsGateAdjusting,
         isDraggingLineRef, isDraggingRef, hoverGrRef, isHoveringGRAreaRef,
         handleWaveformMouseDown, handleLocalMouseMove, handleMouseLeave,
     };

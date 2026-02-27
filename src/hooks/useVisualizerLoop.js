@@ -11,15 +11,11 @@ const useVisualizerLoop = ({
     isDeltaMode,
     dryGain,
     threshold,
-    gateThreshold,
     mousePos,
     hoverLine,
     isDraggingLineRef,
     isCompAdjusting,
     hasThresholdBeenAdjusted,
-    isGateAdjusting,
-    hasGateBeenAdjusted,
-    isGateBypass,
     isCompBypass,
     hoveredKnob,
     isGainKnobDragging,
@@ -62,9 +58,6 @@ const useVisualizerLoop = ({
     useEffect(() => { dryGainRef.current = dryGain; }, [dryGain]);
     const thresholdRef = useRef(threshold);
     useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
-    const gateThresholdRef = useRef(gateThreshold);
-    useEffect(() => { gateThresholdRef.current = gateThreshold; }, [gateThreshold]);
-
     // Use refs for mousePos/hoverLine so animate() reads the latest values
     // without being recreated on every mouse move (which would restart the RAF loop).
     const mousePosRef = useRef(mousePos);
@@ -74,8 +67,6 @@ const useVisualizerLoop = ({
 
     // Use refs for bypass state + visual data so animate() picks up changes
     // immediately without waiting for useCallback recreation + RAF restart.
-    const isGateBypassRef = useRef(isGateBypass);
-    useEffect(() => { isGateBypassRef.current = isGateBypass; }, [isGateBypass]);
     const isCompBypassRef = useRef(isCompBypass);
     useEffect(() => { isCompBypassRef.current = isCompBypass; }, [isCompBypass]);
     const visualResultRef = useRef(visualResult);
@@ -94,7 +85,7 @@ const useVisualizerLoop = ({
     useEffect(() => {
         lastWaveformDrawKeyRef.current = null;
         if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
-    }, [visualResult, mipmaps, mixMipmaps, isGateBypass, isCompBypass]);
+    }, [visualResult, mipmaps, mixMipmaps, isCompBypass]);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -132,7 +123,6 @@ const useVisualizerLoop = ({
         const liveVisualResult = visualResultRef.current;
         const liveMipmaps = mipmapsRef.current;
         const liveMixMipmaps = mixMipmapsRef.current;
-        const liveIsGateBypass = isGateBypassRef.current;
         const liveIsCompBypass = isCompBypassRef.current;
 
         if (liveVisualResult) {
@@ -224,13 +214,13 @@ const useVisualizerLoop = ({
             const liveMousePos = mousePosRef.current;
             const liveHoverLine = hoverLineRef.current;
             const isHovering = liveMousePos.x >= 0;
-            const isInteracting = isDraggingLineRef.current || isCompAdjusting || isGateAdjusting;
+            const isInteracting = isDraggingLineRef.current || isCompAdjusting;
 
             if (waveformFrameRef.current === 0 || isInteracting || isHovering) {
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${thresholdRef.current}_${gateThresholdRef.current}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${hasGateBeenAdjusted}_${liveIsGateBypass}_${liveIsCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
+                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${thresholdRef.current}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${liveIsCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
                     if (drawKey === lastWaveformDrawKeyRef.current) {
                         shouldDraw = false;
                     } else {
@@ -246,14 +236,13 @@ const useVisualizerLoop = ({
                         originalBuffer,
                         zoomX: liveZoomX, zoomY, panOffset: livePanOffset, panOffsetY,
                         playingType, lastPlayedType, isDeltaMode, dryGain: currentDryGain,
-                        threshold: thresholdRef.current, gateThreshold: gateThresholdRef.current,
+                        threshold: thresholdRef.current,
                         mousePos: liveMousePos, hoverLine: liveHoverLine,
                         isDraggingLine: isDraggingLineRef.current,
                         isCompAdjusting, hasThresholdBeenAdjusted,
-                        isGateAdjusting, hasGateBeenAdjusted,
                         hoverGrRef,
                         isHoveringGRAreaRef,
-                        isGateBypass: liveIsGateBypass, isCompBypass: liveIsCompBypass,
+                        isCompBypass: liveIsCompBypass,
                         isGainKnobActive,
                         activeGainKnob,
                         isGainKnobDragging,
@@ -285,8 +274,8 @@ const useVisualizerLoop = ({
     }, [
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
         visualStep, mipmaps, mixMipmaps, canvasDims,
-        isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted, lastPlayedType,
-        isGateBypass, isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
+        isCompAdjusting, hasThresholdBeenAdjusted, lastPlayedType,
+        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
@@ -302,14 +291,13 @@ const useVisualizerLoop = ({
                 originalBuffer,
                 zoomX, zoomY, panOffset, panOffsetY,
                 playingType, lastPlayedType, isDeltaMode, dryGain,
-                threshold, gateThreshold,
+                threshold,
                 mousePos, hoverLine,
                 isDraggingLine: isDraggingLineRef.current,
                 isCompAdjusting, hasThresholdBeenAdjusted,
-                isGateAdjusting, hasGateBeenAdjusted,
                 hoverGrRef,
                 isHoveringGRAreaRef,
-                isGateBypass, isCompBypass,
+                isCompBypass,
                 isGainKnobActive,
                 activeGainKnob,
                 isGainKnobDragging,
@@ -324,9 +312,9 @@ const useVisualizerLoop = ({
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
-        lastPlayedType, isDeltaMode, dryGain, threshold, gateThreshold,
-        mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
-        isGateBypass, isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        lastPlayedType, isDeltaMode, dryGain, threshold,
+        mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted,
+        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps, mixMipmaps
     ]);
 

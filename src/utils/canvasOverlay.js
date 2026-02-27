@@ -1,5 +1,5 @@
 import { linearFromDisplay } from './displayMath';
-import { GOLD, COMP_TOOLTIP_BG, GREEN } from './colors';
+import { GOLD, COMP_TOOLTIP_BG } from './colors';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_OFFSET_Y, TOOLTIP_HEIGHT,
     TOOLTIP_PAD_X, TOOLTIP_TEXT_BASELINE, TOOLTIP_EDGE_CLAMP,
@@ -58,20 +58,18 @@ export const drawGainTooltip = (ctx, mousePos, centerY, ampScale, width) => {
 };
 
 /**
- * Draw threshold tooltip (comp or gate).
+ * Draw threshold tooltip (comp).
  */
 export const drawThresholdTooltip = (ctx, mousePos, type, thresholdDb, width) => {
     ctx.font = 'bold 12px sans-serif';
-    const text = type === 'comp'
-        ? `Comp Threshold: ${thresholdDb} dB`
-        : `Gate Threshold: ${thresholdDb} dB`;
+    const text = `Comp Threshold: ${thresholdDb} dB`;
     const metrics = ctx.measureText(text);
     const bgW = metrics.width + TOOLTIP_PAD_X * 2;
     let bgX = mousePos.x + TOOLTIP_OFFSET_X;
     let bgY = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
     if (bgX + bgW > width) bgX = mousePos.x - bgW - TOOLTIP_OFFSET_X;
     if (bgY < TOOLTIP_EDGE_CLAMP) bgY = mousePos.y + TOOLTIP_OFFSET_X;
-    ctx.fillStyle = type === 'comp' ? COMP_TOOLTIP_BG : GREEN;
+    ctx.fillStyle = COMP_TOOLTIP_BG;
     ctx.fillRect(bgX, bgY, bgW, TOOLTIP_HEIGHT);
     ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
     ctx.fillText(text, bgX + TOOLTIP_PAD_X, bgY + TOOLTIP_TEXT_BASELINE);

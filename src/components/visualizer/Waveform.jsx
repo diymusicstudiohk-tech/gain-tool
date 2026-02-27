@@ -2,7 +2,7 @@ import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
 import {
-    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED, GREEN,
+    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED,
     COMP_BLUE, BG_PANEL, INACTIVE, TEXT_DIM,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade, drawHatchedPolygon, drawGRLine } from '../../utils/canvasPolygons';
@@ -22,11 +22,11 @@ export const drawMainWaveform = ({
     canvas, canvasDims, visualResult, originalBuffer,
     zoomX, zoomY, panOffset, panOffsetY,
     playingType, lastPlayedType, isDeltaMode, dryGain,
-    threshold, gateThreshold,
-    mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted, isGateAdjusting, hasGateBeenAdjusted,
+    threshold,
+    mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted,
     hoverGrRef, // ref object
     isHoveringGRAreaRef, // ref object — true when mouse is in GR curve area
-    isGateBypass, isCompBypass,
+    isCompBypass,
     isGainKnobActive,
     activeGainKnob, // 'makeup' | 'dryGain' | null
     isGainKnobDragging,
@@ -51,11 +51,11 @@ export const drawMainWaveform = ({
     }
 
     // ── Cache key ──
-    const adjustBit = (isCompAdjusting || isGateAdjusting) ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}_${isGateBypass?1:0}_${isCompBypass?1:0}`;
+    const adjustBit = isCompAdjusting ? 1 : 0;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}_${isCompBypass?1:0}`;
 
     const cache = waveformCacheRef?.current;
-    const isAnyDrag = isDraggingLine || isCompAdjusting || isGateAdjusting || isGainKnobDragging;
+    const isAnyDrag = isDraggingLine || isCompAdjusting || isGainKnobDragging;
     const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
 
     // ── PHASE 1: Waveform background (skip when cache hit) ──
@@ -84,7 +84,7 @@ export const drawMainWaveform = ({
                 drawPolygonWithPeakFade(ctx, diffInnerPoints, BG_PANEL, width, centerY, 1.0, 0.0);
             }
             else {
-                const redOpacity = (isCompAdjusting || isGateAdjusting) ? 1.0 : 0.5;
+                const redOpacity = isCompAdjusting ? 1.0 : 0.5;
                 drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, redOpacity);
                 drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
 
@@ -511,22 +511,11 @@ export const drawMainWaveform = ({
         });
     }
 
-    if (!isGateBypass) {
-        drawThresholdLine(ctx, {
-            thresholdDb: gateThreshold,
-            color: isDry || isGateBypass ? INACTIVE : GREEN,
-            isHighlight: hoverLine === 'gate' || isDraggingLine === 'gate',
-            centerY, ampScale, width, height,
-        });
-    }
     ctx.setLineDash([]);
 
     // ── Threshold Tooltips ──
     if ((hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
         drawThresholdTooltip(ctx, mousePos, 'comp', threshold, width);
-    }
-    if ((hoverLine === 'gate' || isDraggingLine === 'gate') && mousePos.x >= 0) {
-        drawThresholdTooltip(ctx, mousePos, 'gate', gateThreshold, width);
     }
 };
 

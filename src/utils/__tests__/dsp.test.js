@@ -10,8 +10,7 @@ const makeSine = (length, freq, sampleRate, amplitude = 1.0) => {
 const defaultParams = {
     threshold: -24, ratio: 4, attack: 10, release: 100,
     knee: 6, lookahead: 0, makeupGain: 0,
-    gateThreshold: -80, gateAttack: 0.5, gateRelease: 50,
-    isGateBypass: true, isCompBypass: false,
+    isCompBypass: false,
 };
 
 describe('processCompressor', () => {
@@ -47,19 +46,8 @@ describe('processCompressor', () => {
     it('bypasses compressor when isCompBypass is true', () => {
         const input = makeSine(2048, 440, 44100, 0.8);
         const { outputData } = processCompressor(input, 44100, { ...defaultParams, isCompBypass: true });
-        // With gate bypassed and comp bypassed, output ≈ input * makeupGain(0dB=1.0)
+        // With comp bypassed, output ≈ input * makeupGain(0dB=1.0)
         for (let i = 0; i < input.length; i++) expect(outputData[i]).toBeCloseTo(input[i], 4);
-    });
-
-    it('gate attenuates signal below gate threshold', () => {
-        const input = makeSine(8192, 440, 44100, 0.01); // ~-40dB
-        const { outputData } = processCompressor(input, 44100, {
-            ...defaultParams, isGateBypass: false, gateThreshold: -20, isCompBypass: true,
-        });
-        // After gate envelope settles, output should be significantly attenuated
-        const tailRMS = Math.sqrt(outputData.slice(-1024).reduce((s, v) => s + v * v, 0) / 1024);
-        const inputRMS = Math.sqrt(input.slice(-1024).reduce((s, v) => s + v * v, 0) / 1024);
-        expect(tailRMS).toBeLessThan(inputRMS * 0.1);
     });
 
     it('applies makeup gain', () => {

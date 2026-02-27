@@ -12,7 +12,7 @@ const parseHexColor = (hex) => {
 
 /**
  * Draw a threshold line pair (top + bottom) with gradient fill and optional glow.
- * Used for both compressor and gate thresholds.
+ * Used for the compressor threshold.
  */
 export const drawThresholdLine = (ctx, {
     thresholdDb, color, isHighlight, centerY, ampScale, width, height,

@@ -179,16 +179,14 @@ const App = () => {
     // --- 6. Waveform Interaction ---
     const waveform = useWaveformInteraction({
         waveformCanvasRef, containerRef, originalBuffer,
-        threshold: comp.threshold, gateThreshold: comp.gateThreshold,
-        setThreshold: comp.setThreshold, setGateThreshold: comp.setGateThreshold,
+        threshold: comp.threshold,
+        setThreshold: comp.setThreshold,
         zoomY: view.zoomY,
         panOffsetY: view.panOffsetY,
         setIsCustomSettings: comp.setIsCustomSettings,
         setIsProcessing: comp.setIsProcessing,
         setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
-        setHasGateBeenAdjusted: comp.setHasGateBeenAdjusted,
         isCompBypass: comp.isCompBypass, setIsCompBypass: comp.setIsCompBypass,
-        isGateBypass: comp.isGateBypass, setIsGateBypass: comp.setIsGateBypass,
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
@@ -199,7 +197,7 @@ const App = () => {
     });
 
     // --- 7. DSP Processing ---
-    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isGainKnobDragging || waveform.isCompAdjusting || waveform.isGateAdjusting;
+    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isGainKnobDragging || waveform.isCompAdjusting;
     const dsp = useDSPProcessing({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
@@ -220,15 +218,11 @@ const App = () => {
         isDeltaMode: playback.isDeltaMode,
         dryGain: comp.dryGain,
         threshold: comp.threshold,
-        gateThreshold: comp.gateThreshold,
         mousePos: waveform.mousePos,
         hoverLine: waveform.hoverLine,
         isDraggingLineRef: waveform.isDraggingLineRef,
         isCompAdjusting: waveform.isCompAdjusting,
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        isGateAdjusting: waveform.isGateAdjusting,
-        hasGateBeenAdjusted: comp.hasGateBeenAdjusted,
-        isGateBypass: comp.isGateBypass,
         isCompBypass: comp.isCompBypass,
         hoveredKnob: view.hoveredKnob,
         isGainKnobDragging: waveform.isGainKnobDragging,
@@ -305,17 +299,6 @@ const App = () => {
     }, [engine.currentSourceId, comp.getCurrentStateSnapshot, engine.isLoading]);
 
     // --- Prop Groups for ControlHud ---
-    const gateProps = {
-        gateThreshold: comp.gateThreshold,
-        gateAttack: comp.gateAttack,
-        gateRelease: comp.gateRelease,
-        handleGateThresholdChange: comp.handleGateThresholdChange,
-        updateParam: comp.updateGateParam,
-        handleGateDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsGateAdjusting(isActive); },
-        hasGateBeenAdjusted: comp.hasGateBeenAdjusted,
-        isGateBypass: comp.isGateBypass,
-        setIsGateBypass: (v) => { comp.setIsGateBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
-    };
     const compProps = {
         threshold: comp.threshold, ratio: comp.ratio, ratioControl: comp.ratioControl,
         attack: comp.attack, release: comp.release, knee: comp.knee, lookahead: comp.lookahead,
@@ -430,7 +413,6 @@ const App = () => {
             />
 
             <ControlHud
-                gate={gateProps}
                 compressor={compProps}
                 playback={playbackProps}
                 preset={presetProps}

@@ -6,13 +6,8 @@ import PlaybackControls from './PlaybackControls';
 import { TOOLTIPS } from '../../utils/constants';
 import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl } from '../../hooks/useCompressorParams';
 
-const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOff }) => {
+const ControlHud = ({ compressor, playback, preset, output, ui, tooltipsOff }) => {
     // Destructure grouped props
-    const {
-        gateThreshold, gateAttack, gateRelease,
-        handleGateThresholdChange, updateParam, handleGateDragState, hasGateBeenAdjusted,
-        isGateBypass, setIsGateBypass,
-    } = gate;
     const {
         threshold, ratio, ratioControl, attack, release, knee, lookahead,
         handleThresholdChange, updateRatio, handleCompKnobChange, handleCompDragState, hasThresholdBeenAdjusted,
@@ -24,7 +19,7 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
 
     const [expandedModule, setExpandedModule] = useState('comp');
     const cycleModule = (current) => {
-        const order = ['gate', 'comp', 'output'];
+        const order = ['comp', 'output'];
         return order[(order.indexOf(current) + 1) % order.length];
     };
 
@@ -73,23 +68,6 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
 
                     {/* MODULES WRAPPER */}
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
-
-                        {/* GATE MODULE */}
-                        <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
-                                {expandedModule === 'gate'
-                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                }
-                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
-                                <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} className="mt-auto" />
-                            </div>
-                            <div className={`grid grid-cols-2 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'gate' ? 'max-w-[600px] opacity-100' : 'max-w-0 opacity-0'}`}>
-                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" shortLabel={"THRE-\nSHOLD"} value={gateThreshold} min={-80} max={0} step={1} unit="dB" color="gold" defaultValue={-80} onChange={handleGateThresholdChange} onDragStateChange={handleGateDragState} tooltipKey="gateThreshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
-                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="ATTACK" value={gateAttack} min={0.1} max={50} step={0.1} unit="ms" color="gold" defaultValue={2} onChange={(v) => updateParam('gateAttack', v)} onDragStateChange={handleGateDragState} tooltipKey="gateAttack" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} />
-                                <RotaryKnob disabled={isDryMode || isGateBypass} dragLockRef={isDraggingKnobRef} label="RELEASE" value={gateRelease} min={10} max={500} step={1} unit="ms" color="gold" defaultValue={100} onChange={(v) => updateParam('gateRelease', v)} onDragStateChange={handleGateDragState} tooltipKey="gateRelease" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} />
-                            </div>
-                        </div>
 
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>

@@ -11,7 +11,6 @@ export const HIT_TOLERANCE_TOUCH = 20;
 
 // --- Threshold Drag Floors ---
 export const COMP_THRESHOLD_FLOOR_DB = -60;
-export const GATE_THRESHOLD_FLOOR_DB = -80;
 
 // --- GR ---
 export const GR_MAX_HEIGHT_RATIO = 0.5;
