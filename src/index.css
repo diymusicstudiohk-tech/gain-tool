@@ -80,7 +80,8 @@
 
 /* 強制設定背景色，確保網頁滿版，禁止 scroll */
 html, body, #root {
-  touch-action: manipulation; /* prevent double-tap zoom on iOS */
+  touch-action: none; /* prevent all touch scrolling & zooming */
+  overscroll-behavior: none;
 }
 
 html, body {
