@@ -42,7 +42,7 @@ const PlaybackControls = ({ playback, preset }) => {
     }, [isPresetOpen]);
 
     return (
-        <div className="grid grid-cols-2 min-[740px]:flex gap-1.5 min-[740px]:gap-2 flex-none items-stretch relative z-50 self-stretch">
+        <div className="grid grid-cols-2 min-[740px]:flex gap-1.5 min-[740px]:gap-2 flex-none items-stretch relative z-50 self-stretch pl-4 min-[740px]:pl-0">
             {/* Play/Pause Button */}
             <button
                 onMouseDown={(e) => e.stopPropagation()}
