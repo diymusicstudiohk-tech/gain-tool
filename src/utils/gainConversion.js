@@ -1,9 +1,3 @@
-export const calculateRatioFromControl = (ctrl) =>
-    ctrl <= 50 ? 1 + (ctrl / 50) * 4 : (ctrl <= 75 ? 5 + ((ctrl - 50) / 25) * 5 : 10 + ((ctrl - 75) / 25) * 90);
-
-export const calculateControlFromRatio = (r) =>
-    r <= 5 ? (r - 1) / 4 * 50 : (r <= 10 ? 50 + (r - 5) / 5 * 25 : 75 + (r - 10) / 90 * 25);
-
 /**
  * Shared piecewise control-to-dB mapping.
  * The first 3 segments are identical for wet and dry:

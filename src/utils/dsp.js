@@ -2,7 +2,7 @@ import { LN10_OVER_20, TWENTY_LOG10E, LOG_FLOOR } from './dspConstants';
 
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
-        threshold, ratio, attack, release, knee, lookahead,
+        threshold, attack, release, lookahead,
         makeupGain, isCompBypass
     } = params;
 
@@ -34,14 +34,8 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         let compGainReductiondB = 0;
 
         if (!isCompBypass) {
-            if (compEnvdB > threshold - knee / 2) {
-                if (knee > 0 && compEnvdB < threshold + knee / 2) {
-                    let slope = 1 - (1 / ratio);
-                    let over = compEnvdB - (threshold - knee / 2);
-                    compGainReductiondB = -slope * ((over * over) / (2 * knee));
-                } else if (compEnvdB >= threshold + knee / 2) {
-                    compGainReductiondB = (threshold - compEnvdB) * (1 - 1 / ratio);
-                }
+            if (compEnvdB > threshold) {
+                compGainReductiondB = threshold - compEnvdB;
             }
         }
 
@@ -65,8 +59,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, ratio: 4, knee: 6, makeupGain: 0, dryGain: -96 };
-    const targets = { threshold: -24, ratio: 4, knee: 6, makeupGain: 0, dryGain: -96 };
+    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96 };
+    const targets = { threshold: -24, makeupGain: 0, dryGain: -96 };
 
     // Coefficient cache — only recalculate when params object identity changes
     let _cachedParams = null;
@@ -84,15 +78,13 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _cachedParams = params;
 
                 const {
-                    threshold, ratio, attack, release, knee,
+                    threshold, attack, release,
                     makeupGain, isCompBypass,
                     isDeltaMode, dryGain, lookahead
                 } = params;
 
                 // Update smoothing targets (P2)
                 targets.threshold = threshold;
-                targets.ratio = ratio;
-                targets.knee = knee;
                 targets.makeupGain = makeupGain;
                 targets.dryGain = dryGain;
 
@@ -115,8 +107,6 @@ export const createRealTimeCompressor = (sampleRate) => {
             for (let i = 0; i < length; i++) {
                 // Per-sample parameter smoothing (P2)
                 smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
-                smoothed.ratio += smoothCoeff * (targets.ratio - smoothed.ratio);
-                smoothed.knee += smoothCoeff * (targets.knee - smoothed.knee);
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
                 smoothed.dryGain += smoothCoeff * (targets.dryGain - smoothed.dryGain);
 
@@ -142,15 +132,8 @@ export const createRealTimeCompressor = (sampleRate) => {
                 let compGainReductiondB = 0;
 
                 if (!_isCompBypass) {
-                    const halfKnee = smoothed.knee / 2;
-                    if (compEnvdB > smoothed.threshold - halfKnee) {
-                        if (smoothed.knee > 0 && compEnvdB < smoothed.threshold + halfKnee) {
-                            const slope = 1 - (1 / smoothed.ratio);
-                            const over = compEnvdB - (smoothed.threshold - halfKnee);
-                            compGainReductiondB = -slope * ((over * over) / (2 * smoothed.knee));
-                        } else if (compEnvdB >= smoothed.threshold + halfKnee) {
-                            compGainReductiondB = (smoothed.threshold - compEnvdB) * (1 - 1 / smoothed.ratio);
-                        }
+                    if (compEnvdB > smoothed.threshold) {
+                        compGainReductiondB = smoothed.threshold - compEnvdB;
                     }
                 }
 

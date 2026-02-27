@@ -1,41 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-    calculateRatioFromControl, calculateControlFromRatio,
     dryGainControlToDb, dryGainDbToControl,
     wetGainControlToDb, wetGainDbToControl,
 } from '../gainConversion';
-
-describe('calculateRatioFromControl / calculateControlFromRatio', () => {
-    it('ctrl=0 → ratio 1:1', () => {
-        expect(calculateRatioFromControl(0)).toBe(1);
-    });
-
-    it('ctrl=50 → ratio 5:1', () => {
-        expect(calculateRatioFromControl(50)).toBe(5);
-    });
-
-    it('ctrl=75 → ratio 10:1', () => {
-        expect(calculateRatioFromControl(75)).toBe(10);
-    });
-
-    it('ctrl=100 → ratio 100:1', () => {
-        expect(calculateRatioFromControl(100)).toBe(100);
-    });
-
-    it('roundtrips through the three segments', () => {
-        for (const ctrl of [0, 10, 25, 50, 60, 75, 85, 100]) {
-            const ratio = calculateRatioFromControl(ctrl);
-            expect(calculateControlFromRatio(ratio)).toBeCloseTo(ctrl, 5);
-        }
-    });
-
-    it('inverse roundtrip from ratio side', () => {
-        for (const ratio of [1, 2, 5, 8, 10, 50, 100]) {
-            const ctrl = calculateControlFromRatio(ratio);
-            expect(calculateRatioFromControl(ctrl)).toBeCloseTo(ratio, 5);
-        }
-    });
-});
 
 describe('dryGainControlToDb / dryGainDbToControl', () => {
     it('ctrl=0 → -200 dB (silence)', () => {

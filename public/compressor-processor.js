@@ -24,16 +24,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Smoothed parameter current values (P2)
         this.smoothed = {
             threshold: -24,
-            ratio: 4,
-            knee: 6,
             makeupGain: 0,
             dryGain: -96,
         };
         // Smoothing targets
         this.targets = {
             threshold: -24,
-            ratio: 4,
-            knee: 6,
             makeupGain: 0,
             dryGain: -96,
         };
@@ -54,8 +50,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             // Update smoothing targets (P2)
             this.targets.threshold = p.threshold;
-            this.targets.ratio = p.ratio;
-            this.targets.knee = p.knee;
             this.targets.makeupGain = p.makeupGain;
             this.targets.dryGain = p.dryGain;
 
@@ -104,22 +98,16 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         // Smoothed values (local copies for hot loop)
         let sThreshold = this.smoothed.threshold;
-        let sRatio = this.smoothed.ratio;
-        let sKnee = this.smoothed.knee;
         let sMakeupGain = this.smoothed.makeupGain;
         let sDryGain = this.smoothed.dryGain;
 
         const tThreshold = this.targets.threshold;
-        const tRatio = this.targets.ratio;
-        const tKnee = this.targets.knee;
         const tMakeupGain = this.targets.makeupGain;
         const tDryGain = this.targets.dryGain;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
-            sRatio += smoothCoeff * (tRatio - sRatio);
-            sKnee += smoothCoeff * (tKnee - sKnee);
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
             sDryGain += smoothCoeff * (tDryGain - sDryGain);
 
@@ -147,15 +135,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
             let compGainReductiondB = 0;
 
             if (!isCompBypass) {
-                const halfKnee = sKnee / 2;
-                if (compEnvdB > sThreshold - halfKnee) {
-                    if (sKnee > 0 && compEnvdB < sThreshold + halfKnee) {
-                        const slope = 1 - (1 / sRatio);
-                        const over = compEnvdB - (sThreshold - halfKnee);
-                        compGainReductiondB = -slope * ((over * over) / (2 * sKnee));
-                    } else if (compEnvdB >= sThreshold + halfKnee) {
-                        compGainReductiondB = (sThreshold - compEnvdB) * (1 - 1 / sRatio);
-                    }
+                if (compEnvdB > sThreshold) {
+                    compGainReductiondB = sThreshold - compEnvdB;
                 }
             }
 
@@ -177,8 +158,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.compEnvelope = compEnvelope;
         this.writePos = writePos;
         this.smoothed.threshold = sThreshold;
-        this.smoothed.ratio = sRatio;
-        this.smoothed.knee = sKnee;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
 

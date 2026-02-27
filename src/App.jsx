@@ -300,10 +300,9 @@ const App = () => {
 
     // --- Prop Groups for ControlHud ---
     const compProps = {
-        threshold: comp.threshold, ratio: comp.ratio, ratioControl: comp.ratioControl,
-        attack: comp.attack, release: comp.release, knee: comp.knee, lookahead: comp.lookahead,
+        threshold: comp.threshold,
+        attack: comp.attack, release: comp.release, lookahead: comp.lookahead,
         handleThresholdChange: comp.handleThresholdChange,
-        updateRatio: comp.updateRatio,
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,

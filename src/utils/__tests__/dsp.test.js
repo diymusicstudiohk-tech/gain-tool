@@ -8,8 +8,8 @@ const makeSine = (length, freq, sampleRate, amplitude = 1.0) => {
 };
 
 const defaultParams = {
-    threshold: -24, ratio: 4, attack: 10, release: 100,
-    knee: 6, lookahead: 0, makeupGain: 0,
+    threshold: -24, attack: 10, release: 100,
+    lookahead: 0, makeupGain: 0,
     isCompBypass: false,
 };
 
@@ -30,7 +30,7 @@ describe('processCompressor', () => {
 
     it('reduces loud signals (gain reduction < 0)', () => {
         const input = makeSine(4096, 440, 44100, 0.9);
-        const { grCurve } = processCompressor(input, 44100, { ...defaultParams, threshold: -12, ratio: 8 });
+        const { grCurve } = processCompressor(input, 44100, { ...defaultParams, threshold: -12 });
         // After envelope settles, there should be gain reduction
         const lastGR = grCurve[grCurve.length - 1];
         expect(lastGR).toBeLessThan(0);
@@ -60,12 +60,6 @@ describe('processCompressor', () => {
         expect(rmsWith / rmsNo).toBeCloseTo(Math.pow(10, 6 / 20), 1);
     });
 
-    it('higher ratio produces more gain reduction', () => {
-        const input = makeSine(4096, 440, 44100, 0.9);
-        const { grCurve: gr4 } = processCompressor(input, 44100, { ...defaultParams, ratio: 4 });
-        const { grCurve: gr20 } = processCompressor(input, 44100, { ...defaultParams, ratio: 20 });
-        expect(gr20[gr20.length - 1]).toBeLessThan(gr4[gr4.length - 1]);
-    });
 });
 
 describe('createRealTimeCompressor', () => {
