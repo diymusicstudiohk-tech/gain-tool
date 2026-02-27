@@ -12,6 +12,7 @@ import {
  */
 const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [threshold, setThreshold] = useState(0);
+    const [inflate, setInflate] = useState(0);
     const [lookahead, setLookahead] = useState(0);
     const [makeupGain, setMakeupGain] = useState(0);
     const [wetGainControl, setWetGainControl] = useState(50);
@@ -27,9 +28,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const gainAdjustedRef = useRef(false);
 
     const currentParams = useMemo(() => ({
-        threshold, lookahead, makeupGain,
+        threshold, inflate, lookahead, makeupGain,
         isCompBypass
-    }), [threshold, lookahead, makeupGain, isCompBypass]);
+    }), [threshold, inflate, lookahead, makeupGain, isCompBypass]);
 
     const paramsRef = useRef({ ...currentParams, dryGain, isDeltaMode: false });
     useEffect(() => {
@@ -47,6 +48,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setWetGainControl(50);
             setDryGain(savedParams.dryGain);
             setDryGainControl(dryGainDbToControl(savedParams.dryGain));
+            setInflate(savedParams.inflate ?? 0);
             setIsCompBypass(savedParams.isCompBypass ?? false);
         }
     }, []);
@@ -65,7 +67,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [ensureProcessedMode]);
 
     const handleCompKnobChange = useCallback((key, value) => {
-        const setters = { lookahead: setLookahead };
+        const setters = { inflate: setInflate, lookahead: setLookahead };
         if (setters[key]) updateParamGeneric(setters[key], value);
     }, [updateParamGeneric]);
 
@@ -97,6 +99,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         logAction(`LOAD_PRESET: ${p.name}`);
         setSelectedPresetIdx(idx); setIsCustomSettings(false); setIsProcessing(true);
         setThreshold(p.params.threshold);
+        setInflate(p.params.inflate ?? 0);
         setLookahead(p.params.lookahead);
         const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
         setMakeupGain(clampedMakeup);
@@ -115,14 +118,15 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [applyPreset]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
-        threshold, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
+        threshold, inflate, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass
-    }), [threshold, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
+    }), [threshold, inflate, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass]);
 
     const applyStateSnapshot = useCallback((snap) => {
         if (!snap) return;
         setThreshold(snap.threshold);
+        setInflate(snap.inflate ?? 0);
         setLookahead(snap.lookahead);
         setMakeupGain(snap.makeupGain);
         setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
@@ -154,7 +158,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, []);
 
     return {
-        threshold, lookahead,
+        threshold, inflate, lookahead,
         makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
         isCompBypass, setIsCompBypass,
         selectedPresetIdx, isCustomSettings, setIsCustomSettings,

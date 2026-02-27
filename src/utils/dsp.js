@@ -13,7 +13,7 @@ const STAGE1_DEPTH_DB = 3.0;     // Two-stage: fast release for first 3dB of rec
 
 export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const {
-        threshold, lookahead,
+        threshold, inflate, lookahead,
         makeupGain, isCompBypass
     } = params;
 
@@ -21,6 +21,11 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
     const outputData = new Float32Array(length);
     const grCurve = new Float32Array(length);
     const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
+
+    // Inflate (Oxford Inflator waveshaper) pre-compute
+    const inflateAmt = (inflate ?? 0) * 0.01;
+    const inflateWet = inflateAmt * 0.99999955296;
+    const inflateDry = 1 - inflateAmt;
     const effectiveSampleRate = sampleRate / step;
 
     // Pre-compute adaptive coefficients
@@ -101,7 +106,19 @@ export const processCompressor = (inputData, sampleRate, params, step = 1) => {
         }
 
         const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
-        let wet = currentInput * compGainLinear * makeUpLinear;
+        let limited = currentInput * compGainLinear;
+
+        // Inflate waveshaper (after gain reduction, before makeup)
+        if (inflateAmt > 0.001) {
+            const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
+            const y = clamped < 0 ? -clamped : clamped;
+            const y2 = y * y;
+            const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+            const sign = clamped < 0 ? -1 : 1;
+            limited = (shaped * inflateWet + y * inflateDry) * sign;
+        }
+
+        let wet = limited * makeUpLinear;
         outputData[i] = wet;
         grCurve[i] = Math.min(0, compGainReductiondB);
     }
@@ -122,8 +139,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96 };
-    const targets = { threshold: -24, makeupGain: 0, dryGain: -96 };
+    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96, inflate: 0 };
+    const targets = { threshold: -24, makeupGain: 0, dryGain: -96, inflate: 0 };
 
     // Pre-compute adaptive coefficients (depend only on sampleRate)
     const compAttCoeff = 1 - Math.exp(-1 / ((ATTACK_MS / 1000) * sampleRate));
@@ -155,7 +172,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _cachedParams = params;
 
                 const {
-                    threshold,
+                    threshold, inflate,
                     makeupGain, isCompBypass,
                     isDeltaMode, dryGain, lookahead,
                 } = params;
@@ -164,6 +181,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 targets.threshold = threshold;
                 targets.makeupGain = makeupGain;
                 targets.dryGain = dryGain;
+                targets.inflate = inflate ?? 0;
 
                 _isCompBypass = isCompBypass;
                 _isDeltaMode = isDeltaMode;
@@ -180,6 +198,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
                 smoothed.dryGain += smoothCoeff * (targets.dryGain - smoothed.dryGain);
+                smoothed.inflate += smoothCoeff * (targets.inflate - smoothed.inflate);
 
                 const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
                 const dryLinear = Math.exp(smoothed.dryGain * LN10_OVER_20);
@@ -244,7 +263,22 @@ export const createRealTimeCompressor = (sampleRate) => {
                 const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
                 // Output uses delayed sample (P3)
-                let wet = delayedSample * compGainLinear * makeUpLinear;
+                let limited = delayedSample * compGainLinear;
+
+                // Inflate waveshaper (after gain reduction, before makeup)
+                const sInflate = smoothed.inflate * 0.01;
+                if (sInflate > 0.001) {
+                    const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
+                    const y = clamped < 0 ? -clamped : clamped;
+                    const y2 = y * y;
+                    const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+                    const sign = clamped < 0 ? -1 : 1;
+                    const iWet = sInflate * 0.99999955296;
+                    const iDry = 1 - sInflate;
+                    limited = (shaped * iWet + y * iDry) * sign;
+                }
+
+                let wet = limited * makeUpLinear;
 
                 if (_isDeltaMode) {
                     outputData[i] = wet - delayedSample;

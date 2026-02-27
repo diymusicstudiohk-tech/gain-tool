@@ -59,6 +59,13 @@ export const DSP_CONFIG = {
         UNIT: 'dB'
     },
 
+    INFLATE: {
+        MIN: 0,
+        MAX: 100,
+        DEFAULT: 0,
+        UNIT: '%'
+    },
+
     DRY_GAIN: {
         MIN: -60,
         MAX: 6,

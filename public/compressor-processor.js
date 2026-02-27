@@ -40,12 +40,14 @@ class CompressorProcessor extends AudioWorkletProcessor {
             threshold: -24,
             makeupGain: 0,
             dryGain: -96,
+            inflate: 0,
         };
         // Smoothing targets
         this.targets = {
             threshold: -24,
             makeupGain: 0,
             dryGain: -96,
+            inflate: 0,
         };
 
         // Pre-compute adaptive coefficients (depend only on sampleRate)
@@ -79,6 +81,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             this.targets.threshold = p.threshold;
             this.targets.makeupGain = p.makeupGain;
             this.targets.dryGain = p.dryGain;
+            this.targets.inflate = p.inflate ?? 0;
 
             // Look-ahead (P3)
             this.lookaheadSamples = Math.min(
@@ -130,16 +133,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let sThreshold = this.smoothed.threshold;
         let sMakeupGain = this.smoothed.makeupGain;
         let sDryGain = this.smoothed.dryGain;
+        let sInflate = this.smoothed.inflate;
 
         const tThreshold = this.targets.threshold;
         const tMakeupGain = this.targets.makeupGain;
         const tDryGain = this.targets.dryGain;
+        const tInflate = this.targets.inflate;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
             sDryGain += smoothCoeff * (tDryGain - sDryGain);
+            sInflate += smoothCoeff * (tInflate - sInflate);
 
             const makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
             const dryLinear = Math.exp(sDryGain * LN10_OVER_20);
@@ -206,7 +212,22 @@ class CompressorProcessor extends AudioWorkletProcessor {
             const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
             // Output uses delayed sample (P3)
-            let wet = delayedSample * compGainLinear * makeUpLinear;
+            let limited = delayedSample * compGainLinear;
+
+            // Inflate waveshaper (after gain reduction, before makeup)
+            const inflateAmt = sInflate * 0.01;
+            if (inflateAmt > 0.001) {
+                const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
+                const y = clamped < 0 ? -clamped : clamped;
+                const y2 = y * y;
+                const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+                const sign = clamped < 0 ? -1 : 1;
+                const iWet = inflateAmt * 0.99999955296;
+                const iDry = 1 - inflateAmt;
+                limited = (shaped * iWet + y * iDry) * sign;
+            }
+
+            let wet = limited * makeUpLinear;
 
             if (isDeltaMode) {
                 outputData[i] = wet - delayedSample;
@@ -228,6 +249,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.threshold = sThreshold;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
+        this.smoothed.inflate = sInflate;
 
         return true;
     }

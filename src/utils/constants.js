@@ -102,6 +102,10 @@ export const TOOLTIPS = {
         title: "Lookahead (預讀)",
         desc: "Lookahead (預讀) 讓壓縮器「偷看」未來的訊號，以提早做出反應。\n\n向右扭 (時間長)：壓縮器能在瞬態發生前就開始壓縮。觀察紅色壓縮(GR)曲線，會發現它比白色波形的峰值「稍微提早」一點點開始下潛。\n\n目的：完美攔截極快的峰值 (Brickwall Limiting)。\n\n常用：2-5ms，主要用於母帶處理或防止數位失真 (Clipping)。"
     },
+    inflate: {
+        title: "Inflate (充氣飽滿)",
+        desc: "Inflate (充氣飽滿) 使用 Oxford Inflator 波形塑形演算法，在不產生削波的情況下增加感知響度與飽和度。\n\n向右扭 (數值增大)：聲音會逐漸變得更飽滿、更響亮，帶有溫暖的諧波飽和感。\n\n向左扭 (數值為 0)：完全透明，不影響音訊。\n\n目的：在 Limiter 增益衰減之後、Makeup Gain 之前，增加密度與存在感。\n\n常用：20-50% 為自然增厚，50-100% 為明顯飽和效果。"
+    },
     // --- OUTPUT MODULE ---
     makeup: {
         title: "Wet Output (音訊經壓縮處理後的音量補償)",
