@@ -276,7 +276,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                                 : isCustomDropdownOpen
                                     ? 'bg-brick-red border-brick-red text-black animate-[breathe-mixcheck_2s_ease-in-out_infinite] z-10'
-                                    : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                                    : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 min-[740px]:hover:scale-105'
                             }`}
                     >
                         <span className="truncate">{dropdownDisplayName}</span>
