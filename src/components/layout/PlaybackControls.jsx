@@ -8,7 +8,7 @@ const CATEGORY_ZH = {
     'Female Vocal': '女聲', 'Male Vocal': '男聲', Other: '其他',
 };
 
-const PlaybackControls = ({ playback, preset }) => {
+const PlaybackControls = ({ playback, preset, onTouchLegend }) => {
     const { playingType, isDryMode, isDeltaMode, togglePlayback, handleModeChange, toggleDeltaMode } = playback;
     const { selectedPresetIdx, isCustomSettings, applyPreset, currentSourceId } = preset;
 
@@ -47,6 +47,7 @@ const PlaybackControls = ({ playback, preset }) => {
             <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); togglePlayback(); }}
+                onTouchStart={() => onTouchLegend && onTouchLegend(playingType !== 'none' ? '暫停' : '播放')}
                 data-tooltip={playingType !== 'none' ? '暫停' : '播放'}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border border-gold/30 shadow-inner shadow-xl ${
                     playingType !== 'none'
@@ -63,6 +64,7 @@ const PlaybackControls = ({ playback, preset }) => {
             <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => !isDeltaMode && handleModeChange(isDryMode ? 'processed' : 'original')}
+                onTouchStart={() => !isDeltaMode && onTouchLegend && onTouchLegend(isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經處理前的聲音")}
                 disabled={isDeltaMode}
                 data-tooltip={isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經處理前的聲音"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
@@ -79,6 +81,7 @@ const PlaybackControls = ({ playback, preset }) => {
             <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={toggleDeltaMode}
+                onTouchStart={() => !isDryMode && onTouchLegend && onTouchLegend(isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被壓縮器移除的部分")}
                 disabled={isDryMode}
                 data-tooltip={isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被壓縮器移除的部分"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
@@ -96,6 +99,7 @@ const PlaybackControls = ({ playback, preset }) => {
                 <button
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={() => setIsPresetOpen(o => !o)}
+                    onTouchStart={() => onTouchLegend && onTouchLegend("選擇壓縮器預設")}
                     data-tooltip={!isPresetOpen ? "選擇壓縮器預設" : undefined}
                     className={`w-8 h-full rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                         isPresetOpen

@@ -16,6 +16,8 @@ const RotaryKnob = ({
     tooltipKey,
     onHover,
     onLeave,
+    onTouchLegendShow,
+    onTouchLegendHide,
     dragLockRef,
     disabled,
     compact,
@@ -24,6 +26,7 @@ const RotaryKnob = ({
     tooltipsOff
 }) => {
     const isDraggingRef = useRef(false);
+    const isTouchDragRef = useRef(false);
     const [isEditing, setIsEditing] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [inputValue, setInputValue] = useState(displayValue || value);
@@ -33,7 +36,7 @@ const RotaryKnob = ({
     const startY = useRef(0);
     const startVal = useRef(0);
     const paramsRef = useRef({ value, min, max, step });
-    const callbacksRef = useRef({ onChange, onDragStateChange, onLeave });
+    const callbacksRef = useRef({ onChange, onDragStateChange, onLeave, onTouchLegendShow, onTouchLegendHide });
     const lastMoveTimeRef = useRef(0);
     const lastClientYRef = useRef(0);
     const handleEndRef = useRef(null); // ref to avoid circular dep with handleGlobalMouseMove
@@ -42,7 +45,7 @@ const RotaryKnob = ({
     // 每次 Render 更新 Params Ref 和 Callbacks Ref
     useEffect(() => {
         paramsRef.current = { value, min, max, step };
-        callbacksRef.current = { onChange, onDragStateChange, onLeave };
+        callbacksRef.current = { onChange, onDragStateChange, onLeave, onTouchLegendShow, onTouchLegendHide };
     });
 
     const colors = {
@@ -98,6 +101,10 @@ const RotaryKnob = ({
         }
         lastMoveTimeRef.current = 0;
         isDraggingRef.current = false;
+        if (isTouchDragRef.current) {
+            if (callbacksRef.current.onTouchLegendHide) callbacksRef.current.onTouchLegendHide();
+            isTouchDragRef.current = false;
+        }
         setIsHovered(false);
         if (callbacksRef.current.onLeave) callbacksRef.current.onLeave();
         if (dragLockRef) dragLockRef.current = false;
@@ -135,6 +142,8 @@ const RotaryKnob = ({
         document.body.style.cursor = 'ns-resize';
 
         if (isTouch) {
+            isTouchDragRef.current = true;
+            if (callbacksRef.current.onTouchLegendShow && tooltipKey) callbacksRef.current.onTouchLegendShow(tooltipKey);
             window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
             window.addEventListener('touchend', handleEnd);
         } else {
