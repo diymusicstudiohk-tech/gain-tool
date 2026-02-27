@@ -8,7 +8,7 @@ const makeSine = (length, freq, sampleRate, amplitude = 1.0) => {
 };
 
 const defaultParams = {
-    threshold: -24, attack: 10, release: 100,
+    threshold: -24,
     lookahead: 0, makeupGain: 0,
     isCompBypass: false,
 };

@@ -301,7 +301,7 @@ const App = () => {
     // --- Prop Groups for ControlHud ---
     const compProps = {
         threshold: comp.threshold,
-        attack: comp.attack, release: comp.release, lookahead: comp.lookahead,
+        lookahead: comp.lookahead,
         clipDrive: comp.clipDrive, handleClipDriveChange: comp.handleClipDriveChange,
         handleThresholdChange: comp.handleThresholdChange,
         handleCompKnobChange: comp.handleCompKnobChange,

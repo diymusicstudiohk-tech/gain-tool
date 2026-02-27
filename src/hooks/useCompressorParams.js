@@ -12,8 +12,6 @@ import {
  */
 const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [threshold, setThreshold] = useState(0);
-    const [attack, setAttack] = useState(15);
-    const [release, setRelease] = useState(150);
     const [lookahead, setLookahead] = useState(0);
     const [clipDrive, setClipDrive] = useState(1.0);
     const [makeupGain, setMakeupGain] = useState(0);
@@ -30,9 +28,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const gainAdjustedRef = useRef(false);
 
     const currentParams = useMemo(() => ({
-        threshold, attack, release, lookahead, clipDrive, makeupGain,
+        threshold, lookahead, clipDrive, makeupGain,
         isCompBypass
-    }), [threshold, attack, release, lookahead, clipDrive, makeupGain, isCompBypass]);
+    }), [threshold, lookahead, clipDrive, makeupGain, isCompBypass]);
 
     const paramsRef = useRef({ ...currentParams, dryGain, isDeltaMode: false });
     useEffect(() => {
@@ -44,7 +42,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         const savedParams = loadParamsFromStorage();
         if (savedParams) {
             setThreshold(savedParams.threshold);
-            setAttack(savedParams.attack); setRelease(savedParams.release);
             setLookahead(savedParams.lookahead);
             setClipDrive(savedParams.clipDrive ?? 1.0);
             // Always start wet gain at 0dB on load
@@ -70,7 +67,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [ensureProcessedMode]);
 
     const handleCompKnobChange = useCallback((key, value) => {
-        const setters = { attack: setAttack, release: setRelease, lookahead: setLookahead };
+        const setters = { lookahead: setLookahead };
         if (setters[key]) updateParamGeneric(setters[key], value);
     }, [updateParamGeneric]);
 
@@ -107,7 +104,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         logAction(`LOAD_PRESET: ${p.name}`);
         setSelectedPresetIdx(idx); setIsCustomSettings(false); setIsProcessing(true);
         setThreshold(p.params.threshold);
-        setAttack(p.params.attack); setRelease(p.params.release);
         setLookahead(p.params.lookahead);
         setClipDrive(p.params.clipDrive ?? 1.0);
         const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
@@ -127,15 +123,15 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [applyPreset]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
-        threshold, attack, release, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
+        threshold, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass
-    }), [threshold, attack, release, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
+    }), [threshold, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass]);
 
     const applyStateSnapshot = useCallback((snap) => {
         if (!snap) return;
         setThreshold(snap.threshold);
-        setAttack(snap.attack); setRelease(snap.release); setLookahead(snap.lookahead);
+        setLookahead(snap.lookahead);
         setClipDrive(snap.clipDrive ?? 1.0);
         setMakeupGain(snap.makeupGain);
         setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
@@ -168,7 +164,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, []);
 
     return {
-        threshold, attack, release, lookahead, clipDrive,
+        threshold, lookahead, clipDrive,
         handleClipDriveChange,
         makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
         isCompBypass, setIsCompBypass,
