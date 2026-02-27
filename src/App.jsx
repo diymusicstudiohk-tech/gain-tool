@@ -108,15 +108,15 @@ const App = () => {
     useEffect(() => { regionStartRef.current = regionStart; }, [regionStart]);
     useEffect(() => { regionEndRef.current = regionEnd; }, [regionEnd]);
 
-    // When a new audio file loads, default region to 3-second window centred at midpoint
+    // When a new audio file loads, default region to 5-second window centred at midpoint
     useEffect(() => {
         if (!originalBuffer) return;
         const D = originalBuffer.duration;
-        if (D <= 3) {
+        if (D <= 5) {
             setRegionStart(0);
             setRegionEnd(1);
         } else {
-            const half = 1.5 / D; // 1.5 seconds expressed as fraction
+            const half = 2.5 / D; // 2.5 seconds expressed as fraction
             setRegionStart(0.5 - half);
             setRegionEnd(0.5 + half);
         }
