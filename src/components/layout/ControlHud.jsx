@@ -41,13 +41,13 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
 
                         {/* GATE MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1.5 self-stretch pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
+                        <div className="flex items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors">
+                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'gate' ? cycleModule('gate') : 'gate')}>
                                 {expandedModule === 'gate'
-                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
+                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isGateBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>GATE</span>
                                 <PowerButton isOn={!isGateBypass} onClick={(e) => { e.stopPropagation(); setIsGateBypass(!isGateBypass); }} className="mt-auto" />
                             </div>
                             <div className={`grid grid-cols-2 min-[740px]:flex min-[740px]:pt-[20px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'gate' ? 'max-w-[600px] opacity-100' : 'max-w-0 opacity-0'}`}>
@@ -58,13 +58,13 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
                         </div>
 
                         {/* COMPRESSOR MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                            <div className="flex flex-col items-center gap-1.5 self-stretch pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
+                        <div className="flex items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
+                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
                                 {expandedModule === 'comp'
-                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
+                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>COMP</span>
                                 <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} className="mt-auto" />
                             </div>
                             <div className={`grid grid-cols-3 min-[740px]:flex min-[740px]:pt-[20px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'comp' ? 'max-w-[800px] opacity-100' : 'max-w-0 opacity-0'}`}>
@@ -79,13 +79,13 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
                         </div>
 
                         {/* OUTPUT MODULE */}
-                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1.5 pt-[14px] pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
+                        <div className="flex items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors">
+                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
                                 {expandedModule === 'output'
-                                    ? <ChevronLeft size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
+                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
                                 }
-                                <span className={`text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUTPUT</span>
+                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUTPUT</span>
                             </div>
                             <div className={`grid grid-cols-1 min-[740px]:flex min-[740px]:pt-[20px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'output' ? 'max-w-[400px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} parseEditValue={(v) => wetGainDbToControl(v)} />
