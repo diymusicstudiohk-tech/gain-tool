@@ -13,7 +13,7 @@ import {
 const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [threshold, setThreshold] = useState(0);
     const [inflate, setInflate] = useState(0);
-    const [lookahead, setLookahead] = useState(0);
+    const [lookahead, setLookahead] = useState(3);
     const [makeupGain, setMakeupGain] = useState(0);
     const [wetGainControl, setWetGainControl] = useState(50);
     const [dryGain, setDryGain] = useState(-200);

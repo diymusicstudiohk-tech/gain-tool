@@ -48,7 +48,7 @@ export const DSP_CONFIG = {
     LOOKAHEAD: {
         MIN: 0,
         MAX: 100,
-        DEFAULT: 0,
+        DEFAULT: 3,
         UNIT: 'ms'
     },
 
