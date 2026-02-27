@@ -271,7 +271,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                     <button
                         onClick={() => !currentSourceId || currentSourceId === 'upload' ? null : setIsCustomDropdownOpen(o => !o)}
                         data-tooltip={!isCustomDropdownOpen ? "選擇練習音檔" : undefined}
-                        className={`tooltip-below flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-300 border-2 max-w-[180px]
+                        className={`tooltip-below flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-300 border-2 max-w-[180px] scale-[0.7] min-[740px]:scale-100 origin-left
                             ${currentSourceId === 'upload' || !currentSourceId
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                                 : isCustomDropdownOpen
@@ -280,7 +280,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                             }`}
                     >
                         <span className="truncate">{dropdownDisplayName}</span>
-                        <ChevronDown size={14} className="flex-shrink-0" />
+                        <ChevronDown size={14} className="flex-shrink-0 hidden min-[740px]:block" />
                     </button>
 
                     {/* Dropdown panel */}
@@ -429,7 +429,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                 <button
                     onClick={handleDownload}
                     disabled={isLoading || !currentSourceId}
-                    className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                    className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2 scale-[0.7] min-[740px]:scale-100 origin-right
                         ${!currentSourceId || isLoading
                             ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                             : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
