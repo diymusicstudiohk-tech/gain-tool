@@ -176,7 +176,7 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
     };
 
     return (
-        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-app px-4 py-3 -mx-4 -mt-4">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-4 mb-4 bg-app px-2 min-[740px]:px-4 py-3 -mx-2 min-[740px]:-mx-4 -mt-4">
 
             <ConfirmationModal
                 isOpen={showConfirmModal}

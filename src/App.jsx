@@ -362,7 +362,7 @@ const App = () => {
 
     // --- Render ---
     return (
-        <div className={`h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-4 pt-4 pb-4 pr-4 relative${tooltipsOff ? ' tooltips-off' : ''}`}>
+        <div className={`h-dvh flex flex-col bg-panel text-slate-200 overflow-hidden pl-2 min-[740px]:pl-4 pt-4 pb-4 pr-2 min-[740px]:pr-4 relative${tooltipsOff ? ' tooltips-off' : ''}`}>
             <Header
                 engine={{
                     fileName: engine.fileName,
