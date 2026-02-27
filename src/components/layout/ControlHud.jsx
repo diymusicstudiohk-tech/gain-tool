@@ -37,9 +37,6 @@ const ControlHud = ({ gate, compressor, playback, preset, output, ui, tooltipsOf
                     {/* PLAYBACK CONTROLS */}
                     <PlaybackControls playback={playback} preset={preset} />
 
-                    {/* Vertical Divider */}
-                    <div className="w-px self-stretch my-2 bg-white/10 flex-none"></div>
-
                     {/* MODULES WRAPPER */}
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
 
