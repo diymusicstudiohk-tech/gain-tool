@@ -224,7 +224,7 @@ const OutputWaveform = ({
     return (
         <div
             ref={containerRef}
-            className="h-[80px] flex-shrink-0 relative overflow-hidden cursor-crosshair select-none touch-none"
+            className="h-[80px] flex-shrink-0 relative overflow-hidden cursor-crosshair select-none touch-none mt-4"
             onMouseDown={handleMouseDown}
             onMouseMove={handleLocalMouseMove}
             onMouseLeave={handleMouseLeave}
