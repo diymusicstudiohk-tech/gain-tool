@@ -180,7 +180,7 @@ const RotaryKnob = ({
                     <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `rotate(${rotation}deg)` }}><div className={`w-1 h-1 rounded-full mx-auto mt-1 shadow-sm ${disabled ? 'bg-slate-500' : 'bg-white'}`}></div></div>
                 </div>
                 {isHovered && (
-                    <div className="absolute top-full mt-1 z-50 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl pointer-events-none whitespace-nowrap flex flex-col items-center">
+                    <div className="absolute top-full mt-1 z-50 bg-black/70 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl pointer-events-none whitespace-nowrap flex flex-col items-center">
                         <div className="text-[11px] font-mono font-bold" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
                     </div>
@@ -218,7 +218,7 @@ const RotaryKnob = ({
                     className="pointer-events-none"
                     style={{ position: 'fixed', left: mousePos.x + 16, top: mousePos.y - 12, transform: 'translateY(-100%)', zIndex: 9999 }}
                 >
-                    <div className="bg-black/90 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-[11px] font-medium text-slate-300 max-w-[320px] whitespace-pre-line">
+                    <div className="bg-black/70 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-[11px] font-medium text-slate-300 max-w-[320px] whitespace-pre-line">
                         {TOOLTIPS[tooltipKey].desc}
                     </div>
                 </div>
