@@ -302,7 +302,6 @@ const App = () => {
     const compProps = {
         threshold: comp.threshold,
         lookahead: comp.lookahead,
-        clipDrive: comp.clipDrive, handleClipDriveChange: comp.handleClipDriveChange,
         handleThresholdChange: comp.handleThresholdChange,
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
