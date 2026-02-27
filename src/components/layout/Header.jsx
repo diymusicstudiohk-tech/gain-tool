@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
     X,
     Download, FolderOpen, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
@@ -185,8 +186,8 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                 onConfirm={confirmChange}
                 onCancel={cancelChange}
             />
-            {/* About modal */}
-            {showAbout && (
+            {/* About modal - rendered via portal to escape Header's stacking context */}
+            {showAbout && createPortal(
                 <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowAbout(false)}
@@ -238,7 +239,8 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <div>
