@@ -1,3 +1,45 @@
+/**
+ * Stop and disconnect source nodes safely.
+ */
+export const stopCurrentSource = (sourceNodeRef, drySourceNodeRef) => {
+    if (sourceNodeRef.current) {
+        try {
+            sourceNodeRef.current.stop();
+            sourceNodeRef.current.disconnect();
+            if (sourceNodeRef.current._scriptNode) {
+                sourceNodeRef.current._scriptNode.disconnect();
+            }
+            if (sourceNodeRef.current._workletNode) {
+                sourceNodeRef.current._workletNode.disconnect();
+            }
+        } catch (e) { }
+        sourceNodeRef.current = null;
+    }
+    if (drySourceNodeRef && drySourceNodeRef.current) {
+        try {
+            drySourceNodeRef.current.stop();
+            drySourceNodeRef.current.disconnect();
+        } catch (e) { }
+        drySourceNodeRef.current = null;
+    }
+};
+
+/**
+ * Convert an AudioBuffer to mono Float32Array, optionally normalizing.
+ */
+export const toMono = (audioBuffer) => {
+    const length = audioBuffer.length;
+    const monoData = new Float32Array(length);
+    const ch0 = audioBuffer.getChannelData(0);
+    if (audioBuffer.numberOfChannels > 1) {
+        const ch1 = audioBuffer.getChannelData(1);
+        for (let i = 0; i < length; i++) monoData[i] = (ch0[i] + ch1[i]) / 2;
+    } else {
+        monoData.set(ch0);
+    }
+    return monoData;
+};
+
 export const writeWavFile = (audioBuffer) => {
     const numOfChan = audioBuffer.numberOfChannels;
     const length = audioBuffer.length * numOfChan * 2 + 44;

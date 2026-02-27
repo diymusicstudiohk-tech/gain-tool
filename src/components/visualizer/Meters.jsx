@@ -1,149 +1,353 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
+import {
+    METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
+    METER_BAR_WIDTH, METER_BAR_RADIUS, METER_OVERFLOW_CLAMP, METER_GR_NEAR_ZERO,
+    GR_MAX_HEIGHT_RATIO, CF_DB_MIN, CF_DB_MAX, CF_TOP_RATIO, CF_BOTTOM_MARGIN,
+} from '../../utils/canvasConstants';
+
+// --- CF Heat Map Constants ---
+const CF_HEAT_BUCKETS = 50;
+const CF_HEAT_INCREMENT = 1 / (60 * 3); // 3 seconds to saturate at 60fps
+const CF_HEAT_DECAY = 0.985;
+const CF_GAUSSIAN_SPREAD = 4;
+const CF_GAUSSIAN_SIGMA = 2;
+const CF_BASE_RGB = [150, 207, 173]; // #96CFAD
+
+// --- CF Heat Map Helper Functions ---
+function cfGaussianWeight(distance, sigma) {
+    return Math.exp(-(distance * distance) / (2 * sigma * sigma));
+}
+
+function cfHeatToColor(heat) {
+    if (heat <= 0.01) return null;
+    const [r, g, b] = CF_BASE_RGB;
+    if (heat <= 0.3) {
+        // Low: faint base color
+        const alpha = (heat / 0.3) * 0.4;
+        return `rgba(${r},${g},${b},${alpha})`;
+    } else if (heat <= 0.7) {
+        // Mid: solid vibrant base
+        const t = (heat - 0.3) / 0.4;
+        const alpha = 0.4 + t * 0.5;
+        return `rgba(${r},${g},${b},${alpha})`;
+    } else {
+        // High: blend toward white glow
+        const t = (heat - 0.7) / 0.3;
+        const wr = Math.round(r + (255 - r) * t * 0.6);
+        const wg = Math.round(g + (255 - g) * t * 0.6);
+        const wb = Math.round(b + (255 - b) * t * 0.6);
+        const alpha = 0.9 + t * 0.1;
+        return `rgba(${wr},${wg},${wb},${alpha})`;
+    }
+}
+
+function applyCfHeatDecay(heatArray) {
+    for (let i = 0; i < CF_HEAT_BUCKETS; i++) {
+        heatArray[i] *= CF_HEAT_DECAY;
+        if (heatArray[i] < 0.001) heatArray[i] = 0;
+    }
+}
+
+function updateCfHeatMap(heatArray, cfDb) {
+    // Map CF dB (3-20) to bucket index (0-49)
+    const cfMin = CF_DB_MIN, cfMax = CF_DB_MAX;
+    const normalized = (cfDb - cfMin) / (cfMax - cfMin);
+    const centerBucket = normalized * (CF_HEAT_BUCKETS - 1);
+    for (let i = -CF_GAUSSIAN_SPREAD; i <= CF_GAUSSIAN_SPREAD; i++) {
+        const idx = Math.round(centerBucket) + i;
+        if (idx >= 0 && idx < CF_HEAT_BUCKETS) {
+            const weight = cfGaussianWeight(Math.abs(i), CF_GAUSSIAN_SIGMA);
+            heatArray[idx] = Math.min(1, heatArray[idx] + CF_HEAT_INCREMENT * weight);
+        }
+    }
+}
+
+function renderCfHeatMapVertical(ctx, heatArray, x, columnWidth, top, areaHeight) {
+    const prevComposite = ctx.globalCompositeOperation;
+    ctx.globalCompositeOperation = 'lighter';
+    const radius = Math.max(6, columnWidth / 2);
+    const centerX = x + columnWidth / 2;
+
+    for (let i = 0; i < CF_HEAT_BUCKETS; i++) {
+        const heat = heatArray[i];
+        const color = cfHeatToColor(heat);
+        if (!color) continue;
+
+        // bucket 0 = bottom (3 dB), bucket 49 = top (20 dB)
+        const pct = i / (CF_HEAT_BUCKETS - 1);
+        const y = top + areaHeight - (pct * areaHeight);
+
+        const gradient = ctx.createRadialGradient(centerX, y, 0, centerX, y, radius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(0.5, color.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y - radius, columnWidth, radius * 2);
+    }
+
+    ctx.globalCompositeOperation = prevComposite;
+}
+
+// --- Gradient Cache (WeakMap keyed on canvas, invalidated on resize) ---
+const _gradientCache = new WeakMap();
+
+const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) => {
+    let entry = _gradientCache.get(canvas);
+    if (!entry) { entry = {}; _gradientCache.set(canvas, entry); }
+    const cached = entry[key];
+    if (cached && cached.w === width && cached.h === height) return cached.grad;
+    const grad = createFn(ctx, width, height, PADDING);
+    entry[key] = { grad, w: width, h: height };
+    return grad;
+};
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState) => {
+export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
     if (!canvas) return;
-    const ctx = canvas.getContext('2d'); const { width, height } = canvas; const centerY = height / 2;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const physW = Math.round(width * dpr);
+    const physH = Math.round(height * dpr);
+    if (canvas.width !== physW) canvas.width = physW;
+    if (canvas.height !== physH) canvas.height = physH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const centerY = height / 2;
 
-    // Meter State Logic (Decay)
-    if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= 0.92;
-    if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = 60; }
-    else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= 0.98; }
+    // Meter State Logic (Decay) — skip when frozen so meters hold their last values
+    if (!frozen) {
+        if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= METER_PEAK_DECAY;
+        if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
 
-    if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= 0.92;
-    if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = 60; }
-    else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= 0.98; }
+        if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
+        if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
+
+        // GR State Logic
+        const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
+        meterState.grPeakLevel = reductionLinear;
+        if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
+    }
 
     // Drawing
-    ctx.clearRect(0, 0, width, height); ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
 
-    const PADDING = 24; const maxPixelHeight = (height / 2) - PADDING;
+    const PADDING = 0; const maxPixelHeight = (height / 2) - PADDING;
 
-    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
-    [-3, -10, -18, -24, -40].forEach(db => {
-        const dist = Math.pow(10, db / 20) * maxPixelHeight;
-        ctx.moveTo(0, centerY - dist); ctx.lineTo(width, centerY - dist);
-        ctx.moveTo(0, centerY + dist); ctx.lineTo(width, centerY + dist);
-    });
-    ctx.stroke();
+    // --- Background bars (semi-transparent light gray behind each meter) ---
+    const bgColor = 'rgba(255, 255, 255, 0.06)';
+    const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
-    const barWidth = (width / 2) - 4;
+    // 3 bars: scale all positions proportionally from 82.5px reference width
+    const s = width / 82.5;
+    const hideReadings = s < 1;
+    const barWidth = METER_BAR_WIDTH * s;
+    const grCenterX = 16.5 * s;
+    const dryCenterX = 44 * s;
+    const outCenterX = 71.5 * s;
+    const grX = grCenterX - (barWidth / 2);
+    const dryX = dryCenterX - (barWidth / 2);
+    const outX = outCenterX - (barWidth / 2);
 
-    // Dry Bar
-    const dryBarDist = Math.min(meterState.dryPeakLevel, 1.4) * maxPixelHeight;
+    const bgRadius = METER_BAR_RADIUS * s;
+    // Hover highlight colors at 40% alpha (matching each meter's bar color)
+    const hoverBgMap = {
+        gr: 'rgba(181, 76, 53, 0.25)',   // BRICK_RED
+        cf: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
+        in: 'rgba(194, 164, 117, 0.25)', // GOLD
+        out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
+    };
+    const cfTop = height * CF_TOP_RATIO;
+    // GR/CF column: split into two hover zones
+    const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'cf';
+    if (grCfHover) {
+        // Non-hovered portion: default bg
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.fill();
+        // Hovered portion: colored overlay (clip to region)
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.clip();
+        ctx.fillStyle = hoverBgMap[hoveredMeter];
+        if (hoveredMeter === 'gr') {
+            ctx.fillRect(grX, 0, barWidth, cfTop);
+        } else {
+            ctx.fillRect(grX, cfTop, barWidth, height - cfTop);
+        }
+        ctx.restore();
+    } else {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
+        ctx.fill();
+    }
+    // In and Out columns
+    for (const { x: bx, key } of [{ x: dryX, key: 'in' }, { x: outX, key: 'out' }]) {
+        ctx.fillStyle = hoveredMeter === key ? hoverBgMap[key] : bgColor;
+        ctx.beginPath();
+        ctx.roundRect(bx, 0, barWidth, height, bgRadius);
+        ctx.fill();
+    }
+
+    // --- GR Bar (top-down) ---
+    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) {
+        const barHeight = meterState.grPeakLevel * grMaxPixelHeight;
+        ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, 0, barWidth, barHeight);
+    }
+    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
+        const holdHeight = meterState.grHoldPeakLevel * grMaxPixelHeight;
+        ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, holdHeight, barWidth, 2 * s);
+        let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
+        if (!hideReadings && meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12 * s); }
+    }
+    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1 && isHoveringGRArea) {
+        const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
+        // Brick red filled bar from top to hover Y
+        ctx.fillStyle = BRICK_RED;
+        ctx.fillRect(grX, 0, barWidth, hoverY);
+        // Gold dB text below the bar
+        if (!hideReadings) {
+            const dbText = hoverGrDbVal.toFixed(1);
+            ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
+            ctx.fillText(dbText, grCenterX, hoverY + 12 * s);
+        }
+    }
+
+    // --- Dry Bar (center-outward) ---
+    const dryBarDist = Math.min(meterState.dryPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (dryBarDist > 0) {
-        const grad = ctx.createLinearGradient(0, centerY + maxPixelHeight, 0, centerY - maxPixelHeight);
-        grad.addColorStop(0, '#ca8a04'); grad.addColorStop(0.5, '#facc15'); grad.addColorStop(1, '#ca8a04');
-        ctx.fillStyle = grad; ctx.fillRect(2, centerY - dryBarDist, barWidth, dryBarDist * 2);
+        const grad = getCachedGradient(canvas, ctx, 'dry', width, height, PADDING, (c, w, h, p) => {
+            const mph = (h / 2) - p;
+            const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
+            g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
+            return g;
+        });
+        ctx.fillStyle = grad; ctx.fillRect(dryX, centerY - dryBarDist, barWidth, dryBarDist * 2);
     }
 
-    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, 1.4) * maxPixelHeight;
-    if (dryHoldDist > 0) { ctx.fillStyle = '#fef08a'; ctx.fillRect(2, centerY - dryHoldDist, barWidth, 2); ctx.fillRect(2, centerY + dryHoldDist - 2, barWidth, 2); }
+    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
+    if (dryHoldDist > 0) { ctx.fillStyle = GOLD_LIGHT; ctx.fillRect(dryX, centerY - dryHoldDist, barWidth, 2 * s); ctx.fillRect(dryX, centerY + dryHoldDist - 2 * s, barWidth, 2 * s); }
 
-    // Output Bar
-    const outBarDist = Math.min(meterState.peakLevel, 1.4) * maxPixelHeight;
+    // Clipping detection: latch on when output peak exceeds 0dB
+    if (meterState.peakLevel > 1.0) meterState.outClipping = true;
+    const isClipping = meterState.outClipping;
+    const outColor = isClipping ? CLIP_RED : GOLD;
+
+    // --- Output Bar (center-outward) ---
+    const outBarDist = Math.min(meterState.peakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (outBarDist > 0) {
-        const grad = ctx.createLinearGradient(0, centerY + maxPixelHeight, 0, centerY - maxPixelHeight);
-        grad.addColorStop(0, '#ef4444'); grad.addColorStop(0.5, '#22c55e'); grad.addColorStop(1, '#ef4444');
-        ctx.fillStyle = grad; ctx.fillRect(width / 2 + 2, centerY - outBarDist, barWidth, outBarDist * 2);
+        ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
     }
 
-    const outHoldDist = Math.min(meterState.holdPeakLevel, 1.4) * maxPixelHeight;
-    if (outHoldDist > 0) { ctx.fillStyle = '#fbbf24'; ctx.fillRect(width / 2 + 2, centerY - outHoldDist, barWidth, 2); ctx.fillRect(width / 2 + 2, centerY + outHoldDist - 2, barWidth, 2); }
+    const outHoldDist = Math.min(meterState.holdPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
+    if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2 * s); ctx.fillRect(outX, centerY + outHoldDist - 2 * s, barWidth, 2 * s); }
 
     // Ghost Peaks
-    if (dryBarDist > outBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(width / 2 + 2, centerY - dryBarDist, barWidth, 2); ctx.fillRect(width / 2 + 2, centerY + dryBarDist - 2, barWidth, 2); }
-    if (outBarDist > dryBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(2, centerY - outBarDist, barWidth, 2); ctx.fillRect(2, centerY + outBarDist - 2, barWidth, 2); }
+    if (dryBarDist > outBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(outX, centerY - dryBarDist, barWidth, 2 * s); ctx.fillRect(outX, centerY + dryBarDist - 2 * s, barWidth, 2 * s); }
+    if (outBarDist > dryBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(dryX, centerY - outBarDist, barWidth, 2 * s); ctx.fillRect(dryX, centerY + outBarDist - 2 * s, barWidth, 2 * s); }
 
     // Clip Indicators
-    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = '#facc15'; ctx.fillRect(2, 0, barWidth, 4); ctx.fillRect(2, height - 4, barWidth, 4); }
-    if (meterState.peakLevel > 1.0) { ctx.fillStyle = '#ef4444'; ctx.fillRect(width / 2 + 2, 0, barWidth, 4); ctx.fillRect(width / 2 + 2, height - 4, barWidth, 4); }
+    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = GOLD; ctx.fillRect(dryX, 0, barWidth, 4 * s); ctx.fillRect(dryX, height - 4 * s, barWidth, 4 * s); }
+    if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4 * s); ctx.fillRect(outX, height - 4 * s, barWidth, 4 * s); }
+
+    // --- Crest Factor (below GR, same column) ---
+    const cfBottom = height - CF_BOTTOM_MARGIN;
+    const cfHeight = cfBottom - cfTop;
+    const cfMinDb = CF_DB_MIN; const cfMaxDb = CF_DB_MAX; const cfRange = cfMaxDb - cfMinDb;
+    const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, crestFactor));
+    const cfPct = (cfVal - cfMinDb) / cfRange;
+    const cfY = cfBottom - (cfPct * cfHeight);
+
+    // CF Heat Map — lazy init, update, decay, render (skip mutation when frozen)
+    if (!meterState.cfHeatArray) meterState.cfHeatArray = new Float32Array(CF_HEAT_BUCKETS);
+    if (!frozen) {
+        if (crestFactor > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
+        applyCfHeatDecay(meterState.cfHeatArray);
+    }
+    renderCfHeatMapVertical(ctx, meterState.cfHeatArray, grX, barWidth, cfTop, cfHeight);
+
+    // CF indicator line (on top of glow)
+    ctx.strokeStyle = CREST_GREEN; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.moveTo(grX, cfY); ctx.lineTo(grX + barWidth, cfY); ctx.stroke();
+
+    ctx.fillStyle = TEXT_MID; ctx.font = 'bold ' + Math.max(7, Math.round(8 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText("CF", grCenterX, cfTop - 2 * s);
+    if (!hideReadings && crestFactor > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${crestFactor.toFixed(1)}`, grCenterX, cfY - 5 * s); }
 
     // Text Labels
-    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; ctx.fillStyle = '#fef08a'; ctx.fillText(dbVal.toFixed(1), barWidth / 2 + 2, centerY - dryHoldDist - 6); }
-    if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; ctx.fillStyle = '#fbbf24'; ctx.fillText(dbVal.toFixed(1), width / 2 + barWidth / 2 + 2, centerY - outHoldDist - 6); }
+    if (!hideReadings) {
+        ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
+        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), dryCenterX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
+        if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
+    }
 
-    ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 10px sans-serif';
-    ctx.fillText("Dry", barWidth / 2 + 2, height - 10);
-    ctx.fillText("Output", width / 2 + barWidth / 2 + 2, height - 10);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif';
+    ctx.fillText("GR", grCenterX, 12 * s);
+    ctx.fillText("In", dryCenterX, 12 * s);
+    ctx.fillText("Out", outCenterX, 12 * s);
 
-    ctx.fillStyle = '#cbd5e1'; ctx.font = 'bold 10px monospace';
-    const dryRmsDb = dryRms > 0.0001 ? 20 * Math.log10(dryRms) : -100;
-    const outRmsDb = outRms > 0.0001 ? 20 * Math.log10(outRms) : -100;
-
-    ctx.fillText(`${dryRmsDb <= -60 ? '-inf' : dryRmsDb.toFixed(1)}`, barWidth / 2 + 2, 12);
-    ctx.fillText(`${outRmsDb <= -60 ? '-inf' : outRmsDb.toFixed(1)}`, width / 2 + barWidth / 2 + 2, 12);
-
-    ctx.fillStyle = '#64748b'; ctx.font = '8px sans-serif';
-    ctx.fillText("RMS", barWidth / 2 + 2, 22);
-    ctx.fillText("RMS", width / 2 + barWidth / 2 + 2, 22);
 };
 
 export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
     if (!canvas) return;
-    const ctx = canvas.getContext('2d'); const w = canvas.width; const h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const physW = Math.round(w * dpr);
+    const physH = Math.round(h * dpr);
+    if (canvas.width !== physW) canvas.width = physW;
+    if (canvas.height !== physH) canvas.height = physH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
 
     meterState.grPeakLevel = reductionLinear;
-    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = 60; }
-    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= 0.95; }
+    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
+    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
 
-    ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#0f172a'; ctx.fillRect(4, 0, w - 8, h);
-    const PADDING = 24; const maxPixelHeight = ((h / 2) - PADDING) * 0.5;
+    ctx.clearRect(0, 0, w, h);
+    const PADDING = 0; const maxPixelHeight = ((h / 2) - PADDING) * GR_MAX_HEIGHT_RATIO;
 
-    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1; ctx.beginPath();
-    [-3, -6, -12, -24, -48].forEach(db => { const y = (1 - Math.pow(10, db / 20)) * maxPixelHeight; if (y < h) { ctx.moveTo(4, y); ctx.lineTo(w - 4, y); } });
-    ctx.stroke();
-
-    if (meterState.grPeakLevel > 0.001) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = '#ef4444'; ctx.fillRect(6, 0, w - 12, barHeight); ctx.fillStyle = '#fff'; ctx.fillRect(6, barHeight - 2, w - 12, 2); }
-    if (meterState.grHoldPeakLevel > 0.001) {
+    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = BRICK_RED; ctx.fillRect(0, 0, w, barHeight); }
+    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
         const holdHeight = meterState.grHoldPeakLevel * maxPixelHeight;
-        ctx.fillStyle = '#fbbf24'; ctx.fillRect(4, holdHeight, w - 8, 2);
+        ctx.fillStyle = BRICK_RED; ctx.fillRect(0, holdHeight, w, 2);
         let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
-        if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), w / 2, holdHeight + 14); }
+        if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), w / 2, holdHeight + 14); }
     }
 
-    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1) {
-        const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * maxPixelHeight;
-        ctx.strokeStyle = '#ec4899';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(4, hoverY); ctx.lineTo(w - 4, hoverY); ctx.stroke();
-    }
 
-    ctx.fillStyle = '#64748b'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText("GR", w / 2, h - 8);
 };
 
 // --- New Crest Factor Meter ---
 export const drawCrestFactorMeter = (canvas, crestFactor) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const { width, height } = canvas;
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const physW = Math.round(width * dpr);
+    const physH = Math.round(height * dpr);
+    if (canvas.width !== physW) canvas.width = physW;
+    if (canvas.height !== physH) canvas.height = physH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Clear
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(4, 0, width - 8, height); // Slightly narrower to match GR
 
     // Scale range: 3dB (bottom) to 20dB (top)
-    const minDb = 3;
-    const maxDb = 20;
+    const minDb = CF_DB_MIN;
+    const maxDb = CF_DB_MAX;
     const range = maxDb - minDb;
-
-    // Background scale ticks
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-
-    const dbTicks = [6, 12, 18];
-    dbTicks.forEach(db => {
-        const pct = (db - minDb) / range;
-        const y = height - (pct * height);
-        ctx.moveTo(4, y);
-        ctx.lineTo(width - 4, y);
-    });
-    ctx.stroke();
 
     // Value Indicator
     // Clamp value
@@ -152,19 +356,19 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
     const yPos = height - (pct * height);
 
     // Indicator Line (Green)
-    ctx.strokeStyle = '#4ade80'; // bright green
+    ctx.strokeStyle = CREST_GREEN;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(4, yPos);
-    ctx.lineTo(width - 4, yPos);
+    ctx.moveTo(0, yPos);
+    ctx.lineTo(width, yPos);
     ctx.stroke();
 
     // Labels
-    ctx.font = 'bold 10px "Microsoft JhengHei", "Heiti TC", sans-serif'; // Chinese font preferred
+    ctx.font = 'bold 10px "Microsoft JhengHei", "Heiti TC", sans-serif';
     ctx.textAlign = 'center';
 
     // Top Label
-    ctx.fillStyle = '#06b6d4'; // Cyan-500 to match other labels
+    ctx.fillStyle = TEXT_MID;
     ctx.fillText("大動態", width / 2, 12);
 
     // Bottom Label
@@ -172,7 +376,7 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
     // Dynamic Value
     if (crestFactor > 0.1) {
-        ctx.fillStyle = '#4ade80';
+        ctx.fillStyle = CREST_GREEN;
         ctx.font = 'bold 11px monospace';
         ctx.fillText(`${crestFactor.toFixed(1)} dB`, width / 2, height / 2 + 4);
     }
@@ -181,47 +385,127 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 
 // --- Component ---
 
-const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height }) => {
-    // Layout Update:
-    // Left Col (1/3): GR Meter + CF Meter + Spacer
-    // Right Col (2/3): Output Meter (Full Height)
+// Meter hit-zone boundaries as ratios of 82.5px reference width
+const METER_GR_RIGHT_RATIO = 30.25 / 82.5;   // midpoint between GR bar end and In bar start
+const METER_IN_RIGHT_RATIO = 57.75 / 82.5; // midpoint between In bar end and Out bar start
 
-    const hudSpacer = 250; // Increased spacer to clear HUD significantly (User request: ~2x previous)
-    const cfHeight = Math.floor((height - hudSpacer) * 0.3); // 30% of remaining space
-    const grHeight = height - cfHeight - hudSpacer;
+const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
+    const [, setTick] = useState(0);
+    const rafRef = useRef(null);
 
-    // Ensure non-negative heights
-    const safeGrHeight = Math.max(0, grHeight);
-    const safeCfHeight = Math.max(0, cfHeight);
+    // RAF loop — force re-render every frame while tooltip is visible so dB values stay live
+    useEffect(() => {
+        if (!tooltipPos.visible) return;
+        let running = true;
+        const loop = () => {
+            if (!running) return;
+            setTick(t => t + 1);
+            rafRef.current = requestAnimationFrame(loop);
+        };
+        rafRef.current = requestAnimationFrame(loop);
+        return () => { running = false; cancelAnimationFrame(rafRef.current); };
+    }, [tooltipPos.visible]);
 
-    // Calculate proper canvas widths based on container width (w-44 = 176px in Tailwind)
-    // Left column is 1/3 of 176px ≈ 59px, Right column is 2/3 ≈ 117px
-    const leftCanvasWidth = Math.floor(176 / 3); // 59px
-    const rightCanvasWidth = Math.floor(176 * 2 / 3); // 117px
+    // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
+    const frozenRedraw = useCallback(() => {
+        if (!outputCanvasRef?.current || !meterStateRef?.current) return;
+        const ms = meterStateRef.current;
+        drawDualMeter(outputCanvasRef.current, 0, 0, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.crestFactor || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
+    }, [outputCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, hoveredMeterRef]);
+
+    const handleMouseMove = useCallback((e) => {
+        if (!hoveredMeterRef) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const w = rect.width;
+        const h = rect.height;
+        const cfTop = h * CF_TOP_RATIO;
+
+        let zone;
+        if (x < w * METER_GR_RIGHT_RATIO) {
+            zone = y < cfTop ? 'gr' : 'cf';
+        } else if (x < w * METER_IN_RIGHT_RATIO) {
+            zone = 'in';
+        } else {
+            zone = 'out';
+        }
+
+        if (hoveredMeterRef.current !== zone) {
+            hoveredMeterRef.current = zone;
+            frozenRedraw();
+        }
+        setTooltipPos({ x: e.clientX, y: e.clientY, visible: true });
+    }, [hoveredMeterRef, frozenRedraw]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (hoveredMeterRef && hoveredMeterRef.current !== null) {
+            hoveredMeterRef.current = null;
+            frozenRedraw();
+        }
+        setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
+    }, [hoveredMeterRef, frozenRedraw]);
+
+    // --- Tooltip content (zone-specific) ---
+    let tooltipNode = null;
+    const activeZone = hoveredMeterRef?.current;
+    if (tooltipPos.visible && activeZone && meterStateRef?.current) {
+        const ms = meterStateRef.current;
+        let text;
+        if (activeZone === 'gr') {
+            const val = ms.grHoldPeakLevel > 0.01
+                ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
+            text = `GR (Gain Reduction 壓縮量) : ${val} dB`;
+        } else if (activeZone === 'in') {
+            const val = ms.dryHoldPeakLevel > 0.01
+                ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
+            text = `In (Input Signal 原始訊號) : ${val} dB`;
+        } else if (activeZone === 'out') {
+            const val = ms.holdPeakLevel > 0.01
+                ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
+            text = `Out (Output Signal 輸出訊號) : ${val} dB`;
+        } else {
+            const cf = (ms.crestFactor || 0).toFixed(1);
+            const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
+            text = `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
+        }
+
+        const GAP = 4;
+        // Position at cursor, use transform so browser measures actual width
+        const flipX = tooltipPos.x < 200; // near left edge → show right of cursor
+        const flipY = tooltipPos.y < 50;  // near top edge → show below cursor
+
+        tooltipNode = (
+            <div style={{
+                position: 'fixed',
+                left: tooltipPos.x + (flipX ? GAP : -GAP),
+                top: tooltipPos.y + (flipY ? GAP : -GAP),
+                transform: `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`,
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                font: 'bold 11px sans-serif',
+                padding: '6px 10px',
+                borderRadius: 4,
+                pointerEvents: 'none',
+                zIndex: 9999,
+                whiteSpace: 'pre',
+            }}>
+                {text}
+            </div>
+        );
+    }
 
     return (
-        <div className="w-44 flex flex-row bg-slate-950 border-l border-slate-800 flex-none h-full">
-            {/* Left Column: GR + CF + Spacer */}
-            <div className="w-1/3 flex flex-col border-r border-slate-800 h-full">
-                {/* GR Meter */}
-                <div className="relative w-full" style={{ height: safeGrHeight }}>
-                    <canvas ref={grCanvasRef} width={leftCanvasWidth} height={safeGrHeight} className="w-full h-full" />
-                    <div className="absolute top-1 left-0 w-full text-center text-[9px] text-cyan-500 font-bold">GR</div>
-                </div>
-
-                {/* Crest Factor Meter */}
-                <div className="relative w-full border-t border-slate-800" style={{ height: safeCfHeight }}>
-                    <canvas ref={cfMeterCanvasRef} width={leftCanvasWidth} height={safeCfHeight} className="w-full h-full" />
-                </div>
-
-                {/* Spacer for HUD */}
-                <div className="w-full bg-slate-950" style={{ height: hudSpacer }}></div>
-            </div>
-
-            {/* Right Column: Output */}
-            <div className="w-2/3 relative h-full">
-                <canvas ref={outputCanvasRef} width={rightCanvasWidth} height={height} className="w-full h-full" />
-            </div>
+        <div className="flex-none h-full relative w-[11.2%] min-[740px]:w-[82.5px]"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+        >
+            <canvas ref={outputCanvasRef} className="w-full h-full" />
+            {/* Hidden canvases (kept for ref compatibility) */}
+            <canvas ref={grCanvasRef} className="hidden" />
+            <canvas ref={cfMeterCanvasRef} className="hidden" />
+            {tooltipNode}
         </div>
     );
 };

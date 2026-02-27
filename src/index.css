@@ -2,10 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 強制設定背景色，確保網頁滿版 */
-body {
-  background-color: #020617; /* 這是你程式碼用的 slate-950 */
+/* Glass scrollbar (matches colour-guide.md §15) */
+.glass-scrollbar::-webkit-scrollbar { width: 6px; }
+.glass-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.glass-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+.glass-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+/* Breathing animations (from colour-guide.md §11) */
+@keyframes breathe-mixcheck {
+  0%, 100% { background-color: #C2A475; }
+  50% { background-color: #D4B88A; }
+}
+
+@keyframes breathe-brick-red {
+  0%, 100% {
+    background-color: #8F3C29;
+    box-shadow: 0 0 5px rgba(181, 76, 53, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #B54C35;
+    box-shadow: 0 0 25px rgba(181, 76, 53, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-brick-red {
+  animation: breathe-brick-red 1.5s infinite ease-in-out;
+}
+
+@keyframes breathe-free-mode {
+  0%, 100% {
+    background-color: #C2A475;
+    border-color: #C2A475;
+    box-shadow: 0 0 8px rgba(194, 164, 117, 0.5);
+  }
+  50% {
+    background-color: #D4B88A;
+    border-color: #D4B88A;
+    box-shadow: 0 0 20px rgba(212, 184, 138, 0.9);
+  }
+}
+.breathe-free-mode {
+  animation: breathe-free-mode 2.5s infinite ease-in-out;
+}
+
+@keyframes breathe-blue {
+  0%, 100% {
+    background-color: #1e40af;
+    box-shadow: 0 0 5px rgba(37, 99, 235, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #2563eb;
+    box-shadow: 0 0 25px rgba(37, 99, 235, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-blue {
+  animation: breathe-blue 1.5s infinite ease-in-out;
+}
+
+@keyframes breathe-delta {
+  0%, 100% {
+    background-color: #4a7059;
+    box-shadow: 0 0 5px rgba(97, 140, 113, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #618C71;
+    box-shadow: 0 0 25px rgba(97, 140, 113, 0.8);
+    transform: scale(1.02);
+  }
+}
+.breathe-delta {
+  animation: breathe-delta 1.5s infinite ease-in-out;
+}
+
+/* 強制設定背景色，確保網頁滿版，禁止 scroll */
+html, body, #root {
+  touch-action: none; /* prevent all touch scrolling & zooming */
+  overscroll-behavior: none;
+}
+
+html, body {
+  background-color: #111111; /* App background per colour-guide.md */
   color: white;
   margin: 0;
-  min-height: 100vh;
+  padding: 0;
+  width: 100%;
+  height: 100dvh; /* dvh = dynamic viewport height, accounts for iOS Safari browser chrome */
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Instant tooltips via data-tooltip attribute */
+[data-tooltip] {
+  position: relative;
+}
+[data-tooltip]:not(:disabled)::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1; /* slate-300 */
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0s;
+  z-index: 9999;
+}
+[data-tooltip]:not(:disabled):hover::after {
+  opacity: 1;
+}
+/* Tooltip below variant (for header buttons) */
+.tooltip-below[data-tooltip]:not(:disabled)::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+/* Hide tooltips when tooltips-off is active (except elements with .tooltip-always) */
+.tooltips-off [data-tooltip]:not(.tooltip-always):not(:disabled):hover::after {
+  opacity: 0 !important;
 }

@@ -1,78 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Undo2, MoveHorizontal, MoveVertical, X, Info, Palette, GripHorizontal } from 'lucide-react';
-
-// --- View Controls ---
-export const DraggableViewControls = ({
-    zoomX, setZoomX, zoomY, setZoomY, onReset, containerHeight,
-    loopStart, loopEnd, panOffset, setPanOffset, originalBuffer, canvasDims
-}) => {
-    const [pos, setPos] = useState({ x: 20, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartRef = useRef({ x: 0, y: 0 });
-
-    useEffect(() => {
-        setPos({ x: 20, y: containerHeight - 340 });
-    }, [containerHeight]);
-
-    const handleMouseDown = (e) => {
-        e.stopPropagation();
-        setIsDragging(true);
-        dragStartRef.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
-        window.addEventListener('mousemove', handleGlobalMove);
-        window.addEventListener('mouseup', handleGlobalUp);
-    };
-
-    const handleGlobalMove = useCallback((e) => {
-        let newX = e.clientX - dragStartRef.current.x;
-        let newY = e.clientY - dragStartRef.current.y;
-
-        if (newX < 0) newX = 0;
-        if (newY < 0) newY = 0;
-        const hudTopLimit = containerHeight - 330;
-        if (newY > hudTopLimit) newY = hudTopLimit;
-
-        setPos({ x: newX, y: newY });
-    }, [containerHeight]);
-
-    const handleGlobalUp = useCallback(() => {
-        setIsDragging(false);
-        window.removeEventListener('mousemove', handleGlobalMove);
-        window.removeEventListener('mouseup', handleGlobalUp);
-    }, [handleGlobalMove]);
-
-    const handleZoomXChange = (e) => {
-        // Sliders removed, logic kept for reference or future use if needed, 
-        // but since we are removing the UI elements, this function is effectively unused 
-        // unless we keep it for programmatic access, but we can just remove it.
-    };
-
-    const isLoopActive = loopStart !== null && loopEnd !== null;
-
-    // Only show if zoomed in
-    if (zoomX <= 1.001) return null;
-
-    return (
-        <div
-            className="absolute flex flex-col gap-2 z-40 cursor-move"
-            style={{ left: pos.x, top: pos.y }}
-            onMouseDown={handleMouseDown}
-        >
-            <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={onReset}
-                className={`
-                    flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold shadow-xl transition-all duration-300 border border-white/10
-                    ${isLoopActive
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.6)] animate-pulse scale-110'
-                        : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 backdrop-blur-md'}
-                `}
-            >
-                <Undo2 size={isLoopActive ? 20 : 16} />
-                RESET ZOOM
-            </button>
-        </div>
-    );
-};
+import { X, Info, Palette, GripHorizontal } from 'lucide-react';
 
 // --- Info Panel ---
 export const DraggableInfoPanel = ({ title, content, onClose }) => {
@@ -160,7 +87,7 @@ export const DraggableLegend = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400 border-b border-slate-700 pb-1 mb-1"><Palette size={14} /> 顏色說明 <GripHorizontal size={14} className="ml-auto opacity-50" /></div>
             <div className="space-y-1.5 text-[10px]">
                 <div className="flex items-center gap-2"><span className="w-3 h-3 bg-white border border-slate-600 block rounded-sm"></span><span className="text-slate-300 font-medium">白色 : 最終輸出音量</span></div>
-                <div className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 block rounded-sm"></span><span className="text-red-400 font-medium">紅色 : 壓縮/Gate 削減</span></div>
+                <div className="flex items-center gap-2"><span className="w-3 h-3 bg-red-500 block rounded-sm"></span><span className="text-red-400 font-medium">紅色 : 壓縮削減</span></div>
                 <div className="flex items-center gap-2"><span className="w-3 h-3 bg-sky-400 block rounded-sm"></span><span className="text-sky-400 font-medium">藍色 : Makeup Gain 增益</span></div>
                 <div className="flex items-center gap-2"><span className="w-3 h-3 bg-yellow-400 block rounded-sm"></span><span className="text-yellow-400 font-medium">黃色 : 乾訊號/混合疊加</span></div>
             </div>

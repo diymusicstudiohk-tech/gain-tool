@@ -1,0 +1,185 @@
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { PRESETS_DATA } from '../utils/constants';
+import { loadParamsFromStorage } from '../utils/storage';
+import {
+    dryGainControlToDb, dryGainDbToControl,
+    wetGainControlToDb, wetGainDbToControl,
+} from '../utils/gainConversion';
+
+/**
+ * Uses ref-based callbacks to break circular dependency with usePlayback.
+ * onModeSwitchRef.current and lastPlayedTypeRef.current are populated after usePlayback initializes.
+ */
+const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
+    const [threshold, setThreshold] = useState(0);
+    const [lookahead, setLookahead] = useState(0);
+    const [clipDrive, setClipDrive] = useState(1.0);
+    const [makeupGain, setMakeupGain] = useState(0);
+    const [wetGainControl, setWetGainControl] = useState(50);
+    const [dryGain, setDryGain] = useState(-200);
+    const [dryGainControl, setDryGainControl] = useState(0);
+
+    const [isCompBypass, setIsCompBypass] = useState(false);
+    const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
+    const [isCustomSettings, setIsCustomSettings] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted] = useState(true);
+
+    const gainAdjustedRef = useRef(false);
+
+    const currentParams = useMemo(() => ({
+        threshold, lookahead, clipDrive, makeupGain,
+        isCompBypass
+    }), [threshold, lookahead, clipDrive, makeupGain, isCompBypass]);
+
+    const paramsRef = useRef({ ...currentParams, dryGain, isDeltaMode: false });
+    useEffect(() => {
+        paramsRef.current = { ...currentParams, dryGain, isDeltaMode: paramsRef.current?.isDeltaMode ?? false };
+    }, [currentParams, dryGain]);
+
+    // Load from localStorage on mount
+    useEffect(() => {
+        const savedParams = loadParamsFromStorage();
+        if (savedParams) {
+            setThreshold(savedParams.threshold);
+            setLookahead(savedParams.lookahead);
+            setClipDrive(savedParams.clipDrive ?? 1.0);
+            // Always start wet gain at 0dB on load
+            setMakeupGain(0);
+            setWetGainControl(50);
+            setDryGain(savedParams.dryGain);
+            setDryGainControl(dryGainDbToControl(savedParams.dryGain));
+            setIsCompBypass(savedParams.isCompBypass ?? false);
+        }
+    }, []);
+
+    const ensureProcessedMode = useCallback(() => {
+        if (lastPlayedTypeRef.current !== 'processed') {
+            onModeSwitchRef.current?.('processed');
+        }
+    }, [lastPlayedTypeRef, onModeSwitchRef]);
+
+    const updateParamGeneric = useCallback((setter, value) => {
+        setter(value);
+        setIsCustomSettings(true);
+        setIsProcessing(true);
+        ensureProcessedMode();
+    }, [ensureProcessedMode]);
+
+    const handleCompKnobChange = useCallback((key, value) => {
+        const setters = { lookahead: setLookahead };
+        if (setters[key]) updateParamGeneric(setters[key], value);
+    }, [updateParamGeneric]);
+
+    const handleClipDriveChange = useCallback((knobValue) => {
+        const drive = 1.0 + (knobValue / 100) * 9.0;
+        updateParamGeneric(setClipDrive, drive);
+    }, [updateParamGeneric]);
+
+    const handleGainChange = useCallback((key, value) => {
+        if (key === 'makeupGain') {
+            setWetGainControl(value);
+            const dB = wetGainControlToDb(value);
+            setMakeupGain(dB);
+            logAction(`SET_GAIN: Wet -> ${dB <= -200 ? '-∞' : dB.toFixed(1)}dB`);
+        }
+        if (key === 'dryGainControl') {
+            setDryGainControl(value);
+            const dB = dryGainControlToDb(value);
+            setDryGain(dB);
+            logAction(`SET_GAIN: Dry -> ${dB <= -200 ? '-∞' : dB.toFixed(1)}dB`);
+        }
+        gainAdjustedRef.current = true; setIsProcessing(true);
+        if (meterStateRef?.current) meterStateRef.current.outClipping = false;
+        ensureProcessedMode();
+    }, [logAction, ensureProcessedMode, meterStateRef]);
+
+    const handleThresholdChange = useCallback((v) => {
+        updateParamGeneric(setThreshold, v);
+        setHasThresholdBeenAdjusted(true);
+    }, [updateParamGeneric]);
+
+    const applyPreset = useCallback((idx) => {
+        const p = PRESETS_DATA[idx]; if (!p) return;
+        logAction(`LOAD_PRESET: ${p.name}`);
+        setSelectedPresetIdx(idx); setIsCustomSettings(false); setIsProcessing(true);
+        setThreshold(p.params.threshold);
+        setLookahead(p.params.lookahead);
+        setClipDrive(p.params.clipDrive ?? 1.0);
+        const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
+        setMakeupGain(clampedMakeup);
+        setWetGainControl(wetGainDbToControl(clampedMakeup));
+        setDryGain(p.params.dryGain);
+        setDryGainControl(dryGainDbToControl(p.params.dryGain));
+        setIsCompBypass(false);
+        ensureProcessedMode();
+    }, [logAction, ensureProcessedMode]);
+
+    const resetAllParams = useCallback(() => {
+        applyPreset(0);
+        gainAdjustedRef.current = false;
+        setHasThresholdBeenAdjusted(true);
+        setIsCompBypass(false);
+    }, [applyPreset]);
+
+    const getCurrentStateSnapshot = useCallback(() => ({
+        threshold, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
+        selectedPresetIdx, isCustomSettings, isCompBypass
+    }), [threshold, lookahead, clipDrive, makeupGain, wetGainControl, dryGain, dryGainControl,
+        selectedPresetIdx, isCustomSettings, isCompBypass]);
+
+    const applyStateSnapshot = useCallback((snap) => {
+        if (!snap) return;
+        setThreshold(snap.threshold);
+        setLookahead(snap.lookahead);
+        setClipDrive(snap.clipDrive ?? 1.0);
+        setMakeupGain(snap.makeupGain);
+        setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
+        setDryGain(snap.dryGain);
+        setDryGainControl(snap.dryGainControl !== undefined ? snap.dryGainControl : dryGainDbToControl(snap.dryGain));
+        setSelectedPresetIdx(snap.selectedPresetIdx); setIsCustomSettings(snap.isCustomSettings);
+        setIsCompBypass(snap.isCompBypass || false);
+        setIsProcessing(true);
+        ensureProcessedMode();
+    }, [ensureProcessedMode]);
+
+    const getDefaultSnapshot = useCallback(() => {
+        const def = PRESETS_DATA[0].params;
+        const clampedMakeup = Math.max(-200, Math.min(15, def.makeupGain));
+        return {
+            ...def, makeupGain: clampedMakeup,
+            clipDrive: def.clipDrive ?? 1.0,
+            wetGainControl: wetGainDbToControl(clampedMakeup),
+            dryGainControl: dryGainDbToControl(def.dryGain),
+            selectedPresetIdx: 0, isCustomSettings: false,
+            isCompBypass: false
+        };
+    }, []);
+
+    const handleModeDryGainSync = useCallback((type) => {
+        if (!gainAdjustedRef.current) {
+            setDryGain(-200);
+            setDryGainControl(0);
+        }
+    }, []);
+
+    return {
+        threshold, lookahead, clipDrive,
+        handleClipDriveChange,
+        makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
+        isCompBypass, setIsCompBypass,
+        selectedPresetIdx, isCustomSettings, setIsCustomSettings,
+        isProcessing, setIsProcessing,
+        hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted,
+        gainAdjustedRef, currentParams, paramsRef,
+        updateParamGeneric, handleCompKnobChange,
+        handleGainChange, handleThresholdChange,
+        applyPreset, resetAllParams,
+        getCurrentStateSnapshot, applyStateSnapshot, getDefaultSnapshot,
+        handleModeDryGainSync,
+        setThreshold,
+    };
+};
+
+export { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl };
+export default useCompressorParams;
