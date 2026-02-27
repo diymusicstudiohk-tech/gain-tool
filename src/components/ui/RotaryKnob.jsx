@@ -125,7 +125,7 @@ const RotaryKnob = ({
         }
 
         isDraggingRef.current = true;
-        setIsHovered(false);
+        setIsHovered(true);
 
         if (callbacksRef.current.onDragStateChange) callbacksRef.current.onDragStateChange(true);
         if (dragLockRef) dragLockRef.current = true;
@@ -200,7 +200,7 @@ const RotaryKnob = ({
                 </div>
                 {isEditing && <input autoFocus type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onBlur={handleInputBlur} onKeyDown={(e) => { if (e.key === 'Enter') handleInputBlur() }} onClick={(e) => e.stopPropagation()} className="w-12 text-center text-xs bg-slate-800 text-white border border-slate-600 rounded mt-1" />}
             </div>
-            {isHovered && !tooltipsOff && tooltipKey && TOOLTIPS[tooltipKey] && (
+            {isHovered && !isDraggingRef.current && !tooltipsOff && tooltipKey && TOOLTIPS[tooltipKey] && (
                 <div
                     className="pointer-events-none"
                     style={{ position: 'fixed', left: mousePos.x + 16, top: mousePos.y - 12, transform: 'translateY(-100%)', zIndex: 9999 }}
