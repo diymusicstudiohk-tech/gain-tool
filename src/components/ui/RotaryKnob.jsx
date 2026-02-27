@@ -3,6 +3,7 @@ import { TOOLTIPS } from '../../utils/constants';
 
 const RotaryKnob = ({
     label,
+    shortLabel,
     subLabel,
     value,
     displayValue,
@@ -202,7 +203,9 @@ const RotaryKnob = ({
                     <div className="flex items-center gap-0.5 mb-1">
                         {isHovered
                             ? <div className="text-[8px] min-[740px]:text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
-                            : <div className={`text-[8px] min-[740px]:text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>
+                            : shortLabel
+                                ? <><div className={`text-[8px] font-bold uppercase tracking-tighter whitespace-pre-line transition-colors min-[740px]:hidden ${labelColorClass}`}>{shortLabel}</div><div className={`text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors hidden min-[740px]:block ${labelColorClass}`}>{label}</div></>
+                                : <div className={`text-[8px] min-[740px]:text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>
                         }
                     </div>
                     {subLabel && <div className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">{subLabel}</div>}
