@@ -190,7 +190,7 @@ const RotaryKnob = ({
     }
 
     return (
-        <div className={`flex flex-col items-center gap-1 group relative w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }} onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
+        <div className={`flex flex-col items-center gap-1 group relative w-12 min-[740px]:w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }} onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
             <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
