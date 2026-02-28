@@ -61,7 +61,7 @@ const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
 
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none group/label">
+                            <div className="flex flex-col items-center justify-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none group/label">
                                 <span className="text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors text-slate-400 group-hover/label:text-slate-200" style={{ writingMode: 'vertical-lr' }}>LIMITER</span>
                             </div>
                             <div className="grid grid-cols-3 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px]">

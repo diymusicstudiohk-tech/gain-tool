@@ -4,7 +4,7 @@
  */
 
 // App version - increment patch number before each deploy
-export const VERSION = '1.0.40';
+export const VERSION = '1.0.42';
 
 // Format the version for display
 export const getVersionDisplay = () => {
