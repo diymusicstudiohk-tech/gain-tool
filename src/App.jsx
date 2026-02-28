@@ -187,7 +187,6 @@ const App = () => {
         setIsCustomSettings: comp.setIsCustomSettings,
         setIsProcessing: comp.setIsProcessing,
         setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass, setIsCompBypass: comp.setIsCompBypass,
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
@@ -309,8 +308,6 @@ const App = () => {
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass,
-        setIsCompBypass: (v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
     };
     const playbackProps = {
         playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,
@@ -367,7 +364,7 @@ const App = () => {
                 setTooltipsOff={handleSetTooltipsOff}
             />
 
-            <div className="flex-1 flex min-h-0 relative z-0">
+            <div className="flex-1 flex min-h-0 relative z-0 gap-2">
                 <InputMeter
                     inputCanvasRef={inputMeterCanvasRef}
                     hoveredMeterRef={hoveredMeterRef}
