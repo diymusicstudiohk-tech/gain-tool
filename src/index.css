@@ -135,6 +135,11 @@ html, body {
   bottom: auto;
   top: calc(100% + 6px);
 }
+/* Prevent always-visible tooltips from overflowing viewport left edge */
+.tooltip-always.tooltip-below[data-tooltip]:not(:disabled)::after {
+  left: 0;
+  transform: none;
+}
 /* Hide tooltips when tooltips-off is active (except elements with .tooltip-always) */
 .tooltips-off [data-tooltip]:not(.tooltip-always):not(:disabled):hover::after {
   opacity: 0 !important;
