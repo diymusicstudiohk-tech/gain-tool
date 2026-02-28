@@ -80,6 +80,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         this.lookaheadSamples = 0;
         this.isCompBypass = false;
+
+        // Cached linear gain values (avoid per-sample Math.exp when stable)
+        this._prevMakeupGain = 0;
+        this._prevDryGain = -96;
+        this._cachedMakeupLinear = Math.exp(0 * LN10_OVER_20);
+        this._cachedDryLinear = Math.exp(-96 * LN10_OVER_20);
         this.isDeltaMode = false;
 
         // Smoothing coefficient (~5ms time constant)
@@ -178,6 +184,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const tDryGain = this.targets.dryGain;
         const tInflate = this.targets.inflate;
 
+        // Cached linear gain values — avoid Math.exp when smoothed value unchanged
+        let prevMakeup = this._prevMakeupGain;
+        let prevDry = this._prevDryGain;
+        let makeUpLinear = this._cachedMakeupLinear;
+        let dryLinear = this._cachedDryLinear;
+
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
@@ -185,8 +197,14 @@ class CompressorProcessor extends AudioWorkletProcessor {
             sDryGain += smoothCoeff * (tDryGain - sDryGain);
             sInflate += smoothCoeff * (tInflate - sInflate);
 
-            const makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
-            const dryLinear = Math.exp(sDryGain * LN10_OVER_20);
+            if (sMakeupGain !== prevMakeup) {
+                makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
+                prevMakeup = sMakeupGain;
+            }
+            if (sDryGain !== prevDry) {
+                dryLinear = Math.exp(sDryGain * LN10_OVER_20);
+                prevDry = sDryGain;
+            }
 
             const inputSample = inputData[i];
 
@@ -331,6 +349,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.dryGain = sDryGain;
         this.smoothed.inflate = sInflate;
+        this._prevMakeupGain = prevMakeup;
+        this._prevDryGain = prevDry;
+        this._cachedMakeupLinear = makeUpLinear;
+        this._cachedDryLinear = dryLinear;
 
         return true;
     }
