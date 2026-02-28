@@ -6,8 +6,9 @@ const LN10_OVER_20 = Math.LN10 / 20;
 const TWENTY_LOG10E = 20 * Math.LOG10E;
 const LOG_FLOOR = 1e-6;
 
-// Max look-ahead: 100ms @ 48kHz = 4800 samples
-const MAX_LOOKAHEAD_SAMPLES = 4800;
+// Max look-ahead: power-of-2 for bitmask modulo (>= 4800 needed for 100ms @ 48kHz)
+const MAX_LOOKAHEAD_SAMPLES = 8192;
+const LOOKAHEAD_MASK = MAX_LOOKAHEAD_SAMPLES - 1; // 8191
 
 // --- Pre-computed Lagrange interpolation coefficients ---
 const L25_0 =  0.0390625;   //  5/128
@@ -148,7 +149,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const isDeltaMode = this.isDeltaMode;
         const lookaheadSamples = this.lookaheadSamples;
         const delayBuffer = this.delayBuffer;
-        const bufferSize = MAX_LOOKAHEAD_SAMPLES;
+        const bufferMask = LOOKAHEAD_MASK;
         const rmsBuffer = this.rmsBuffer;
         const rmsWindowSize = this.rmsWindowSize;
 
@@ -212,7 +213,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             delayBuffer[writePos] = inputSample;
 
             // Read delayed sample for output
-            const delayedSample = delayBuffer[(writePos - lookaheadSamples + bufferSize) % bufferSize];
+            const delayedSample = delayBuffer[(writePos - lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) & bufferMask];
 
             // --- True peak detection (4-point Lagrange interpolation) ---
             const absSample = Math.abs(inputSample);
@@ -241,16 +242,16 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             // --- Sliding window maximum (monotonic deque) ---
             // Push truePeak into deque, maintaining decreasing order
-            while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES] <= truePeak) {
-                dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES;
+            while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK] <= truePeak) {
+                dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK;
             }
             dequeValues[dequeTail] = truePeak;
             dequeIndices[dequeTail] = dequeSampleCounter;
-            dequeTail = (dequeTail + 1) % MAX_LOOKAHEAD_SAMPLES;
+            dequeTail = (dequeTail + 1) & LOOKAHEAD_MASK;
 
             // Remove expired elements from front
             while (dequeHead !== dequeTail && dequeIndices[dequeHead] <= dequeSampleCounter - windowSize) {
-                dequeHead = (dequeHead + 1) % MAX_LOOKAHEAD_SAMPLES;
+                dequeHead = (dequeHead + 1) & LOOKAHEAD_MASK;
             }
 
             dequeSampleCounter++;
@@ -330,7 +331,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 outputData[i] = wet + (delayedSample * dryLinear);
             }
 
-            writePos = (writePos + 1) % bufferSize;
+            writePos = (writePos + 1) & bufferMask;
         }
 
         // Write back state

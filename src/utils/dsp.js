@@ -190,8 +190,9 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     return { outputData, grCurve, visualInput: inputData };
 };
 
-// Max look-ahead: 100ms @ 48kHz = 4800 samples
-const MAX_LOOKAHEAD_SAMPLES = 4800;
+// Max look-ahead: power-of-2 for bitmask modulo (>= 4800 needed for 100ms @ 48kHz)
+const MAX_LOOKAHEAD_SAMPLES = 8192;
+const LOOKAHEAD_MASK = MAX_LOOKAHEAD_SAMPLES - 1; // 8191
 
 export const createRealTimeCompressor = (sampleRate) => {
     let compEnvelope = 0;
@@ -289,7 +290,7 @@ export const createRealTimeCompressor = (sampleRate) => {
 
                 // Write to delay line (P3)
                 delayBuffer[writePos] = inputSample;
-                const delayedSample = delayBuffer[(writePos - _lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES];
+                const delayedSample = delayBuffer[(writePos - _lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK];
 
                 // --- True peak detection (4-point Lagrange interpolation) ---
                 const absSample = Math.abs(inputSample);
@@ -315,15 +316,15 @@ export const createRealTimeCompressor = (sampleRate) => {
                 tpPos = (tpPos + 1) % 4;
 
                 // --- Sliding window maximum (monotonic deque) ---
-                while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES] <= truePeak) {
-                    dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) % MAX_LOOKAHEAD_SAMPLES;
+                while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK] <= truePeak) {
+                    dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK;
                 }
                 dequeValues[dequeTail] = truePeak;
                 dequeIndices[dequeTail] = dequeSampleCounter;
-                dequeTail = (dequeTail + 1) % MAX_LOOKAHEAD_SAMPLES;
+                dequeTail = (dequeTail + 1) & LOOKAHEAD_MASK;
 
                 while (dequeHead !== dequeTail && dequeIndices[dequeHead] <= dequeSampleCounter - _windowSize) {
-                    dequeHead = (dequeHead + 1) % MAX_LOOKAHEAD_SAMPLES;
+                    dequeHead = (dequeHead + 1) & LOOKAHEAD_MASK;
                 }
 
                 dequeSampleCounter++;
@@ -403,7 +404,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                     outputData[i] = wet + (delayedSample * dryLinear);
                 }
 
-                writePos = (writePos + 1) % MAX_LOOKAHEAD_SAMPLES;
+                writePos = (writePos + 1) & LOOKAHEAD_MASK;
             }
         },
         reset: () => {
