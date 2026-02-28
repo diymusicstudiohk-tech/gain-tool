@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { LN10_OVER_20, TWENTY_LOG10E } from '../utils/dspConstants';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
-import { drawDualMeter } from '../components/visualizer/Meters';
+import { drawDualMeter, drawInputMeter } from '../components/visualizer/Meters';
 
 const useVisualizerLoop = ({
     audioContext,
@@ -34,6 +34,7 @@ const useVisualizerLoop = ({
     grBarCanvasRef,
     outputMeterCanvasRef,
     cfMeterCanvasRef,
+    inputMeterCanvasRef,
     playheadRef,
     meterStateRef,
     hoverGrRef,
@@ -203,10 +204,11 @@ const useVisualizerLoop = ({
             meterStateRef.current.crestFactor = meterStateRef.current.crestFactor * 0.9 + currentInstantCF * 0.1;
 
             // Draw Meters
+            drawInputMeter(inputMeterCanvasRef?.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxMix, meterStateRef.current.dryRmsLevel, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             }
 
             // Draw Main Waveform at 30fps (every 2 frames); always draw when interacting or hovering
@@ -276,7 +278,7 @@ const useVisualizerLoop = ({
         visualStep, mipmaps, mixMipmaps, canvasDims,
         isCompAdjusting, hasThresholdBeenAdjusted, lastPlayedType,
         isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
     // --- Static Draw for Initial State ---
@@ -307,14 +309,17 @@ const useVisualizerLoop = ({
             });
         }
 
+        if (inputMeterCanvasRef?.current) {
+            drawInputMeter(inputMeterCanvasRef.current, 0, 0, meterStateRef.current, hoveredMeterRef?.current, true);
+        }
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current, true);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current, true);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted,
-        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps, mixMipmaps
     ]);
 

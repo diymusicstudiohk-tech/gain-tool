@@ -105,7 +105,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
+export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -124,10 +124,6 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
         else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
 
-        if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
-        if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
-        else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
-
         // GR State Logic
         const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
         meterState.grPeakLevel = reductionLinear;
@@ -144,35 +140,30 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const bgColor = 'rgba(255, 255, 255, 0.06)';
     const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
-    // 3 bars: scale all positions proportionally from 82.5px reference width
-    const s = width / 82.5;
+    // 2 bars: scale all positions proportionally from 55px reference width
+    const s = width / 55;
     const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
     const grCenterX = 16.5 * s;
-    const dryCenterX = 44 * s;
-    const outCenterX = 71.5 * s;
+    const outCenterX = 38.5 * s;
     const grX = grCenterX - (barWidth / 2);
-    const dryX = dryCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
 
     const bgRadius = METER_BAR_RADIUS * s;
-    // Hover highlight colors at 40% alpha (matching each meter's bar color)
+    // Hover highlight colors
     const hoverBgMap = {
         gr: 'rgba(181, 76, 53, 0.25)',   // BRICK_RED
         cf: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
-        in: 'rgba(194, 164, 117, 0.25)', // GOLD
         out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
     };
     const cfTop = height * CF_TOP_RATIO;
     // GR/CF column: split into two hover zones
     const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'cf';
     if (grCfHover) {
-        // Non-hovered portion: default bg
         ctx.fillStyle = bgColor;
         ctx.beginPath();
         ctx.roundRect(grX, 0, barWidth, height, bgRadius);
         ctx.fill();
-        // Hovered portion: colored overlay (clip to region)
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(grX, 0, barWidth, height, bgRadius);
@@ -190,13 +181,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
         ctx.roundRect(grX, 0, barWidth, height, bgRadius);
         ctx.fill();
     }
-    // In and Out columns
-    for (const { x: bx, key } of [{ x: dryX, key: 'in' }, { x: outX, key: 'out' }]) {
-        ctx.fillStyle = hoveredMeter === key ? hoverBgMap[key] : bgColor;
-        ctx.beginPath();
-        ctx.roundRect(bx, 0, barWidth, height, bgRadius);
-        ctx.fill();
-    }
+    // Out column
+    ctx.fillStyle = hoveredMeter === 'out' ? hoverBgMap['out'] : bgColor;
+    ctx.beginPath();
+    ctx.roundRect(outX, 0, barWidth, height, bgRadius);
+    ctx.fill();
 
     // --- GR Bar (top-down) ---
     if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) {
@@ -211,31 +200,14 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     }
     if (hoverGrDbVal !== null && hoverGrDbVal < -0.1 && isHoveringGRArea) {
         const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
-        // Brick red filled bar from top to hover Y
         ctx.fillStyle = BRICK_RED;
         ctx.fillRect(grX, 0, barWidth, hoverY);
-        // Gold dB text below the bar
         if (!hideReadings) {
             const dbText = hoverGrDbVal.toFixed(1);
             ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
             ctx.fillText(dbText, grCenterX, hoverY + 12 * s);
         }
     }
-
-    // --- Dry Bar (center-outward) ---
-    const dryBarDist = Math.min(meterState.dryPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
-    if (dryBarDist > 0) {
-        const grad = getCachedGradient(canvas, ctx, 'dry', width, height, PADDING, (c, w, h, p) => {
-            const mph = (h / 2) - p;
-            const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
-            g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
-            return g;
-        });
-        ctx.fillStyle = grad; ctx.fillRect(dryX, centerY - dryBarDist, barWidth, dryBarDist * 2);
-    }
-
-    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
-    if (dryHoldDist > 0) { ctx.fillStyle = GOLD_LIGHT; ctx.fillRect(dryX, centerY - dryHoldDist, barWidth, 2 * s); ctx.fillRect(dryX, centerY + dryHoldDist - 2 * s, barWidth, 2 * s); }
 
     // Clipping detection: latch on when output peak exceeds 0dB
     if (meterState.peakLevel > 1.0) meterState.outClipping = true;
@@ -251,12 +223,7 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     const outHoldDist = Math.min(meterState.holdPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2 * s); ctx.fillRect(outX, centerY + outHoldDist - 2 * s, barWidth, 2 * s); }
 
-    // Ghost Peaks
-    if (dryBarDist > outBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(outX, centerY - dryBarDist, barWidth, 2 * s); ctx.fillRect(outX, centerY + dryBarDist - 2 * s, barWidth, 2 * s); }
-    if (outBarDist > dryBarDist) { ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.fillRect(dryX, centerY - outBarDist, barWidth, 2 * s); ctx.fillRect(dryX, centerY + outBarDist - 2 * s, barWidth, 2 * s); }
-
-    // Clip Indicators
-    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = GOLD; ctx.fillRect(dryX, 0, barWidth, 4 * s); ctx.fillRect(dryX, height - 4 * s, barWidth, 4 * s); }
+    // Clip Indicator
     if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4 * s); ctx.fillRect(outX, height - 4 * s, barWidth, 4 * s); }
 
     // --- Crest Factor (below GR, same column) ---
@@ -286,13 +253,11 @@ export const drawDualMeter = (canvas, dryPeak, outPeak, dryRms, outRms, meterSta
     // Text Labels
     if (!hideReadings) {
         ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), dryCenterX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
         if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
     }
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif';
     ctx.fillText("GR", grCenterX, 12 * s);
-    ctx.fillText("In", dryCenterX, 12 * s);
     ctx.fillText("Out", outCenterX, 12 * s);
 
 };
@@ -383,11 +348,168 @@ export const drawCrestFactorMeter = (canvas, crestFactor) => {
 };
 
 
+// --- Input Meter Drawing Function (single bar, exported for loop) ---
+
+export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter = null, frozen = false) => {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const physW = Math.round(width * dpr);
+    const physH = Math.round(height * dpr);
+    if (canvas.width !== physW) canvas.width = physW;
+    if (canvas.height !== physH) canvas.height = physH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const centerY = height / 2;
+
+    // Meter State Logic (Decay) — skip when frozen
+    if (!frozen) {
+        if (dryPeak > meterState.dryPeakLevel) meterState.dryPeakLevel = dryPeak; else meterState.dryPeakLevel *= METER_PEAK_DECAY;
+        if (meterState.dryPeakLevel > meterState.dryHoldPeakLevel) { meterState.dryHoldPeakLevel = meterState.dryPeakLevel; meterState.dryHoldTimer = METER_HOLD_FRAMES; }
+        else { if (meterState.dryHoldTimer > 0) meterState.dryHoldTimer--; else meterState.dryHoldPeakLevel *= METER_HOLD_DECAY; }
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    const PADDING = 0; const maxPixelHeight = (height / 2) - PADDING;
+
+    // Scale from 30px reference width
+    const s = width / 30;
+    const hideReadings = s < 1;
+    const barWidth = METER_BAR_WIDTH * s;
+    const centerX = 15 * s;
+    const x = centerX - (barWidth / 2);
+    const bgRadius = METER_BAR_RADIUS * s;
+
+    // Background bar
+    const bgColor = hoveredMeter === 'in' ? 'rgba(194, 164, 117, 0.25)' : 'rgba(255, 255, 255, 0.06)';
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(x, 0, barWidth, height, bgRadius);
+    ctx.fill();
+
+    // --- Dry Bar (center-outward bilateral, gold gradient) ---
+    const dryBarDist = Math.min(meterState.dryPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
+    if (dryBarDist > 0) {
+        const grad = getCachedGradient(canvas, ctx, 'inputDry', width, height, PADDING, (c, w, h, p) => {
+            const mph = (h / 2) - p;
+            const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
+            g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
+            return g;
+        });
+        ctx.fillStyle = grad; ctx.fillRect(x, centerY - dryBarDist, barWidth, dryBarDist * 2);
+    }
+
+    // Peak hold lines
+    const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
+    if (dryHoldDist > 0) { ctx.fillStyle = GOLD_LIGHT; ctx.fillRect(x, centerY - dryHoldDist, barWidth, 2 * s); ctx.fillRect(x, centerY + dryHoldDist - 2 * s, barWidth, 2 * s); }
+
+    // Clip indicators (exceeds 0dB)
+    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = GOLD; ctx.fillRect(x, 0, barWidth, 4 * s); ctx.fillRect(x, height - 4 * s, barWidth, 4 * s); }
+
+    // dB reading
+    if (!hideReadings) {
+        ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
+        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), centerX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
+    }
+
+    // "In" label
+    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText("In", centerX, 12 * s);
+};
+
+// --- InputMeter Component ---
+
+const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
+    const [, setTick] = useState(0);
+    const rafRef = useRef(null);
+
+    useEffect(() => {
+        if (!tooltipPos.visible) return;
+        let running = true;
+        const loop = () => {
+            if (!running) return;
+            setTick(t => t + 1);
+            rafRef.current = requestAnimationFrame(loop);
+        };
+        rafRef.current = requestAnimationFrame(loop);
+        return () => { running = false; cancelAnimationFrame(rafRef.current); };
+    }, [tooltipPos.visible]);
+
+    const frozenRedraw = useCallback(() => {
+        if (!inputCanvasRef?.current || !meterStateRef?.current) return;
+        const ms = meterStateRef.current;
+        drawInputMeter(inputCanvasRef.current, 0, 0, ms, hoveredMeterRef?.current, true);
+    }, [inputCanvasRef, meterStateRef, hoveredMeterRef]);
+
+    const handleMouseMove = useCallback((e) => {
+        if (!hoveredMeterRef) return;
+        if (hoveredMeterRef.current !== 'in') {
+            hoveredMeterRef.current = 'in';
+            frozenRedraw();
+        }
+        setTooltipPos({ x: e.clientX, y: e.clientY, visible: true });
+    }, [hoveredMeterRef, frozenRedraw]);
+
+    const handleMouseLeave = useCallback(() => {
+        if (hoveredMeterRef && hoveredMeterRef.current !== null) {
+            hoveredMeterRef.current = null;
+            frozenRedraw();
+        }
+        setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
+    }, [hoveredMeterRef, frozenRedraw]);
+
+    let tooltipNode = null;
+    const activeZone = hoveredMeterRef?.current;
+    if (tooltipPos.visible && activeZone === 'in' && meterStateRef?.current) {
+        const ms = meterStateRef.current;
+        const val = ms.dryHoldPeakLevel > 0.01
+            ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
+        const text = `In (Input Signal 原始訊號) : ${val} dB`;
+
+        const GAP = 4;
+        const flipX = tooltipPos.x < 200;
+        const flipY = tooltipPos.y < 50;
+
+        tooltipNode = (
+            <div style={{
+                position: 'fixed',
+                left: tooltipPos.x + (flipX ? GAP : -GAP),
+                top: tooltipPos.y + (flipY ? GAP : -GAP),
+                transform: `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`,
+                background: 'rgba(0,0,0,0.75)',
+                color: '#fff',
+                font: 'bold 11px sans-serif',
+                padding: '6px 10px',
+                borderRadius: 4,
+                pointerEvents: 'none',
+                zIndex: 9999,
+                whiteSpace: 'pre',
+            }}>
+                {text}
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-none h-full relative w-[4%] min-[740px]:w-[30px]"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+        >
+            <canvas ref={inputCanvasRef} className="w-full h-full" />
+            {tooltipNode}
+        </div>
+    );
+};
+
+export { InputMeter };
+
 // --- Component ---
 
-// Meter hit-zone boundaries as ratios of 82.5px reference width
-const METER_GR_RIGHT_RATIO = 30.25 / 82.5;   // midpoint between GR bar end and In bar start
-const METER_IN_RIGHT_RATIO = 57.75 / 82.5; // midpoint between In bar end and Out bar start
+// Meter hit-zone boundary as ratio of 55px reference width (GR+Out only)
+const METER_GR_RIGHT_RATIO = 27.5 / 55;   // midpoint between GR bar end and Out bar start
 
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
@@ -411,7 +533,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     const frozenRedraw = useCallback(() => {
         if (!outputCanvasRef?.current || !meterStateRef?.current) return;
         const ms = meterStateRef.current;
-        drawDualMeter(outputCanvasRef.current, 0, 0, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.crestFactor || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
+        drawDualMeter(outputCanvasRef.current, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.crestFactor || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
     }, [outputCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, hoveredMeterRef]);
 
     const handleMouseMove = useCallback((e) => {
@@ -426,8 +548,6 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         let zone;
         if (x < w * METER_GR_RIGHT_RATIO) {
             zone = y < cfTop ? 'gr' : 'cf';
-        } else if (x < w * METER_IN_RIGHT_RATIO) {
-            zone = 'in';
         } else {
             zone = 'out';
         }
@@ -447,20 +567,16 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
     }, [hoveredMeterRef, frozenRedraw]);
 
-    // --- Tooltip content (zone-specific) ---
+    // --- Tooltip content (zone-specific, GR/CF/Out only) ---
     let tooltipNode = null;
     const activeZone = hoveredMeterRef?.current;
-    if (tooltipPos.visible && activeZone && meterStateRef?.current) {
+    if (tooltipPos.visible && activeZone && activeZone !== 'in' && meterStateRef?.current) {
         const ms = meterStateRef.current;
         let text;
         if (activeZone === 'gr') {
             const val = ms.grHoldPeakLevel > 0.01
                 ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
             text = `GR (Gain Reduction 壓縮量) : ${val} dB`;
-        } else if (activeZone === 'in') {
-            const val = ms.dryHoldPeakLevel > 0.01
-                ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
-            text = `In (Input Signal 原始訊號) : ${val} dB`;
         } else if (activeZone === 'out') {
             const val = ms.holdPeakLevel > 0.01
                 ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
@@ -472,9 +588,8 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         }
 
         const GAP = 4;
-        // Position at cursor, use transform so browser measures actual width
-        const flipX = tooltipPos.x < 200; // near left edge → show right of cursor
-        const flipY = tooltipPos.y < 50;  // near top edge → show below cursor
+        const flipX = tooltipPos.x < 200;
+        const flipY = tooltipPos.y < 50;
 
         tooltipNode = (
             <div style={{
@@ -497,7 +612,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     }
 
     return (
-        <div className="flex-none h-full relative w-[11.2%] min-[740px]:w-[82.5px]"
+        <div className="flex-none h-full relative w-[7.5%] min-[740px]:w-[55px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >

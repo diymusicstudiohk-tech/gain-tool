@@ -5,7 +5,7 @@ import { saveAppStateToStorage, saveParamsForSource, softReset, saveTooltipsOff,
 import Header from './components/layout/Header';
 import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
-import Meters from './components/visualizer/Meters';
+import Meters, { InputMeter } from './components/visualizer/Meters';
 import OutputWaveform from './components/visualizer/OutputWaveform';
 
 import useDebug from './hooks/useDebug';
@@ -28,6 +28,7 @@ const App = () => {
     const grBarCanvasRef = useRef(null);
     const outputMeterCanvasRef = useRef(null);
     const cfMeterCanvasRef = useRef(null);
+    const inputMeterCanvasRef = useRef(null);
     const playheadRef = useRef(null);
     const outputPlayheadRef = useRef(null);
     const sourceNodeRef = useRef(null);
@@ -233,7 +234,7 @@ const App = () => {
         mixMipmaps: dsp.mixMipmaps,
         fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
-        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef,
+        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef,
         playheadRef, meterStateRef,
         hoverGrRef: waveform.hoverGrRef,
         isHoveringGRAreaRef: waveform.isHoveringGRAreaRef,
@@ -371,6 +372,11 @@ const App = () => {
             />
 
             <div className="flex-1 flex min-h-0 relative z-0">
+                <InputMeter
+                    inputCanvasRef={inputMeterCanvasRef}
+                    hoveredMeterRef={hoveredMeterRef}
+                    meterStateRef={meterStateRef}
+                />
                 <Waveform
                     canvasRef={waveformCanvasRef}
                     containerRef={containerRef}
