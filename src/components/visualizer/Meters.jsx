@@ -536,7 +536,7 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
     }, [onInputGainChange]);
 
     const isZero = Math.abs(inputGain) < 0.05;
-    const label = isZero ? '▲▼' : (inputGain > 0 ? `+${inputGain.toFixed(1)}` : inputGain.toFixed(1));
+    const label = isZero ? null : (inputGain > 0 ? `+${inputGain.toFixed(1)}` : inputGain.toFixed(1));
 
     return (
         <div
@@ -551,23 +551,24 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 top: topPx - btnHeight / 2,
                 height: btnHeight,
                 display: 'flex',
+                flexDirection: isZero ? 'column' : 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'rgba(0,0,0,0.75)',
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
-                fontSize: isZero ? 10 : 9,
+                fontSize: isZero ? 8 : 9,
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
                 cursor: 'ns-resize',
                 touchAction: 'none',
                 userSelect: 'none',
                 zIndex: 10,
-                letterSpacing: isZero ? 2 : 0,
+                lineHeight: 1,
             }}
         >
-            {label}
+            {isZero ? <><span>▲</span><span>▼</span></> : label}
         </div>
     );
 };
@@ -723,7 +724,7 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
     }, [onOutputGainChange]);
 
     const isZero = Math.abs(outputGain) < 0.05;
-    const label = isZero ? '▲▼' : (outputGain > 0 ? `+${outputGain.toFixed(1)}` : outputGain.toFixed(1));
+    const label = isZero ? null : (outputGain > 0 ? `+${outputGain.toFixed(1)}` : outputGain.toFixed(1));
 
     return (
         <div
@@ -739,23 +740,24 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 top: topPx - btnHeight / 2,
                 height: btnHeight,
                 display: 'flex',
+                flexDirection: isZero ? 'column' : 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'rgba(0,0,0,0.75)',
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
-                fontSize: isZero ? 10 : 9,
+                fontSize: isZero ? 8 : 9,
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
                 cursor: 'ns-resize',
                 touchAction: 'none',
                 userSelect: 'none',
                 zIndex: 10,
-                letterSpacing: isZero ? 2 : 0,
+                lineHeight: 1,
             }}
         >
-            {label}
+            {isZero ? <><span>▲</span><span>▼</span></> : label}
         </div>
     );
 };
