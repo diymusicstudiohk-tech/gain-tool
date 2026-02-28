@@ -546,8 +546,8 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
             onDoubleClick={handleDoubleClick}
             style={{
                 position: 'absolute',
-                left: 0,
-                right: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 top: topPx - btnHeight / 2,
                 height: btnHeight,
                 display: 'flex',
@@ -566,6 +566,8 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 userSelect: 'none',
                 zIndex: 10,
                 lineHeight: 1,
+                whiteSpace: 'nowrap',
+                padding: '0 5px',
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
