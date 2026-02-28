@@ -567,8 +567,8 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 zIndex: 10,
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
-                padding: '0 5px',
-                minWidth: '5ch',
+                padding: 0,
+                width: 34,
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
@@ -761,8 +761,8 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 zIndex: 10,
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
-                padding: '0 5px',
-                minWidth: '5ch',
+                padding: 0,
+                width: 34,
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
