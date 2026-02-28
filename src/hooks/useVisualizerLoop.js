@@ -54,7 +54,7 @@ const useVisualizerLoop = ({
 
     const waveformFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
-    const lastWaveformDrawKeyRef = useRef(null);
+    const lastDrawParamsRef = useRef(null);
     const dryGainRef = useRef(dryGain);
     useEffect(() => { dryGainRef.current = dryGain; }, [dryGain]);
     const thresholdRef = useRef(threshold);
@@ -84,7 +84,7 @@ const useVisualizerLoop = ({
     // Invalidate draw key + waveform cache when DSP data or bypass state changes
     // so the animate loop doesn't skip the redraw via stale key comparison.
     useEffect(() => {
-        lastWaveformDrawKeyRef.current = null;
+        lastDrawParamsRef.current = null;
         if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
     }, [visualResult, mipmaps, mixMipmaps, isCompBypass]);
 
@@ -222,12 +222,15 @@ const useVisualizerLoop = ({
                 // Skip redundant draws: if no state affecting the waveform has changed, don't redraw
                 let shouldDraw = true;
                 if (!isInteracting) {
-                    const drawKey = `${canvasDims.width}_${canvasDims.height}_${liveZoomX}_${zoomY}_${livePanOffset}_${panOffsetY}_${playingType}_${lastPlayedType}_${isDeltaMode}_${currentDryGain}_${thresholdRef.current}_${liveMousePos.x}_${liveMousePos.y}_${liveHoverLine}_${hasThresholdBeenAdjusted}_${liveIsCompBypass}_${isGainKnobActive}_${activeGainKnob}`;
-                    if (drawKey === lastWaveformDrawKeyRef.current) {
+                    const cur = [canvasDims.width, canvasDims.height, liveZoomX, zoomY, livePanOffset, panOffsetY, playingType, lastPlayedType, isDeltaMode, currentDryGain, thresholdRef.current, liveMousePos.x, liveMousePos.y, liveHoverLine, hasThresholdBeenAdjusted, liveIsCompBypass, isGainKnobActive, activeGainKnob];
+                    const prev = lastDrawParamsRef.current;
+                    if (prev && prev.length === cur.length) {
                         shouldDraw = false;
-                    } else {
-                        lastWaveformDrawKeyRef.current = drawKey;
+                        for (let k = 0; k < cur.length; k++) {
+                            if (cur[k] !== prev[k]) { shouldDraw = true; break; }
+                        }
                     }
+                    if (shouldDraw) lastDrawParamsRef.current = cur;
                 }
 
                 if (shouldDraw) {
