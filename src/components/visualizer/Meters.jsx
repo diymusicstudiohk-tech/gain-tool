@@ -423,20 +423,39 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
 
 const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
-    const [, setTick] = useState(0);
+    const tooltipTextRef = useRef(null);
+    const tooltipDivRef = useRef(null);
     const rafRef = useRef(null);
 
+    // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
         if (!tooltipPos.visible) return;
         let running = true;
         const loop = () => {
             if (!running) return;
-            setTick(t => t + 1);
+            if (tooltipTextRef.current && meterStateRef?.current) {
+                const ms = meterStateRef.current;
+                const val = ms.dryHoldPeakLevel > 0.01
+                    ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
+                tooltipTextRef.current.textContent = `In (Input Signal 原始訊號) : ${val} dB`;
+            }
             rafRef.current = requestAnimationFrame(loop);
         };
         rafRef.current = requestAnimationFrame(loop);
         return () => { running = false; cancelAnimationFrame(rafRef.current); };
-    }, [tooltipPos.visible]);
+    }, [tooltipPos.visible, meterStateRef]);
+
+    // Update tooltip position directly via DOM on mouse move
+    useEffect(() => {
+        if (!tooltipDivRef.current) return;
+        const GAP = 4;
+        const flipX = tooltipPos.x < 200;
+        const flipY = tooltipPos.y < 50;
+        const s = tooltipDivRef.current.style;
+        s.left = `${tooltipPos.x + (flipX ? GAP : -GAP)}px`;
+        s.top = `${tooltipPos.y + (flipY ? GAP : -GAP)}px`;
+        s.transform = `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`;
+    }, [tooltipPos.x, tooltipPos.y]);
 
     const frozenRedraw = useCallback(() => {
         if (!inputCanvasRef?.current || !meterStateRef?.current) return;
@@ -461,45 +480,27 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
         setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
     }, [hoveredMeterRef, frozenRedraw]);
 
-    let tooltipNode = null;
-    const activeZone = hoveredMeterRef?.current;
-    if (tooltipPos.visible && activeZone === 'in' && meterStateRef?.current) {
-        const ms = meterStateRef.current;
-        const val = ms.dryHoldPeakLevel > 0.01
-            ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
-        const text = `In (Input Signal 原始訊號) : ${val} dB`;
-
-        const GAP = 4;
-        const flipX = tooltipPos.x < 200;
-        const flipY = tooltipPos.y < 50;
-
-        tooltipNode = (
-            <div style={{
-                position: 'fixed',
-                left: tooltipPos.x + (flipX ? GAP : -GAP),
-                top: tooltipPos.y + (flipY ? GAP : -GAP),
-                transform: `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`,
-                background: 'rgba(0,0,0,0.75)',
-                color: '#fff',
-                font: 'bold 11px sans-serif',
-                padding: '6px 10px',
-                borderRadius: 4,
-                pointerEvents: 'none',
-                zIndex: 9999,
-                whiteSpace: 'pre',
-            }}>
-                {text}
-            </div>
-        );
-    }
-
     return (
         <div className="flex-none h-full relative w-[4%] min-[740px]:w-[30px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
             <canvas ref={inputCanvasRef} className="w-full h-full" />
-            {tooltipNode}
+            {tooltipPos.visible && (
+                <div ref={tooltipDivRef} style={{
+                    position: 'fixed',
+                    background: 'rgba(0,0,0,0.75)',
+                    color: '#fff',
+                    font: 'bold 11px sans-serif',
+                    padding: '6px 10px',
+                    borderRadius: 4,
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                    whiteSpace: 'pre',
+                }}>
+                    <span ref={tooltipTextRef} />
+                </div>
+            )}
         </div>
     );
 };
@@ -511,23 +512,54 @@ export { InputMeter };
 // Meter hit-zone boundary as ratio of 55px reference width (GR+Out only)
 const METER_GR_RIGHT_RATIO = 27.5 / 55;   // midpoint between GR bar end and Out bar start
 
+const getMetersTooltipText = (activeZone, ms) => {
+    if (activeZone === 'gr') {
+        const val = ms.grHoldPeakLevel > 0.01
+            ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
+        return `GR (Gain Reduction 壓縮量) : ${val} dB`;
+    } else if (activeZone === 'out') {
+        const val = ms.holdPeakLevel > 0.01
+            ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
+        return `Out (Output Signal 輸出訊號) : ${val} dB`;
+    } else {
+        const cf = (ms.crestFactor || 0).toFixed(1);
+        const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
+        return `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
+    }
+};
+
 const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
-    const [, setTick] = useState(0);
+    const tooltipTextRef = useRef(null);
+    const tooltipDivRef = useRef(null);
     const rafRef = useRef(null);
 
-    // RAF loop — force re-render every frame while tooltip is visible so dB values stay live
+    // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
         if (!tooltipPos.visible) return;
         let running = true;
         const loop = () => {
             if (!running) return;
-            setTick(t => t + 1);
+            if (tooltipTextRef.current && hoveredMeterRef?.current && meterStateRef?.current) {
+                tooltipTextRef.current.textContent = getMetersTooltipText(hoveredMeterRef.current, meterStateRef.current);
+            }
             rafRef.current = requestAnimationFrame(loop);
         };
         rafRef.current = requestAnimationFrame(loop);
         return () => { running = false; cancelAnimationFrame(rafRef.current); };
-    }, [tooltipPos.visible]);
+    }, [tooltipPos.visible, hoveredMeterRef, meterStateRef]);
+
+    // Update tooltip position directly via DOM on mouse move
+    useEffect(() => {
+        if (!tooltipDivRef.current) return;
+        const GAP = 4;
+        const flipX = tooltipPos.x < 200;
+        const flipY = tooltipPos.y < 50;
+        const s = tooltipDivRef.current.style;
+        s.left = `${tooltipPos.x + (flipX ? GAP : -GAP)}px`;
+        s.top = `${tooltipPos.y + (flipY ? GAP : -GAP)}px`;
+        s.transform = `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`;
+    }, [tooltipPos.x, tooltipPos.y]);
 
     // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
     const frozenRedraw = useCallback(() => {
@@ -567,50 +599,6 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
         setTooltipPos(prev => prev.visible ? { ...prev, visible: false } : prev);
     }, [hoveredMeterRef, frozenRedraw]);
 
-    // --- Tooltip content (zone-specific, GR/CF/Out only) ---
-    let tooltipNode = null;
-    const activeZone = hoveredMeterRef?.current;
-    if (tooltipPos.visible && activeZone && activeZone !== 'in' && meterStateRef?.current) {
-        const ms = meterStateRef.current;
-        let text;
-        if (activeZone === 'gr') {
-            const val = ms.grHoldPeakLevel > 0.01
-                ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
-            text = `GR (Gain Reduction 壓縮量) : ${val} dB`;
-        } else if (activeZone === 'out') {
-            const val = ms.holdPeakLevel > 0.01
-                ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
-            text = `Out (Output Signal 輸出訊號) : ${val} dB`;
-        } else {
-            const cf = (ms.crestFactor || 0).toFixed(1);
-            const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
-            text = `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
-        }
-
-        const GAP = 4;
-        const flipX = tooltipPos.x < 200;
-        const flipY = tooltipPos.y < 50;
-
-        tooltipNode = (
-            <div style={{
-                position: 'fixed',
-                left: tooltipPos.x + (flipX ? GAP : -GAP),
-                top: tooltipPos.y + (flipY ? GAP : -GAP),
-                transform: `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`,
-                background: 'rgba(0,0,0,0.75)',
-                color: '#fff',
-                font: 'bold 11px sans-serif',
-                padding: '6px 10px',
-                borderRadius: 4,
-                pointerEvents: 'none',
-                zIndex: 9999,
-                whiteSpace: 'pre',
-            }}>
-                {text}
-            </div>
-        );
-    }
-
     return (
         <div className="flex-none h-full relative w-[7.5%] min-[740px]:w-[55px]"
             onMouseMove={handleMouseMove}
@@ -620,7 +608,21 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />
             <canvas ref={cfMeterCanvasRef} className="hidden" />
-            {tooltipNode}
+            {tooltipPos.visible && (
+                <div ref={tooltipDivRef} style={{
+                    position: 'fixed',
+                    background: 'rgba(0,0,0,0.75)',
+                    color: '#fff',
+                    font: 'bold 11px sans-serif',
+                    padding: '6px 10px',
+                    borderRadius: 4,
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                    whiteSpace: 'pre',
+                }}>
+                    <span ref={tooltipTextRef} />
+                </div>
+            )}
         </div>
     );
 };
