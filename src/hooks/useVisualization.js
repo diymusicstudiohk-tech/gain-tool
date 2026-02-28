@@ -36,7 +36,7 @@ export const useVisualization = (containerRef) => {
         dryPeakLevel: 0, dryHoldPeakLevel: 0, dryHoldTimer: 0,
         grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
         dryRmsLevel: 0, outRmsLevel: 0,
-        crestFactor: 0
+        dynamicRange: 0
     });
 
     useEffect(() => {

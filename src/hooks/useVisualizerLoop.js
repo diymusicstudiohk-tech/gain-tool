@@ -163,23 +163,46 @@ const useVisualizerLoop = ({
             if (!Number.isFinite(meterStateRef.current.dryRmsLevel)) meterStateRef.current.dryRmsLevel = 0;
             if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
-            // --- Crest Factor Calculation ---
-            let currentInstantCF = 0;
-            if (currentOutRms > 0.0001 && maxMix > 0.0001) {
-                const peakDb = Math.log(maxMix) * TWENTY_LOG10E;
-                const rmsDb = Math.log(currentOutRms) * TWENTY_LOG10E;
-                currentInstantCF = peakDb - rmsDb;
+            // --- Short-term Dynamic Range (DR) Calculation ---
+            // Store output RMS in dB into a circular buffer (3 seconds @ 60fps = 180 entries)
+            const DR_HISTORY_SIZE = 180;
+            const DR_SILENCE_THRESHOLD = -60; // dB — ignore silent frames
+            if (!meterStateRef.current.drHistory) {
+                meterStateRef.current.drHistory = new Float32Array(DR_HISTORY_SIZE);
+                meterStateRef.current.drHistoryIdx = 0;
+                meterStateRef.current.drHistoryFilled = 0;
             }
+            const currentRmsDb = currentOutRms > 0.00001 ? Math.log(currentOutRms) * TWENTY_LOG10E : -100;
+            const drH = meterStateRef.current.drHistory;
+            drH[meterStateRef.current.drHistoryIdx] = currentRmsDb;
+            meterStateRef.current.drHistoryIdx = (meterStateRef.current.drHistoryIdx + 1) % DR_HISTORY_SIZE;
+            if (meterStateRef.current.drHistoryFilled < DR_HISTORY_SIZE) meterStateRef.current.drHistoryFilled++;
 
-            if (meterStateRef.current.crestFactor === undefined) meterStateRef.current.crestFactor = 0;
-            meterStateRef.current.crestFactor = meterStateRef.current.crestFactor * 0.9 + currentInstantCF * 0.1;
+            // Compute DR from 10th–90th percentile of non-silent RMS values
+            let instantDR = 0;
+            const filled = meterStateRef.current.drHistoryFilled;
+            if (filled >= 10) {
+                // Collect non-silent values
+                const vals = [];
+                for (let i = 0; i < filled; i++) {
+                    if (drH[i] > DR_SILENCE_THRESHOLD) vals.push(drH[i]);
+                }
+                if (vals.length >= 5) {
+                    vals.sort((a, b) => a - b);
+                    const p10 = vals[Math.floor(vals.length * 0.1)];
+                    const p90 = vals[Math.floor(vals.length * 0.9)];
+                    instantDR = p90 - p10;
+                }
+            }
+            if (meterStateRef.current.dynamicRange === undefined) meterStateRef.current.dynamicRange = 0;
+            meterStateRef.current.dynamicRange = meterStateRef.current.dynamicRange * 0.9 + instantDR * 0.1;
 
             // Draw Meters
             drawInputMeter(inputMeterCanvasRef?.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.dynamicRange, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.crestFactor, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.dynamicRange, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
             }
 
             // Draw Main Waveform at 30fps; always draw when interacting or hovering

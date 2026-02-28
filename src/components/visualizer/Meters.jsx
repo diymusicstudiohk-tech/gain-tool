@@ -140,7 +140,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hoverGrDbVal = null, crestFactor = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
+export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hoverGrDbVal = null, dynamicRange = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -188,12 +188,12 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
     // Hover highlight colors
     const hoverBgMap = {
         gr: 'rgba(181, 76, 53, 0.25)',   // BRICK_RED
-        cf: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
+        dr: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
         out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
     };
     const cfTop = height * CF_TOP_RATIO;
-    // GR/CF column: split into two hover zones
-    const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'cf';
+    // GR/DR column: split into two hover zones
+    const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'dr';
     if (grCfHover) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -261,29 +261,29 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
     // Clip Indicator
     if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4 * s); ctx.fillRect(outX, height - 4 * s, barWidth, 4 * s); }
 
-    // --- Crest Factor (below GR, same column) ---
+    // --- Dynamic Range (below GR, same column) ---
     const cfBottom = height - CF_BOTTOM_MARGIN;
     const cfHeight = cfBottom - cfTop;
     const cfMinDb = CF_DB_MIN; const cfMaxDb = CF_DB_MAX; const cfRange = cfMaxDb - cfMinDb;
-    const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, crestFactor));
+    const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, dynamicRange));
     const cfPct = (cfVal - cfMinDb) / cfRange;
     const cfY = cfBottom - (cfPct * cfHeight);
 
-    // CF Heat Map — lazy init, update, decay, render (skip mutation when frozen)
+    // DR Heat Map — lazy init, update, decay, render (skip mutation when frozen)
     if (!meterState.cfHeatArray) meterState.cfHeatArray = new Float32Array(CF_HEAT_BUCKETS);
     if (!frozen) {
-        if (crestFactor > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
+        if (dynamicRange > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
         applyCfHeatDecay(meterState.cfHeatArray);
     }
     renderCfHeatMapVertical(ctx, meterState.cfHeatArray, grX, barWidth, cfTop, cfHeight);
 
-    // CF indicator line (on top of glow)
+    // DR indicator line (on top of glow)
     ctx.strokeStyle = CREST_GREEN; ctx.lineWidth = 2 * s;
     ctx.beginPath(); ctx.moveTo(grX, cfY); ctx.lineTo(grX + barWidth, cfY); ctx.stroke();
 
     ctx.fillStyle = TEXT_MID; ctx.font = 'bold ' + Math.max(7, Math.round(8 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText("CF", grCenterX, cfTop - 2 * s);
-    if (!hideReadings && crestFactor > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${crestFactor.toFixed(1)}`, grCenterX, cfY - 5 * s); }
+    ctx.fillText("DR", grCenterX, cfTop - 2 * s);
+    if (!hideReadings && dynamicRange > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${dynamicRange.toFixed(1)}`, grCenterX, cfY - 5 * s); }
 
     // Text Labels
     if (!hideReadings) {
@@ -328,7 +328,7 @@ export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
 
 };
 
-// --- New Crest Factor Meter ---
+// --- Dynamic Range Meter ---
 export const drawCrestFactorMeter = (canvas, crestFactor) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -699,9 +699,9 @@ const getMetersTooltipText = (activeZone, ms) => {
             ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
         return `Out (Output Signal 輸出訊號) : ${val} dB`;
     } else {
-        const cf = (ms.crestFactor || 0).toFixed(1);
-        const cfDesc = (ms.crestFactor || 0) > 8 ? "大動態" : "小動態";
-        return `CF (Crest Factor 代表動態範圍的峰均比) : ${cf} (${cfDesc})`;
+        const dr = (ms.dynamicRange || 0).toFixed(1);
+        const drDesc = (ms.dynamicRange || 0) > 10 ? "大動態" : "小動態";
+        return `DR (Dynamic Range 動態範圍) : ${dr} dB (${drDesc})`;
     }
 };
 
@@ -742,7 +742,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     const frozenRedraw = useCallback(() => {
         if (!outputCanvasRef?.current || !meterStateRef?.current) return;
         const ms = meterStateRef.current;
-        drawDualMeter(outputCanvasRef.current, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.crestFactor || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
+        drawDualMeter(outputCanvasRef.current, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.dynamicRange || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
     }, [outputCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, hoveredMeterRef]);
 
     const handleMouseMove = useCallback((e) => {
@@ -756,7 +756,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
 
         let zone;
         if (x < w * METER_GR_RIGHT_RATIO) {
-            zone = y < cfTop ? 'gr' : 'cf';
+            zone = y < cfTop ? 'gr' : 'dr';
         } else {
             zone = 'out';
         }
