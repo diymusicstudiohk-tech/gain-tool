@@ -82,6 +82,8 @@
 html, body, #root {
   touch-action: none; /* prevent all touch scrolling & zooming */
   overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 html, body {
