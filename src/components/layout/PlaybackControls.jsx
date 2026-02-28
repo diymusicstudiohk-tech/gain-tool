@@ -44,9 +44,9 @@ const PlaybackControls = ({ playback, onTouchLegend }) => {
             <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={toggleDeltaMode}
-                onTouchStart={() => !isDryMode && onTouchLegend && onTouchLegend(isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被壓縮器移除的部分")}
+                onTouchStart={() => !isDryMode && onTouchLegend && onTouchLegend(isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被Limiter移除的部分")}
                 disabled={isDryMode}
-                data-tooltip={isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被壓縮器移除的部分"}
+                data-tooltip={isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被Limiter移除的部分"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
                     isDryMode
                         ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
