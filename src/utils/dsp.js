@@ -11,15 +11,15 @@ const CF_LOW = 3.0;              // Below → slow release (dB)
 const CF_HIGH = 12.0;            // Above → fast release (dB)
 const STAGE1_DEPTH_DB = 3.0;     // Two-stage: fast release for first 3dB of recovery
 
-export const processCompressor = (inputData, sampleRate, params, step = 1) => {
+export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null) => {
     const {
         threshold, inflate, lookahead,
         makeupGain, isCompBypass
     } = params;
 
     const length = inputData.length;
-    const outputData = new Float32Array(length);
-    const grCurve = new Float32Array(length);
+    const outputData = (preallocated?.output?.length === length) ? preallocated.output : new Float32Array(length);
+    const grCurve = (preallocated?.gr?.length === length) ? preallocated.gr : new Float32Array(length);
     const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
 
     // Inflate (Oxford Inflator waveshaper) pre-compute

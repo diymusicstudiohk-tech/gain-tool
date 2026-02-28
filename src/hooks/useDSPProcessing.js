@@ -12,6 +12,8 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
     const fullResCacheRef = useRef(null);
     const interactionCacheRef = useRef(null);
+    // Pre-allocated buffers to avoid GC pressure on recompute
+    const preallocBufRef = useRef({ output: null, gr: null, mix: null });
 
     // Defer param updates entirely during drag — only apply on mouse release
     const [debouncedDryGain, setDebouncedDryGain] = useState(dryGain);
@@ -72,7 +74,13 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
     // Visual Result Memo — uses debouncedParams to avoid recomputing during fast knob drags
     const visualResult = useMemo(() => {
         if (!visualSourceCache.data || !audioContext) return null;
-        return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step);
+        const len = visualSourceCache.data.length;
+        const pa = preallocBufRef.current;
+        if (!pa.output || pa.output.length !== len) {
+            pa.output = new Float32Array(len);
+            pa.gr = new Float32Array(len);
+        }
+        return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step, pa);
     }, [visualSourceCache, audioContext, debouncedParams]);
 
     // Build mipmaps for input, output, and GR curves
@@ -91,7 +99,9 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         const src = visualResult;
         const dryLinear = Math.pow(10, debouncedDryGain / 20);
         const len = src.outputData.length;
-        const mixData = new Float32Array(len);
+        const pa = preallocBufRef.current;
+        if (!pa.mix || pa.mix.length !== len) pa.mix = new Float32Array(len);
+        const mixData = pa.mix;
         for (let i = 0; i < len; i++) {
             mixData[i] = Math.abs(src.outputData[i] + (src.visualInput[i] * dryLinear));
         }
