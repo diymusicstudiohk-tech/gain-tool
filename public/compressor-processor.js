@@ -62,12 +62,14 @@ class CompressorProcessor extends AudioWorkletProcessor {
             threshold: -24,
             makeupGain: 0,
             inflate: 0,
+            inputGain: 0,
         };
         // Smoothing targets
         this.targets = {
             threshold: -24,
             makeupGain: 0,
             inflate: 0,
+            inputGain: 0,
         };
 
         // Pre-compute adaptive coefficients (depend only on sampleRate)
@@ -83,6 +85,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Cached linear gain values (avoid per-sample Math.exp when stable)
         this._prevMakeupGain = 0;
         this._cachedMakeupLinear = Math.exp(0 * LN10_OVER_20);
+        this._prevInputGain = 0;
+        this._cachedInputGainLinear = 1.0;
         this.isDeltaMode = false;
 
         // Smoothing coefficient (~5ms time constant)
@@ -105,6 +109,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             this.targets.threshold = p.threshold;
             this.targets.makeupGain = p.makeupGain;
             this.targets.inflate = p.inflate ?? 0;
+            this.targets.inputGain = p.inputGain ?? 0;
 
             // Look-ahead (P3)
             this.lookaheadSamples = Math.min(
@@ -173,27 +178,36 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let sThreshold = this.smoothed.threshold;
         let sMakeupGain = this.smoothed.makeupGain;
         let sInflate = this.smoothed.inflate;
+        let sInputGain = this.smoothed.inputGain;
 
         const tThreshold = this.targets.threshold;
         const tMakeupGain = this.targets.makeupGain;
         const tInflate = this.targets.inflate;
+        const tInputGain = this.targets.inputGain;
 
         // Cached linear gain values — avoid Math.exp when smoothed value unchanged
         let prevMakeup = this._prevMakeupGain;
         let makeUpLinear = this._cachedMakeupLinear;
+        let prevInputGain = this._prevInputGain;
+        let inputGainLinear = this._cachedInputGainLinear;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
             sInflate += smoothCoeff * (tInflate - sInflate);
+            sInputGain += smoothCoeff * (tInputGain - sInputGain);
 
             if (sMakeupGain !== prevMakeup) {
                 makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
                 prevMakeup = sMakeupGain;
             }
+            if (sInputGain !== prevInputGain) {
+                inputGainLinear = Math.exp(sInputGain * LN10_OVER_20);
+                prevInputGain = sInputGain;
+            }
 
-            const inputSample = inputData[i];
+            const inputSample = inputData[i] * inputGainLinear;
 
             // Write to delay line (P3)
             delayBuffer[writePos] = inputSample;
@@ -335,8 +349,11 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.threshold = sThreshold;
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.inflate = sInflate;
+        this.smoothed.inputGain = sInputGain;
         this._prevMakeupGain = prevMakeup;
         this._cachedMakeupLinear = makeUpLinear;
+        this._prevInputGain = prevInputGain;
+        this._cachedInputGainLinear = inputGainLinear;
 
         return true;
     }

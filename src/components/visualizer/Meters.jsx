@@ -417,20 +417,31 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
     const x = centerX - (barWidth / 2);
     const bgRadius = METER_BAR_RADIUS * s;
 
+    // Clipping detection: latch on when input peak exceeds 0dB
+    if (meterState.dryPeakLevel > 1.0) meterState.inClipping = true;
+    const isInClipping = meterState.inClipping;
+
     // Background bar
-    const bgColor = hoveredMeter === 'in' ? 'rgba(194, 164, 117, 0.25)' : 'rgba(255, 255, 255, 0.06)';
+    const bgColor = hoveredMeter === 'in'
+        ? (isInClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)')
+        : 'rgba(255, 255, 255, 0.06)';
     ctx.fillStyle = bgColor;
     ctx.beginPath();
     ctx.roundRect(x, 0, barWidth, height, bgRadius);
     ctx.fill();
 
-    // --- Dry Bar (center-outward bilateral, gold gradient) ---
+    // --- Dry Bar (center-outward bilateral, gold or red gradient) ---
     const dryBarDist = Math.min(meterState.dryPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (dryBarDist > 0) {
-        const grad = getCachedGradient(canvas, ctx, 'inputDry', width, height, PADDING, (c, w, h, p) => {
+        const gradKey = isInClipping ? 'inputDryClip' : 'inputDry';
+        const grad = getCachedGradient(canvas, ctx, gradKey, width, height, PADDING, (c, w, h, p) => {
             const mph = (h / 2) - p;
             const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
-            g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
+            if (isInClipping) {
+                g.addColorStop(0, '#8B2500'); g.addColorStop(0.5, CLIP_RED); g.addColorStop(1, '#8B2500');
+            } else {
+                g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
+            }
             return g;
         });
         ctx.fillStyle = grad; ctx.fillRect(x, centerY - dryBarDist, barWidth, dryBarDist * 2);
@@ -438,15 +449,16 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
 
     // Peak hold lines
     const dryHoldDist = Math.min(meterState.dryHoldPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
-    if (dryHoldDist > 0) { ctx.fillStyle = GOLD_LIGHT; ctx.fillRect(x, centerY - dryHoldDist, barWidth, 2 * s); ctx.fillRect(x, centerY + dryHoldDist - 2 * s, barWidth, 2 * s); }
+    const holdColor = isInClipping ? CLIP_RED : GOLD_LIGHT;
+    if (dryHoldDist > 0) { ctx.fillStyle = holdColor; ctx.fillRect(x, centerY - dryHoldDist, barWidth, 2 * s); ctx.fillRect(x, centerY + dryHoldDist - 2 * s, barWidth, 2 * s); }
 
     // Clip indicators (exceeds 0dB)
-    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = GOLD; ctx.fillRect(x, 0, barWidth, 4 * s); ctx.fillRect(x, height - 4 * s, barWidth, 4 * s); }
+    if (meterState.dryPeakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(x, 0, barWidth, 4 * s); ctx.fillRect(x, height - 4 * s, barWidth, 4 * s); }
 
     // dB reading
     if (!hideReadings) {
         ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), centerX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
+        if (meterState.dryHoldPeakLevel > 0.01) { const dbVal = meterState.dryHoldPeakLevel < 0.999 ? 20 * Math.log10(meterState.dryHoldPeakLevel) : 0; const dryLabelY = centerY - dryHoldDist - 6 * s; ctx.fillStyle = isInClipping ? CLIP_RED : GOLD_LIGHT; ctx.fillText(dbVal.toFixed(1), centerX, dryLabelY < 10 * s ? centerY - dryHoldDist + 14 * s : dryLabelY); }
     }
 
     // "In" label
@@ -454,13 +466,135 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
     ctx.fillText("In", centerX, 12 * s);
 };
 
+// --- Input Gain Button: Non-linear dB ↔ position mapping ---
+// Position 0 (top) = +20dB, 0.25 = +5dB, 0.5 (center) = 0dB, 0.75 = -5dB, 1.0 (bottom) = -20dB
+
+function dbToPosition(db) {
+    if (db >= 0) {
+        // Upper half: 0dB→0.5, +5dB→0.25, +20dB→0
+        if (db <= 5) return 0.5 - (db / 5) * 0.25;
+        return 0.25 - ((db - 5) / 15) * 0.25;
+    } else {
+        // Lower half: 0dB→0.5, -5dB→0.75, -20dB→1
+        const adb = -db;
+        if (adb <= 5) return 0.5 + (adb / 5) * 0.25;
+        return 0.75 + ((adb - 5) / 15) * 0.25;
+    }
+}
+
+function positionToDb(pos) {
+    if (pos <= 0.25) {
+        // 0→+20, 0.25→+5 (steep)
+        return 20 - ((pos / 0.25) * 15);
+    } else if (pos <= 0.5) {
+        // 0.25→+5, 0.5→0 (gentle)
+        return 5 - ((pos - 0.25) / 0.25) * 5;
+    } else if (pos <= 0.75) {
+        // 0.5→0, 0.75→-5 (gentle)
+        return -((pos - 0.5) / 0.25) * 5;
+    } else {
+        // 0.75→-5, 1→-20 (steep)
+        return -5 - ((pos - 0.75) / 0.25) * 15;
+    }
+}
+
+const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
+    const dragging = useRef(false);
+    const startY = useRef(0);
+    const startPos = useRef(0);
+
+    const pos = dbToPosition(inputGain);
+    const topPx = pos * containerHeight;
+    const btnHeight = 28;
+
+    const handlePointerDown = useCallback((e) => {
+        e.preventDefault();
+        e.target.setPointerCapture(e.pointerId);
+        dragging.current = true;
+        startY.current = e.clientY;
+        startPos.current = dbToPosition(inputGain);
+    }, [inputGain]);
+
+    const handlePointerMove = useCallback((e) => {
+        if (!dragging.current || containerHeight <= 0) return;
+        const deltaY = e.clientY - startY.current;
+        const deltaPos = deltaY / containerHeight;
+        const newPos = Math.max(0, Math.min(1, startPos.current + deltaPos));
+        const newDb = positionToDb(newPos);
+        const rounded = Math.round(newDb * 10) / 10;
+        onInputGainChange(Math.max(-20, Math.min(20, rounded)));
+    }, [containerHeight, onInputGainChange]);
+
+    const handlePointerUp = useCallback((e) => {
+        dragging.current = false;
+        try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+    }, []);
+
+    const handleDoubleClick = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onInputGainChange(0);
+    }, [onInputGainChange]);
+
+    const isZero = Math.abs(inputGain) < 0.05;
+    const label = isZero ? '▲▼' : (inputGain > 0 ? `+${inputGain.toFixed(1)}` : inputGain.toFixed(1));
+
+    return (
+        <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onDoubleClick={handleDoubleClick}
+            style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: topPx - btnHeight / 2,
+                height: btnHeight,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.75)',
+                border: '1.5px solid rgba(255,255,255,0.8)',
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: isZero ? 10 : 9,
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                cursor: 'ns-resize',
+                touchAction: 'none',
+                userSelect: 'none',
+                zIndex: 10,
+                letterSpacing: isZero ? 2 : 0,
+            }}
+        >
+            {label}
+        </div>
+    );
+};
+
 // --- InputMeter Component ---
 
-const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
+const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain, onInputGainChange }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
     const tooltipTextRef = useRef(null);
     const tooltipDivRef = useRef(null);
     const rafRef = useRef(null);
+    const containerDivRef = useRef(null);
+    const [containerHeight, setContainerHeight] = useState(0);
+
+    // ResizeObserver to track container height for gain button positioning
+    useEffect(() => {
+        const el = containerDivRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerHeight(entry.contentRect.height);
+            }
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
@@ -516,11 +650,19 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div className="flex-none h-full relative w-[4%] max-w-[22px]"
+        <div ref={containerDivRef} className="flex-none h-full relative w-[4%] max-w-[22px]"
+            style={{ overflow: 'visible' }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
             <canvas ref={inputCanvasRef} className="w-full h-full" />
+            {onInputGainChange && containerHeight > 0 && (
+                <InputGainButton
+                    inputGain={inputGain ?? 0}
+                    onInputGainChange={onInputGainChange}
+                    containerHeight={containerHeight}
+                />
+            )}
             {tooltipPos.visible && (
                 <div ref={tooltipDivRef} style={{
                     position: 'fixed',

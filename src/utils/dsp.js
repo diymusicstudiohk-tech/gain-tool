@@ -25,7 +25,7 @@ const STAGE1_DEPTH_DB = 3.0;     // Two-stage: fast release for first 3dB of rec
 
 export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null) => {
     const {
-        threshold, inflate, lookahead,
+        threshold, inflate, inputGain, lookahead,
         makeupGain, isCompBypass
     } = params;
 
@@ -33,6 +33,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     const outputData = (preallocated?.output?.length === length) ? preallocated.output : new Float32Array(length);
     const grCurve = (preallocated?.gr?.length === length) ? preallocated.gr : new Float32Array(length);
     const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
+    const inputGainLinear = Math.exp((inputGain || 0) * LN10_OVER_20);
 
     // Inflate (Oxford Inflator waveshaper) pre-compute
     const inflateAmt = (inflate ?? 0) * 0.01;
@@ -75,8 +76,8 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     for (let i = 0; i < length; i++) {
         // Look ahead into the future for detection
         const detectorIndex = Math.min(i + lookaheadSamples, length - 1);
-        const detectorSample = Math.abs(inputData[detectorIndex]);
-        const currentInput = inputData[i];
+        const detectorSample = Math.abs(inputData[detectorIndex] * inputGainLinear);
+        const currentInput = inputData[i] * inputGainLinear;
 
         // --- True peak detection (4-point Lagrange interpolation) ---
         tpHistory[tpPos] = detectorSample;
@@ -187,7 +188,14 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
         grCurve[i] = Math.min(0, compGainReductiondB);
     }
 
-    return { outputData, grCurve, visualInput: inputData };
+    let visualInput = inputData;
+    if (Math.abs(inputGain || 0) > 0.001) {
+        visualInput = preallocated?.visualInput?.length === length
+            ? preallocated.visualInput : new Float32Array(length);
+        for (let i = 0; i < length; i++) visualInput[i] = inputData[i] * inputGainLinear;
+    }
+
+    return { outputData, grCurve, visualInput };
 };
 
 // Max look-ahead: power-of-2 for bitmask modulo (>= 4800 needed for 100ms @ 48kHz)
@@ -215,8 +223,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0 };
-    const targets = { threshold: -24, makeupGain: 0, inflate: 0 };
+    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0 };
+    const targets = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0 };
 
     // Pre-compute adaptive coefficients (depend only on sampleRate)
     let compAttCoeff = 1 - Math.exp(-1 / ((ATTACK_MS / 1000) * sampleRate));
@@ -249,7 +257,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _cachedParams = params;
 
                 const {
-                    threshold, inflate,
+                    threshold, inflate, inputGain: ig,
                     makeupGain, isCompBypass,
                     isDeltaMode, lookahead,
                 } = params;
@@ -258,6 +266,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 targets.threshold = threshold;
                 targets.makeupGain = makeupGain;
                 targets.inflate = inflate ?? 0;
+                targets.inputGain = ig ?? 0;
 
                 _isCompBypass = isCompBypass;
                 _isDeltaMode = isDeltaMode;
@@ -280,10 +289,12 @@ export const createRealTimeCompressor = (sampleRate) => {
                 smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
                 smoothed.inflate += smoothCoeff * (targets.inflate - smoothed.inflate);
+                smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
 
                 const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
+                const inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
 
-                const inputSample = inputData[i];
+                const inputSample = inputData[i] * inputGainLinear;
 
                 // Write to delay line (P3)
                 delayBuffer[writePos] = inputSample;

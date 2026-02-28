@@ -47,6 +47,7 @@ const App = () => {
         grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
         dryRmsLevel: 0, outRmsLevel: 0, crestFactor: 0,
         outClipping: false,
+        inClipping: false,
         cfHeatArray: new Float32Array(50),
     });
 
@@ -345,6 +346,8 @@ const App = () => {
                     inputCanvasRef={inputMeterCanvasRef}
                     hoveredMeterRef={hoveredMeterRef}
                     meterStateRef={meterStateRef}
+                    inputGain={comp.inputGain}
+                    onInputGainChange={(v) => comp.handleCompKnobChange('inputGain', v)}
                 />
                 <Waveform
                     canvasRef={waveformCanvasRef}

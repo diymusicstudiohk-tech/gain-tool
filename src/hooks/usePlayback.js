@@ -149,7 +149,7 @@ const usePlayback = ({
             setPlayingType('none');
             cancelAnimationFrame(rafIdRef.current);
             isPlayingRef.current = false;
-            if (meterStateRef?.current) meterStateRef.current.outClipping = false;
+            if (meterStateRef?.current) { meterStateRef.current.outClipping = false; meterStateRef.current.inClipping = false; }
         } else {
             if (originalBuffer) {
                 const duration = originalBuffer.duration;
@@ -202,7 +202,7 @@ const usePlayback = ({
         if (audioContext && audioContext.state === 'running') audioContext.suspend();
         setPlayingType('none');
         isPlayingRef.current = false;
-        if (meterStateRef?.current) meterStateRef.current.outClipping = false;
+        if (meterStateRef?.current) { meterStateRef.current.outClipping = false; meterStateRef.current.inClipping = false; }
         if (audioContext && audioContext.state === 'suspended') audioContext.resume();
     }, [audioContext, sourceNodeRef, isPlayingRef, meterStateRef]);
 
