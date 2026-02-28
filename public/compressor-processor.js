@@ -61,14 +61,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed = {
             threshold: -24,
             makeupGain: 0,
-            dryGain: -96,
             inflate: 0,
         };
         // Smoothing targets
         this.targets = {
             threshold: -24,
             makeupGain: 0,
-            dryGain: -96,
             inflate: 0,
         };
 
@@ -84,9 +82,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         // Cached linear gain values (avoid per-sample Math.exp when stable)
         this._prevMakeupGain = 0;
-        this._prevDryGain = -96;
         this._cachedMakeupLinear = Math.exp(0 * LN10_OVER_20);
-        this._cachedDryLinear = Math.exp(-96 * LN10_OVER_20);
         this.isDeltaMode = false;
 
         // Smoothing coefficient (~5ms time constant)
@@ -108,7 +104,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
             // Update smoothing targets (P2)
             this.targets.threshold = p.threshold;
             this.targets.makeupGain = p.makeupGain;
-            this.targets.dryGain = p.dryGain;
             this.targets.inflate = p.inflate ?? 0;
 
             // Look-ahead (P3)
@@ -177,34 +172,25 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Smoothed values (local copies for hot loop)
         let sThreshold = this.smoothed.threshold;
         let sMakeupGain = this.smoothed.makeupGain;
-        let sDryGain = this.smoothed.dryGain;
         let sInflate = this.smoothed.inflate;
 
         const tThreshold = this.targets.threshold;
         const tMakeupGain = this.targets.makeupGain;
-        const tDryGain = this.targets.dryGain;
         const tInflate = this.targets.inflate;
 
         // Cached linear gain values — avoid Math.exp when smoothed value unchanged
         let prevMakeup = this._prevMakeupGain;
-        let prevDry = this._prevDryGain;
         let makeUpLinear = this._cachedMakeupLinear;
-        let dryLinear = this._cachedDryLinear;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
             sThreshold += smoothCoeff * (tThreshold - sThreshold);
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
-            sDryGain += smoothCoeff * (tDryGain - sDryGain);
             sInflate += smoothCoeff * (tInflate - sInflate);
 
             if (sMakeupGain !== prevMakeup) {
                 makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
                 prevMakeup = sMakeupGain;
-            }
-            if (sDryGain !== prevDry) {
-                dryLinear = Math.exp(sDryGain * LN10_OVER_20);
-                prevDry = sDryGain;
             }
 
             const inputSample = inputData[i];
@@ -328,7 +314,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             if (isDeltaMode) {
                 outputData[i] = wet - delayedSample;
             } else {
-                outputData[i] = wet + (delayedSample * dryLinear);
+                outputData[i] = wet;
             }
 
             writePos = (writePos + 1) & bufferMask;
@@ -348,12 +334,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.tpPos = tpPos;
         this.smoothed.threshold = sThreshold;
         this.smoothed.makeupGain = sMakeupGain;
-        this.smoothed.dryGain = sDryGain;
         this.smoothed.inflate = sInflate;
         this._prevMakeupGain = prevMakeup;
-        this._prevDryGain = prevDry;
         this._cachedMakeupLinear = makeUpLinear;
-        this._cachedDryLinear = dryLinear;
 
         return true;
     }

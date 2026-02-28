@@ -32,8 +32,6 @@ const App = () => {
     const playheadRef = useRef(null);
     const outputPlayheadRef = useRef(null);
     const sourceNodeRef = useRef(null);
-    const drySourceNodeRef = useRef(null);
-    const dryGainNodeRef = useRef(null);
     const startTimeRef = useRef(0);
     const startOffsetRef = useRef(0);
     const isPlayingRef = useRef(false);
@@ -145,13 +143,10 @@ const App = () => {
     const playback = usePlayback({
         audioContext, originalBuffer,
         paramsRef: comp.paramsRef,
-        dryGain: comp.dryGain,
-        dryGainNodeRef,
         animateRef,
         fullAudioDataRef,
         logAction,
-        handleModeDryGainSync: comp.handleModeDryGainSync,
-        sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
+        sourceNodeRef, startTimeRef, startOffsetRef,
         isPlayingRef, rafIdRef, playBufferRef,
         meterStateRef,
         regionStartRef, regionEndRef,
@@ -169,11 +164,10 @@ const App = () => {
         getCurrentStateSnapshot: comp.getCurrentStateSnapshot,
         resetAllParams: comp.resetAllParams,
         getDefaultSnapshot: comp.getDefaultSnapshot,
-        sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
+        sourceNodeRef, isPlayingRef, startOffsetRef,
         setPlayingType: playback.setPlayingType,
         setLastPlayedType: playback.setLastPlayedType,
         currentParams: comp.currentParams,
-        dryGain: comp.dryGain,
         logAction,
     });
 
@@ -187,6 +181,7 @@ const App = () => {
         setIsCustomSettings: comp.setIsCustomSettings,
         setIsProcessing: comp.setIsProcessing,
         setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
+        isCompBypass: comp.isCompBypass, setIsCompBypass: comp.setIsCompBypass,
         lastPlayedType: playback.lastPlayedType,
         handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
@@ -197,11 +192,10 @@ const App = () => {
     });
 
     // --- 7. DSP Processing ---
-    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isGainKnobDragging || waveform.isCompAdjusting;
+    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isCompAdjusting;
     const dsp = useDSPProcessing({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
-        dryGain: comp.dryGain,
         playingType: playback.playingType,
         isDeltaMode: playback.isDeltaMode,
         setIsProcessing: comp.setIsProcessing,
@@ -216,20 +210,16 @@ const App = () => {
         playingType: playback.playingType,
         lastPlayedType: playback.lastPlayedType,
         isDeltaMode: playback.isDeltaMode,
-        dryGain: comp.dryGain,
         threshold: comp.threshold,
         mousePos: waveform.mousePos,
         hoverLine: waveform.hoverLine,
         isDraggingLineRef: waveform.isDraggingLineRef,
         isCompAdjusting: waveform.isCompAdjusting,
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        hoveredKnob: view.hoveredKnob,
-        isGainKnobDragging: waveform.isGainKnobDragging,
-        draggingGainKnob: waveform.draggingGainKnob,
+        isCompBypass: comp.isCompBypass,
         visualResult: dsp.visualResult,
         visualStep: dsp.visualStep,
         mipmaps: dsp.mipmaps,
-        mixMipmaps: dsp.mixMipmaps,
         fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
         waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef,
@@ -250,10 +240,6 @@ const App = () => {
     animateRef.current = animate;
 
     // --- RAF loop effect ---
-    // Uses a stable `loop` wrapper that reads animateRef.current each frame.
-    // This prevents zombie RAF loops: when `animate` is recreated (e.g. isDeltaMode
-    // changes), the old closure is NOT self-scheduling — only `loop` schedules,
-    // and it always delegates to the latest animate via the ref.
     useEffect(() => {
         if (playback.playingType === 'none') return;
         let active = true;
@@ -307,6 +293,8 @@ const App = () => {
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
+        isCompBypass: comp.isCompBypass,
+        setIsCompBypass: (v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
     };
     const playbackProps = {
         playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,
@@ -315,17 +303,8 @@ const App = () => {
         toggleDeltaMode: playback.toggleDeltaMode,
         togglePlayback: playback.togglePlayback,
     };
-    const outputProps = {
-        wetGainControl: comp.wetGainControl, dryGainControl: comp.dryGainControl,
-        handleGainChange: comp.handleGainChange,
-    };
     const uiProps = {
         isDraggingKnobRef,
-        handleNormalDragState: (isActive) => {
-            waveform.setIsKnobDragging(isActive);
-            waveform.setIsGainKnobDragging(isActive);
-            waveform.setDraggingGainKnob(isActive ? view.hoveredKnob : null);
-        },
         handleKnobEnter: (k) => view.setHoveredKnob(k),
         handleKnobLeave: () => view.setHoveredKnob(null),
         resetAllParams: () => {
@@ -363,7 +342,7 @@ const App = () => {
                 setTooltipsOff={handleSetTooltipsOff}
             />
 
-            <div className="flex-1 flex min-h-0 relative z-0 gap-2">
+            <div className="flex-1 flex min-h-0 relative z-0">
                 <InputMeter
                     inputCanvasRef={inputMeterCanvasRef}
                     hoveredMeterRef={hoveredMeterRef}
@@ -414,7 +393,6 @@ const App = () => {
             <ControlHud
                 compressor={compProps}
                 playback={playbackProps}
-                output={outputProps}
                 ui={uiProps}
                 tooltipsOff={tooltipsOff}
             />

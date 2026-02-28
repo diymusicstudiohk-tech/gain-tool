@@ -32,8 +32,6 @@ const useWaveformInteraction = ({
     const [hoverLine, setHoverLine] = useState(null);
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const [isKnobDragging, setIsKnobDragging] = useState(false);
-    const [isGainKnobDragging, setIsGainKnobDragging] = useState(false);
-    const [draggingGainKnob, setDraggingGainKnob] = useState(null); // 'makeup' | 'dryGain' | null
     const [isCompAdjusting, setIsCompAdjusting] = useState(false);
 
     const isDraggingLineRef = useRef(null);
@@ -244,8 +242,6 @@ const useWaveformInteraction = ({
     return {
         hoverLine, mousePos,
         isKnobDragging, setIsKnobDragging,
-        isGainKnobDragging, setIsGainKnobDragging,
-        draggingGainKnob, setDraggingGainKnob,
         isCompAdjusting, setIsCompAdjusting,
         isDraggingLineRef, isDraggingRef, hoverGrRef, isHoveringGRAreaRef,
         handleWaveformMouseDown, handleLocalMouseMove, handleMouseLeave,

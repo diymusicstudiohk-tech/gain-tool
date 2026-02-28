@@ -215,8 +215,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, dryGain: -96, inflate: 0 };
-    const targets = { threshold: -24, makeupGain: 0, dryGain: -96, inflate: 0 };
+    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0 };
+    const targets = { threshold: -24, makeupGain: 0, inflate: 0 };
 
     // Pre-compute adaptive coefficients (depend only on sampleRate)
     let compAttCoeff = 1 - Math.exp(-1 / ((ATTACK_MS / 1000) * sampleRate));
@@ -251,13 +251,12 @@ export const createRealTimeCompressor = (sampleRate) => {
                 const {
                     threshold, inflate,
                     makeupGain, isCompBypass,
-                    isDeltaMode, dryGain, lookahead,
+                    isDeltaMode, lookahead,
                 } = params;
 
                 // Update smoothing targets (P2)
                 targets.threshold = threshold;
                 targets.makeupGain = makeupGain;
-                targets.dryGain = dryGain;
                 targets.inflate = inflate ?? 0;
 
                 _isCompBypass = isCompBypass;
@@ -280,11 +279,9 @@ export const createRealTimeCompressor = (sampleRate) => {
                 // Per-sample parameter smoothing (P2)
                 smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
-                smoothed.dryGain += smoothCoeff * (targets.dryGain - smoothed.dryGain);
                 smoothed.inflate += smoothCoeff * (targets.inflate - smoothed.inflate);
 
                 const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
-                const dryLinear = Math.exp(smoothed.dryGain * LN10_OVER_20);
 
                 const inputSample = inputData[i];
 
@@ -401,7 +398,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 if (_isDeltaMode) {
                     outputData[i] = wet - delayedSample;
                 } else {
-                    outputData[i] = wet + (delayedSample * dryLinear);
+                    outputData[i] = wet;
                 }
 
                 writePos = (writePos + 1) & LOOKAHEAD_MASK;

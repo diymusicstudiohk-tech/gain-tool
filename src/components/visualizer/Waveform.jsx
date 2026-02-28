@@ -2,10 +2,10 @@ import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
 import {
-    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED,
+    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED, GREEN,
     BG_PANEL, INACTIVE, TEXT_DIM,
 } from '../../utils/colors';
-import { drawPolygon, drawPolygonWithPeakFade, drawHatchedPolygon, drawGRLine } from '../../utils/canvasPolygons';
+import { drawPolygon, drawPolygonWithPeakFade, drawGRLine } from '../../utils/canvasPolygons';
 import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawThresholdLine } from '../../utils/canvasThresholdLines';
@@ -21,16 +21,13 @@ import {
 export const drawMainWaveform = ({
     canvas, canvasDims, visualResult, originalBuffer,
     zoomX, zoomY, panOffset, panOffsetY,
-    playingType, lastPlayedType, isDeltaMode, dryGain,
+    playingType, lastPlayedType, isDeltaMode,
     threshold,
     mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted,
     hoverGrRef, // ref object
     isHoveringGRAreaRef, // ref object — true when mouse is in GR curve area
     isCompBypass,
-    isGainKnobActive,
-    activeGainKnob, // 'makeup' | 'dryGain' | null
-    isGainKnobDragging,
-    mipmaps, mixMipmaps, // mipmap data
+    mipmaps, // mipmap data
     waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
     interactionDPR,     // number | null — force lower DPR during interaction
 }) => {
@@ -52,10 +49,10 @@ export const drawMainWaveform = ({
 
     // ── Cache key ──
     const adjustBit = isCompAdjusting ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${adjustBit}`;
 
     const cache = waveformCacheRef?.current;
-    const isAnyDrag = isDraggingLine || isCompAdjusting || isGainKnobDragging;
+    const isAnyDrag = isDraggingLine || isCompAdjusting;
     const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
 
     // ── PHASE 1: Waveform background (skip when cache hit) ──
@@ -71,10 +68,10 @@ export const drawMainWaveform = ({
 
             drawDbGrid(ctx, width, height, centerY, ampScale);
 
-            const { inPoints, outPoints, mixPoints, grPoints, deltaPoints, diffOuterPoints, diffInnerPoints } = computeWaveformPoints({
+            const { inPoints, outPoints, grPoints, deltaPoints, diffOuterPoints, diffInnerPoints } = computeWaveformPoints({
                 visualResult, width, zoomX, panOffset, centerY, ampScale, grMaxHeight,
-                dryGain, isDeltaMode, lastPlayedType, isGainKnobActive,
-                mipmaps, mixMipmaps, interactionDPR, step,
+                isDeltaMode, lastPlayedType,
+                mipmaps, interactionDPR, step,
             });
 
             // Draw Polygons
@@ -86,16 +83,7 @@ export const drawMainWaveform = ({
             else {
                 const redOpacity = isCompAdjusting ? 1.0 : 0.5;
                 drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, redOpacity);
-                drawPolygonWithPeakFade(ctx, mixPoints, '#ffffff', width, centerY, 1.0, 0.2);
-
-                if (isGainKnobActive) {
-                    if (activeGainKnob === 'makeup') {
-                        drawPolygon(ctx, outPoints, GOLD, width, centerY);
-                    } else if (activeGainKnob === 'dryGain') {
-                        drawHatchedPolygon(ctx, mixPoints, GOLD, width, centerY);
-                        drawPolygon(ctx, outPoints, '#ffffff', width, centerY);
-                    }
-                }
+                drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 1.0, 0.2);
             }
             if (grPoints.length > 0) drawGRLine(ctx, grPoints, CLIP_RED);
 
@@ -129,35 +117,20 @@ export const drawMainWaveform = ({
 
     // Mouse GR Inspection + Hover Layers
     if (mousePos.x >= 0 && lastPlayedType === 'processed') {
-        // --- Detect hover on wet area, dry-contribution area, or brick-red area ---
-        let isHoveringOnWetArea = false;
-        let isHoveringOnDryArea = false;
-        let isHoveringOnWaveform = false;
+        // --- Detect hover on output area or brick-red area ---
+        let isHoveringOnOutput = false;
         let isHoveringOnBrickRed = false;
         const srcOutput = visualResult.outputData;
         const srcInput = visualResult.visualInput;
-        const dryLinear = Math.pow(10, dryGain / 20);
         if (!isDeltaMode)
         {
             const hvX = mousePos.x - panOffset;
             const hStart = Math.floor(hvX * step);
             const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
             if (hStart >= 0 && hStart < srcLength) {
-                let maxMix = 0;
                 let maxOut = 0;
                 let maxIn = 0;
-                if (useMipmaps && mixMipmaps) {
-                    const mm = selectMipmapLevel(mixMipmaps, step, mipmapBias);
-                    const lv = mm.level; const bs = mm.blockSize;
-                    const s0 = Math.floor(hStart / bs); const e0 = Math.ceil(hEnd / bs);
-                    for (let i = s0; i < e0 && i < lv.length; i++) { const a = Math.abs(lv[i]); if (a > maxMix) maxMix = a; }
-                } else {
-                    for (let i = hStart; i < hEnd; i++) {
-                        const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear));
-                        if (v > maxMix) maxMix = v;
-                    }
-                }
-                if (useMipmaps && mipmaps && mipmaps.output) {
+                if (useMipmaps && mipmaps.output) {
                     const mmO = selectMipmapLevel(mipmaps.output, step, mipmapBias);
                     const oLv = mmO.level; const oBs = mmO.blockSize;
                     const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
@@ -168,7 +141,7 @@ export const drawMainWaveform = ({
                         if (a > maxOut) maxOut = a;
                     }
                 }
-                if (useMipmaps && mipmaps && mipmaps.input) {
+                if (useMipmaps && mipmaps.input) {
                     const mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
                     const inLv = mmIn.level; const inBs = mmIn.blockSize;
                     const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
@@ -179,15 +152,10 @@ export const drawMainWaveform = ({
                         if (a > maxIn) maxIn = a;
                     }
                 }
-                const hMix = displayAmp(maxMix) * ampScale;
                 const hOut = displayAmp(maxOut) * ampScale;
                 const hIn = displayAmp(maxIn) * ampScale;
                 if (mousePos.y >= centerY - hOut && mousePos.y <= centerY + hOut) {
-                    isHoveringOnWetArea = true;
-                    isHoveringOnWaveform = true;
-                } else if (mousePos.y >= centerY - hMix && mousePos.y <= centerY + hMix) {
-                    isHoveringOnDryArea = true;
-                    isHoveringOnWaveform = true;
+                    isHoveringOnOutput = true;
                 } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
                     isHoveringOnBrickRed = true;
                 }
@@ -195,109 +163,86 @@ export const drawMainWaveform = ({
         }
 
         // --- Draw hover layers (below crosshair/labels) ---
-        if (isHoveringOnWaveform) {
-            const outPts = []; const mixPts = [];
+        if (isHoveringOnOutput) {
+            const outPts = [];
             const hlStartX = Math.max(0, Math.floor(panOffset) - 1);
             const hlEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            let hmOut, hmMix;
+            let hmOut;
             if (useMipmaps) {
                 hmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
-                if (mixMipmaps) hmMix = selectMipmapLevel(mixMipmaps, step, mipmapBias);
             }
             for (let x = hlStartX; x < hlEndX; x++) {
                 const vx = x - panOffset;
                 const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
                 if (s < 0 || s >= srcLength) continue;
                 const se = Math.min(srcLength, e);
-                let mxOut = 0; let mxMix = 0;
+                let mxOut = 0;
                 const ls = Math.max(s, 0);
                 if (se - ls > 0) {
-                    if (useMipmaps) {
+                    if (useMipmaps && hmOut) {
                         const oL = hmOut.level; const oB = hmOut.blockSize;
                         const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
                         for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
-                        if (hmMix) {
-                            const mL = hmMix.level; const mB = hmMix.blockSize;
-                            const ms = Math.floor(ls / mB); const me = Math.ceil(se / mB);
-                            for (let i = ms; i < me && i < mL.length; i++) { const a = Math.abs(mL[i]); if (a > mxMix) mxMix = a; }
-                        } else {
-                            for (let i = ls; i < se; i++) { const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (v > mxMix) mxMix = v; }
-                        }
                     } else {
                         for (let i = ls; i < se; i++) {
                             const aO = Math.abs(srcOutput[i]); if (aO > mxOut) mxOut = aO;
-                            const mV = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mV > mxMix) mxMix = mV;
                         }
                     }
                 } else {
                     const idx = Math.min(Math.floor(ls), srcLength - 1);
-                    if (idx >= 0) {
-                        mxOut = Math.abs(srcOutput[idx]);
-                        mxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
-                    }
+                    if (idx >= 0) { mxOut = Math.abs(srcOutput[idx]); }
                 }
                 const hO = displayAmp(mxOut) * ampScale;
-                const hM = displayAmp(mxMix) * ampScale;
                 outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
-                mixPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
             }
-            if (isHoveringOnDryArea) {
-                drawHatchedPolygon(ctx, mixPts, GOLD, width, centerY);
-                drawPolygon(ctx, outPts, '#ffffff', width, centerY);
-            } else {
-                drawPolygon(ctx, outPts, GOLD, width, centerY);
-            }
+            drawPolygon(ctx, outPts, GOLD, width, centerY);
         }
 
         // --- Draw brick-red hover overlay (bright red) ---
         if (isHoveringOnBrickRed) {
-            const inPts = []; const mxPts = [];
+            const inPts = []; const outPts = [];
             const brStartX = Math.max(0, Math.floor(panOffset) - 1);
             const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            let hmIn, hmMix2;
+            let hmIn, hmOut;
             if (useMipmaps) {
                 hmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
-                if (mixMipmaps) hmMix2 = selectMipmapLevel(mixMipmaps, step, mipmapBias);
+                hmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
             }
             for (let x = brStartX; x < brEndX; x++) {
                 const vx = x - panOffset;
                 const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
                 if (s < 0 || s >= srcLength) continue;
                 const se = Math.min(srcLength, e);
-                let mxIn = 0; let mxMix = 0;
+                let mxIn = 0; let mxOut = 0;
                 const ls = Math.max(s, 0);
                 if (se - ls > 0) {
                     if (useMipmaps) {
                         const iL = hmIn.level; const iB = hmIn.blockSize;
                         const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
                         for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
-                        if (hmMix2) {
-                            const mL = hmMix2.level; const mB = hmMix2.blockSize;
-                            const ms = Math.floor(ls / mB); const me = Math.ceil(se / mB);
-                            for (let i = ms; i < me && i < mL.length; i++) { const a = Math.abs(mL[i]); if (a > mxMix) mxMix = a; }
-                        } else {
-                            for (let i = ls; i < se; i++) { const v = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (v > mxMix) mxMix = v; }
-                        }
+                        const oL = hmOut.level; const oB = hmOut.blockSize;
+                        const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
+                        for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
                     } else {
                         for (let i = ls; i < se; i++) {
                             const aI = Math.abs(srcInput[i]); if (aI > mxIn) mxIn = aI;
-                            const mV = Math.abs(srcOutput[i] + (srcInput[i] * dryLinear)); if (mV > mxMix) mxMix = mV;
+                            const aO = Math.abs(srcOutput[i]); if (aO > mxOut) mxOut = aO;
                         }
                     }
                 } else {
                     const idx = Math.min(Math.floor(ls), srcLength - 1);
                     if (idx >= 0) {
                         mxIn = Math.abs(srcInput[idx]);
-                        mxMix = Math.abs(srcOutput[idx] + (srcInput[idx] * dryLinear));
+                        mxOut = Math.abs(srcOutput[idx]);
                     }
                 }
                 const hI = displayAmp(mxIn) * ampScale;
-                const hM = displayAmp(mxMix) * ampScale;
+                const hO = displayAmp(mxOut) * ampScale;
                 inPts.push({ x, yTop: centerY - hI, yBot: centerY + hI });
-                mxPts.push({ x, yTop: centerY - hM, yBot: centerY + hM });
+                outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
             }
             drawPolygonWithPeakFade(ctx, inPts, HOVER_RED, width, centerY);
-            drawPolygonWithPeakFade(ctx, mxPts, '#ffffff', width, centerY, 1.0, 0.2);
+            drawPolygonWithPeakFade(ctx, outPts, '#ffffff', width, centerY, 1.0, 0.2);
         }
 
         // --- GR value computation ---
@@ -377,10 +322,8 @@ export const drawMainWaveform = ({
         // --- Legends ---
         const bgX = mousePos.x + TOOLTIP_OFFSET_X;
 
-        if (isHoveringOnWetArea || isHoveringOnDryArea) {
-            const legendText = isHoveringOnWetArea
-                ? '金色實色 = 壓縮後訊號'
-                : '金色斜線 = 額外補回的乾訊號';
+        if (isHoveringOnOutput) {
+            const legendText = '金色實色 = 壓縮後訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
             const legendW = lw + LEGEND_PAD_X * 2;

@@ -25,10 +25,10 @@ const useAudioEngine = ({
     audioContext, originalBuffer, setOriginalBuffer,
     applyStateSnapshot, getCurrentStateSnapshot, resetAllParams, getDefaultSnapshot,
     // Shared refs
-    sourceNodeRef, drySourceNodeRef, isPlayingRef, startOffsetRef,
+    sourceNodeRef, isPlayingRef, startOffsetRef,
     // Playback setters (from usePlayback, wired via App)
     setPlayingType, setLastPlayedType,
-    currentParams, dryGain, logAction,
+    currentParams, logAction,
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
@@ -92,7 +92,7 @@ const useAudioEngine = ({
             }
 
             setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            stopCurrentSource(sourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
             setOriginalBuffer(null);
             startOffsetRef.current = 0;
@@ -120,7 +120,7 @@ const useAudioEngine = ({
             setErrorMsg(`載入失敗: ${err.message}`);
             setIsLoading(false); setLoadingMessage('');
         }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const handleFileUpload = useCallback(async (e) => {
@@ -148,7 +148,7 @@ const useAudioEngine = ({
             }
 
             setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            stopCurrentSource(sourceNodeRef);
             setPlayingType('none'); isPlayingRef.current = false;
 
             startOffsetRef.current = 0;
@@ -168,7 +168,7 @@ const useAudioEngine = ({
             setErrorMsg('無法解析音檔，請確認格式 (MP3/WAV/M4A/AAC/FLAC)。');
             setIsLoading(false); setLoadingMessage('');
         }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     const saveSessionState = useCallback((mode) => {
@@ -179,17 +179,17 @@ const useAudioEngine = ({
 
     const restoreUserUpload = useCallback(() => {
         if (!userBufferRef.current || !audioContext) return;
-        stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+        stopCurrentSource(sourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
         startOffsetRef.current = 0;
         setCurrentSourceId('upload');
         setFileName(userFileNameRef.current);
         handleDecodedBuffer(userBufferRef.current);
-    }, [audioContext, handleDecodedBuffer, sourceNodeRef, drySourceNodeRef, isPlayingRef,
+    }, [audioContext, handleDecodedBuffer, sourceNodeRef, isPlayingRef,
         startOffsetRef, setPlayingType]);
 
     const switchToPractice = useCallback(() => {
-        stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+        stopCurrentSource(sourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
 
         // Save current source params to localStorage
@@ -209,11 +209,11 @@ const useAudioEngine = ({
             const defaultSource = AUDIO_SOURCES[0];
             loadAudio(defaultSource, { skipSavePrev: true });
         }
-    }, [sourceNodeRef, drySourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
+    }, [sourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
         loadAudio, setPlayingType]);
 
     const switchToUpload = useCallback(() => {
-        stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+        stopCurrentSource(sourceNodeRef);
         setPlayingType('none'); isPlayingRef.current = false;
 
         // Save current source params to localStorage
@@ -237,7 +237,7 @@ const useAudioEngine = ({
             }
             restoreUserUpload();
         }
-    }, [sourceNodeRef, drySourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
+    }, [sourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
         applyStateSnapshot, handleDecodedBuffer, restoreUserUpload, setPlayingType]);
 
     const clearUserUpload = useCallback(() => {
@@ -254,11 +254,8 @@ const useAudioEngine = ({
             try {
                 const inputData = originalBuffer.getChannelData(0);
                 const res = processCompressor(inputData, audioContext.sampleRate, currentParams, 1);
-                const dryLinear = Math.pow(10, dryGain / 20);
-                const mixedData = new Float32Array(inputData.length);
-                for (let i = 0; i < inputData.length; i++) mixedData[i] = res.outputData[i] + (inputData[i] * dryLinear);
                 const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);
-                exportBuffer.copyToChannel(mixedData, 0);
+                exportBuffer.copyToChannel(res.outputData, 0);
                 const url = URL.createObjectURL(writeWavFile(exportBuffer));
                 const dotIdx = fileName.lastIndexOf('.');
                 const baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
@@ -270,7 +267,7 @@ const useAudioEngine = ({
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             } catch (e) { console.error(e); setErrorMsg("匯出失敗"); } finally { setIsLoading(false); }
         }, 50);
-    }, [originalBuffer, audioContext, currentParams, dryGain, fileName]);
+    }, [originalBuffer, audioContext, currentParams, fileName]);
 
     // Load initial state from storage
     useEffect(() => {
@@ -371,7 +368,7 @@ const useAudioEngine = ({
 
             setIsLoading(true);
             setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            stopCurrentSource(sourceNodeRef);
             setPlayingType('none');
             isPlayingRef.current = false;
             startOffsetRef.current = 0;
@@ -397,7 +394,7 @@ const useAudioEngine = ({
             setErrorMsg('無法載入自訂音檔，請重新上載。');
             setIsLoading(false); setLoadingMessage('');
         }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef, drySourceNodeRef,
+    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef,
         isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {

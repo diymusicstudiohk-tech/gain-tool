@@ -1,7 +1,7 @@
 /**
  * Stop and disconnect source nodes safely.
  */
-export const stopCurrentSource = (sourceNodeRef, drySourceNodeRef) => {
+export const stopCurrentSource = (sourceNodeRef) => {
     if (sourceNodeRef.current) {
         try {
             sourceNodeRef.current.stop();
@@ -14,13 +14,6 @@ export const stopCurrentSource = (sourceNodeRef, drySourceNodeRef) => {
             }
         } catch (e) { }
         sourceNodeRef.current = null;
-    }
-    if (drySourceNodeRef && drySourceNodeRef.current) {
-        try {
-            drySourceNodeRef.current.stop();
-            drySourceNodeRef.current.disconnect();
-        } catch (e) { }
-        drySourceNodeRef.current = null;
     }
 };
 

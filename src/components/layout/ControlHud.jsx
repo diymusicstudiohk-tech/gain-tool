@@ -1,28 +1,22 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import React, { useRef, useCallback } from 'react';
 import RotaryKnob from '../ui/RotaryKnob';
+import PowerButton from '../ui/PowerButton';
 import PlaybackControls from './PlaybackControls';
 import { TOOLTIPS } from '../../utils/constants';
-import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl, lookaheadControlToMs, lookaheadMsToControl } from '../../hooks/useCompressorParams';
+import { lookaheadControlToMs, lookaheadMsToControl } from '../../hooks/useCompressorParams';
 
-const ControlHud = ({ compressor, playback, output, ui, tooltipsOff }) => {
+const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
     // Destructure grouped props
     const {
         threshold, inflate, lookahead, lookaheadControl,
         handleThresholdChange, handleCompKnobChange, handleCompDragState, hasThresholdBeenAdjusted,
+        isCompBypass, setIsCompBypass,
     } = compressor;
     const { lastPlayedType, isDryMode, handleModeChange } = playback;
-    const { wetGainControl, dryGainControl, handleGainChange } = output;
-    const { isDraggingKnobRef, handleNormalDragState, handleKnobEnter, handleKnobLeave, resetAllParams } = ui;
-
-    const [expandedModule, setExpandedModule] = useState('comp');
-    const cycleModule = (current) => {
-        const order = ['comp', 'output'];
-        return order[(order.indexOf(current) + 1) % order.length];
-    };
+    const { isDraggingKnobRef, handleKnobEnter, handleKnobLeave, resetAllParams } = ui;
 
     // Touch legend tooltip state
-    const [legendTooltip, setLegendTooltip] = useState(null);
+    const [legendTooltip, setLegendTooltip] = React.useState(null);
     const legendTimerRef = useRef(null);
 
     const showLegendTooltip = useCallback((text, autoHide = false) => {
@@ -69,32 +63,14 @@ const ControlHud = ({ compressor, playback, output, ui, tooltipsOff }) => {
 
                         {/* COMPRESSOR MODULE */}
                         <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'comp' ? cycleModule('comp') : 'comp')}>
-                                {expandedModule === 'comp'
-                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                }
-                                <span className="text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors text-slate-400 group-hover/label:text-slate-200" style={{ writingMode: 'vertical-lr' }}>LIMITER</span>
+                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none group/label">
+                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isCompBypass ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>LIMITER</span>
+                                <PowerButton isOn={!isCompBypass} onClick={(e) => { e.stopPropagation(); setIsCompBypass(!isCompBypass); }} className="mt-auto" />
                             </div>
-                            <div className={`grid grid-cols-3 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'comp' ? 'max-w-[800px] opacity-100' : 'max-w-0 opacity-0'}`}>
-                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="INFLATE" value={inflate} min={0} max={100} step={1} unit="%" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('inflate', v)} onDragStateChange={handleCompDragState} tooltipKey="inflate" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
-                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="THRESHOLD" shortLabel={"THRE-\nSHOLD"} value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" defaultValue={0} onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
-                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" shortLabel={"LOOK-\nAHEAD"} value={lookaheadControl} min={0} max={100} step={1} displayValue={lookaheadControlToMs(lookaheadControl).toFixed(1)} unit="ms" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile parseEditValue={(v) => lookaheadMsToControl(parseFloat(v))} />
-                            </div>
-                        </div>
-
-                        {/* OUTPUT MODULE */}
-                        <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors">
-                            <div className="flex flex-col items-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none cursor-pointer group/label" onClick={() => setExpandedModule(expandedModule === 'output' ? cycleModule('output') : 'output')}>
-                                {expandedModule === 'output'
-                                    ? <ChevronLeft size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                    : <ChevronRight size={12} className="w-[10px] h-[10px] min-[740px]:w-3 min-[740px]:h-3 text-slate-500 group-hover/label:text-slate-200 transition-colors" />
-                                }
-                                <span className={`text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors ${isDryMode ? 'text-slate-700' : 'text-slate-400 group-hover/label:text-slate-200'}`} style={{ writingMode: 'vertical-lr' }}>OUTPUT</span>
-                            </div>
-                            <div className={`grid grid-cols-1 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'output' ? 'max-w-[400px] opacity-100' : 'max-w-0 opacity-0'}`}>
-                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="WET" value={wetGainControl} min={0} max={100} step={0.5} defaultValue={50} displayValue={wetGainControl <= 0 ? '-∞' : wetGainControlToDb(wetGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('makeupGain', v)} onDragStateChange={handleNormalDragState} tooltipKey="makeup" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} parseEditValue={(v) => wetGainDbToControl(v)} />
-                                <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="DRY" value={dryGainControl} min={0} max={100} step={0.5} defaultValue={0} displayValue={dryGainControl <= 0 ? '-∞' : dryGainControlToDb(dryGainControl).toFixed(1)} unit="dB" color="gold" onChange={(v) => handleGainChange('dryGainControl', v)} onDragStateChange={handleNormalDragState} tooltipKey="dryGain" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} parseEditValue={(v) => dryGainDbToControl(v)} />
+                            <div className="grid grid-cols-3 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px]">
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="INFLATE" value={inflate} min={0} max={100} step={1} unit="%" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('inflate', v)} onDragStateChange={handleCompDragState} tooltipKey="inflate" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" shortLabel={"THRE-\nSHOLD"} value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" defaultValue={0} onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" shortLabel={"LOOK-\nAHEAD"} value={lookaheadControl} min={0} max={100} step={1} displayValue={lookaheadControlToMs(lookaheadControl).toFixed(1)} unit="ms" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile parseEditValue={(v) => lookaheadMsToControl(parseFloat(v))} />
                             </div>
                         </div>
                     </div>

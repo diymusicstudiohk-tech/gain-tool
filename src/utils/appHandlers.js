@@ -96,20 +96,15 @@ export const handleFileUploadLogic = async (file, audioContext, setIsLoading, se
 /**
  * Handle download
  */
-export const handleDownloadLogic = (currentSourceId, originalBuffer, audioContext, currentParams, dryGain, fileName, setIsLoading, setErrorMsg) => {
+export const handleDownloadLogic = (currentSourceId, originalBuffer, audioContext, currentParams, fileName, setIsLoading, setErrorMsg) => {
     if (currentSourceId !== 'upload' || !originalBuffer || !audioContext) return;
     setIsLoading(true);
     setTimeout(() => {
         try {
             const inputData = originalBuffer.getChannelData(0);
             const res = processCompressor(inputData, audioContext.sampleRate, currentParams, 1);
-            const dryLinear = Math.pow(10, dryGain / 20);
-            const mixedData = new Float32Array(inputData.length);
-            for (let i = 0; i < inputData.length; i++) {
-                mixedData[i] = res.outputData[i] + (inputData[i] * dryLinear);
-            }
             const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);
-            exportBuffer.copyToChannel(mixedData, 0);
+            exportBuffer.copyToChannel(res.outputData, 0);
             const url = URL.createObjectURL(writeWavFile(exportBuffer));
             const dotIdx = fileName.lastIndexOf('.');
             const baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;

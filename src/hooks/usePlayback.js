@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createRealTimeCompressor } from '../utils/dsp';
-import { stopCurrentSource } from '../utils/audioHelper';
 
 /**
  * Receives animateRef (not animate value) to break circular dep with useVisualizerLoop.
  * The RAF restart effect is managed by App.jsx.
  */
 const usePlayback = ({
-    audioContext, originalBuffer, paramsRef, dryGain, dryGainNodeRef,
-    animateRef, fullAudioDataRef, logAction, handleModeDryGainSync,
+    audioContext, originalBuffer, paramsRef,
+    animateRef, fullAudioDataRef, logAction,
     // Shared refs from App
-    sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef,
+    sourceNodeRef, startTimeRef, startOffsetRef,
     isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
     // Region bounds (normalized 0-1)
     regionStartRef, regionEndRef,
@@ -42,7 +41,6 @@ const usePlayback = ({
     }, [isDeltaMode, paramsRef]);
 
     // Send parameter updates to AudioWorklet processor via postMessage
-    // Only send when params have actually changed (dirty check)
     useEffect(() => {
         if (workletNodeRef.current && paramsRef.current) {
             const current = paramsRef.current;
@@ -66,16 +64,16 @@ const usePlayback = ({
     }, [isDeltaMode, playingType, lastPlayedType, fullAudioDataRef, audioContext,
         startTimeRef, startOffsetRef, playBufferRef]);
 
-    // Sync Dry Gain
-    useEffect(() => {
-        if (dryGainNodeRef.current && audioContext) {
-            dryGainNodeRef.current.gain.setTargetAtTime(Math.pow(10, dryGain / 20), audioContext.currentTime, 0.01);
+    const stopCurrentSource = useCallback(() => {
+        if (sourceNodeRef.current) {
+            try { sourceNodeRef.current.stop(); } catch (_) {}
+            sourceNodeRef.current = null;
         }
-    }, [dryGain, audioContext, dryGainNodeRef]);
+    }, [sourceNodeRef]);
 
     const playBuffer = useCallback((buffer, type, offset) => {
         if (!audioContext || !buffer) return;
-        stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+        stopCurrentSource();
         workletNodeRef.current = null;
 
         const runPlayback = async () => {
@@ -106,7 +104,6 @@ const usePlayback = ({
 
                 if (type === 'processed') {
                     if (workletReady) {
-                        // AudioWorklet path (P1)
                         const workletNode = new AudioWorkletNode(audioContext, 'compressor-processor');
                         workletNode.port.postMessage(paramsRef.current);
                         source.connect(workletNode);
@@ -114,7 +111,6 @@ const usePlayback = ({
                         source._workletNode = workletNode;
                         workletNodeRef.current = workletNode;
                     } else {
-                        // Fallback: ScriptProcessor path
                         const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                         const compressor = createRealTimeCompressor(audioContext.sampleRate);
                         scriptNode.onaudioprocess = (e) => {
@@ -132,8 +128,6 @@ const usePlayback = ({
                 source.start(0, safeOffset);
                 setPlayingType(type);
                 setLastPlayedType(type);
-                // RAF loop is managed by App.jsx effect — no self-scheduling here.
-                // The effect restarts the loop when playingType or animate changes.
             } catch (e) {
                 console.error("BS/Script creation error", e);
                 setPlayingType('none');
@@ -141,7 +135,7 @@ const usePlayback = ({
             }
         }
     }, [audioContext, originalBuffer, paramsRef, workletReady,
-        sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef]);
+        sourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, stopCurrentSource]);
 
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer, playBufferRef]);
 
@@ -151,7 +145,7 @@ const usePlayback = ({
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current;
             startOffsetRef.current += elapsed;
-            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            stopCurrentSource();
             setPlayingType('none');
             cancelAnimationFrame(rafIdRef.current);
             isPlayingRef.current = false;
@@ -163,7 +157,6 @@ const usePlayback = ({
                 const rEnd = (regionEndRef?.current ?? 1) * duration;
                 let offset = startOffsetRef.current;
 
-                // If playhead is outside the golden box region, snap to region start
                 if (offset < rStart || offset >= rEnd) {
                     offset = rStart;
                     startOffsetRef.current = offset;
@@ -174,19 +167,18 @@ const usePlayback = ({
             }
         }
     }, [playingType, lastPlayedType, originalBuffer, playBuffer, audioContext,
-        logAction, sourceNodeRef, drySourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
-        regionStartRef, regionEndRef]);
+        logAction, sourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
+        regionStartRef, regionEndRef, stopCurrentSource]);
 
     const handleModeChange = useCallback((type) => {
         logAction(`SET_MODE: ${type}`);
         setLastPlayedType(type);
-        handleModeDryGainSync(type);
 
         if (playingType !== 'none') {
             const elapsed = audioContext.currentTime - startTimeRef.current;
             let currentPos = startOffsetRef.current + elapsed;
 
-            stopCurrentSource(sourceNodeRef, drySourceNodeRef);
+            stopCurrentSource();
             setPlayingType('none');
             isPlayingRef.current = false;
 
@@ -195,8 +187,8 @@ const usePlayback = ({
             }, 50);
         }
     }, [playingType, audioContext, originalBuffer, playBuffer,
-        logAction, handleModeDryGainSync, sourceNodeRef, drySourceNodeRef, startTimeRef,
-        startOffsetRef, isPlayingRef]);
+        logAction, sourceNodeRef, startTimeRef,
+        startOffsetRef, isPlayingRef, stopCurrentSource]);
 
     const toggleDeltaMode = useCallback((e) => {
         e.stopPropagation();

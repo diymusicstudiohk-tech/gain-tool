@@ -6,28 +6,21 @@ import { buildMipmaps } from '../utils/mipmapCache';
 const MAX_SMOOTH_POINTS = 250000;
 const MAX_INTERACTION_POINTS = 50000;
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
     const fullResCacheRef = useRef(null);
     const interactionCacheRef = useRef(null);
     // Pre-allocated buffers to avoid GC pressure on recompute
-    const preallocBufRef = useRef({ output: null, gr: null, mix: null });
+    const preallocBufRef = useRef({ output: null, gr: null });
 
     // Defer param updates entirely during drag — only apply on mouse release
-    const [debouncedDryGain, setDebouncedDryGain] = useState(dryGain);
     useEffect(() => {
         if (!isAnyKnobDragging) {
             setDebouncedParams(currentParams);
         }
     }, [currentParams, isAnyKnobDragging]);
-
-    useEffect(() => {
-        if (!isAnyKnobDragging) {
-            setDebouncedDryGain(dryGain);
-        }
-    }, [dryGain, isAnyKnobDragging]);
 
     // Downsampling for Visuals — build both full-res and interaction caches
     useEffect(() => {
@@ -93,31 +86,10 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         };
     }, [visualResult]);
 
-    // Build mix mipmaps (uses debouncedDryGain to avoid recompute during drag)
-    const mixMipmaps = useMemo(() => {
-        if (!visualResult) return null;
-        const src = visualResult;
-        const dryLinear = Math.pow(10, debouncedDryGain / 20);
-        const len = src.outputData.length;
-        const pa = preallocBufRef.current;
-        if (!pa.mix || pa.mix.length !== len) pa.mix = new Float32Array(len);
-        const mixData = pa.mix;
-        for (let i = 0; i < len; i++) {
-            mixData[i] = Math.abs(src.outputData[i] + (src.visualInput[i] * dryLinear));
-        }
-        return buildMipmaps(mixData, 'absMax');
-    }, [visualResult, debouncedDryGain]);
-
     // visualStep = original samples per visual cache sample
     const visualStep = visualSourceCache.step;
 
     // Full Audio Processing (Async Chunking)
-    // NOTE: isDeltaMode is intentionally NOT in the dependency array.
-    // The offline processing always computes with isDeltaMode=false to produce
-    // a stable outputBuffer + deltaBuffer. Real-time delta mode is handled by
-    // the AudioWorklet via paramsRef. Including isDeltaMode here caused a race
-    // condition: toggling delta triggered a ~500-900ms reprocess that nulled
-    // fullAudioDataRef, breaking playback and loop restart.
     useEffect(() => {
         if (!originalBuffer || !audioContext) return;
         fullAudioDataRef.current = null;
@@ -126,8 +98,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         const inputData = originalBuffer.getChannelData(0);
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
-        // Always process with isDeltaMode=false — delta buffer is derived post-processing
-        const params = { ...debouncedParams, dryGain: debouncedDryGain, isDeltaMode: false };
+        const params = { ...debouncedParams, dryGain: -200, isDeltaMode: false };
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
@@ -157,12 +128,11 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, dryGain
         processingTaskRef.current = setTimeout(processChunk, 150);
 
         return () => { if (processingTaskRef.current) clearTimeout(processingTaskRef.current); };
-    }, [originalBuffer, audioContext, debouncedParams, debouncedDryGain, setIsProcessing]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [originalBuffer, audioContext, debouncedParams, setIsProcessing]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         visualResult,
         mipmaps,
-        mixMipmaps,
         visualStep,
         fullAudioDataRef,
         processingTaskRef,

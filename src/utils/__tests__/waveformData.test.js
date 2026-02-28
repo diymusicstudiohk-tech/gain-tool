@@ -23,12 +23,9 @@ const baseParams = {
     centerY: 200,
     ampScale: 180,
     grMaxHeight: 90,
-    dryGain: -96,
     isDeltaMode: false,
     lastPlayedType: 'processed',
-    isGainKnobActive: false,
     mipmaps: null,
-    mixMipmaps: null,
     interactionDPR: 0,
     step: 10,
 };
@@ -51,15 +48,15 @@ describe('computeWaveformPoints', () => {
         }
     });
 
-    it('does not produce outPoints when isGainKnobActive=false and isDeltaMode=false', () => {
+    it('does not produce outPoints when lastPlayedType=original and isDeltaMode=false', () => {
         const visualResult = makeVisualResult(1000);
-        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult });
+        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'original' });
         expect(outPoints.length).toBe(0);
     });
 
-    it('produces outPoints when isGainKnobActive=true', () => {
+    it('produces outPoints when lastPlayedType=processed', () => {
         const visualResult = makeVisualResult(1000);
-        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult, isGainKnobActive: true });
+        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'processed' });
         expect(outPoints.length).toBeGreaterThan(0);
     });
 
@@ -69,16 +66,16 @@ describe('computeWaveformPoints', () => {
         expect(deltaPoints.length).toBeGreaterThan(0);
     });
 
-    it('produces mixPoints for processed type', () => {
+    it('produces outPoints for processed type', () => {
         const visualResult = makeVisualResult(1000);
-        const { mixPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'processed' });
-        expect(mixPoints.length).toBeGreaterThan(0);
+        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'processed' });
+        expect(outPoints.length).toBeGreaterThan(0);
     });
 
-    it('does not produce mixPoints for non-processed type', () => {
+    it('does not produce outPoints for non-processed non-delta type', () => {
         const visualResult = makeVisualResult(1000);
-        const { mixPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'original' });
-        expect(mixPoints.length).toBe(0);
+        const { outPoints } = computeWaveformPoints({ ...baseParams, visualResult, lastPlayedType: 'original', isDeltaMode: false });
+        expect(outPoints.length).toBe(0);
     });
 
     it('produces grPoints with negative GR', () => {
