@@ -340,7 +340,7 @@ const App = () => {
                 setTooltipsOff={handleSetTooltipsOff}
             />
 
-            <div className="flex-1 flex min-h-0 relative z-0">
+            <div className="flex-1 flex min-h-0 relative z-0 gap-2">
                 <InputMeter
                     inputCanvasRef={inputMeterCanvasRef}
                     hoveredMeterRef={hoveredMeterRef}
