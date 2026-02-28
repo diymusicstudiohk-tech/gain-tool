@@ -31,6 +31,8 @@ const usePlayback = ({
 
     // Ref to track active AudioWorkletNode for parameter updates
     const workletNodeRef = useRef(null);
+    // Track last sent params to avoid redundant postMessage calls
+    const lastSentParamsRef = useRef(null);
 
     // Sync isDeltaMode into paramsRef so processor reads the correct value
     useEffect(() => {
@@ -40,9 +42,15 @@ const usePlayback = ({
     }, [isDeltaMode, paramsRef]);
 
     // Send parameter updates to AudioWorklet processor via postMessage
+    // Only send when params have actually changed (dirty check)
     useEffect(() => {
         if (workletNodeRef.current && paramsRef.current) {
-            workletNodeRef.current.port.postMessage(paramsRef.current);
+            const current = paramsRef.current;
+            const last = lastSentParamsRef.current;
+            if (!last || Object.keys(current).some(k => current[k] !== last[k])) {
+                lastSentParamsRef.current = { ...current };
+                workletNodeRef.current.port.postMessage(current);
+            }
         }
     });
 
