@@ -49,7 +49,7 @@ const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
                 </div>
             )}
             {/* MAIN HUD */}
-            <div className="z-30 transition-all select-none flex h-[200px] min-[740px]:h-[140px] flex-none" onMouseDown={e => e.stopPropagation()}>
+            <div className="z-30 transition-all select-none flex h-[140px] flex-none" onMouseDown={e => e.stopPropagation()}>
 
                 {/* Main Controls Area */}
                 <div className="flex-1 flex items-end justify-center gap-2 px-4 md:px-8 pb-4 pt-4">
@@ -60,11 +60,11 @@ const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
                     <div className="flex items-stretch gap-2 flex-none relative self-stretch overflow-x-auto hide-scrollbar">
 
                         {/* COMPRESSOR MODULE */}
-                        <div className="flex items-start min-[740px]:items-center gap-1 min-[740px]:gap-2 rounded-xl px-1 min-[740px]:px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
-                            <div className="flex flex-col items-center justify-center gap-1 min-[740px]:gap-1.5 self-stretch pt-[10px] pb-[10px] min-[740px]:pt-[14px] min-[740px]:pb-[14px] select-none group/label">
-                                <span className="text-[10px] min-[740px]:text-xs font-bold tracking-widest transition-colors text-slate-400 group-hover/label:text-slate-200" style={{ writingMode: 'vertical-lr' }}>LIMITER</span>
+                        <div className="flex items-center gap-2 rounded-xl px-2 border border-gold/30 flex-none transition-colors" onMouseEnter={() => { if (lastPlayedType === 'original') handleModeChange('processed'); }}>
+                            <div className="flex flex-col items-center justify-center gap-1.5 self-stretch pt-[14px] pb-[14px] select-none group/label">
+                                <span className="text-xs font-bold tracking-widest transition-colors text-slate-400 group-hover/label:text-slate-200" style={{ writingMode: 'vertical-lr' }}>LIMITER</span>
                             </div>
-                            <div className="grid grid-cols-3 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px]">
+                            <div className="flex pt-[25px]">
                                 <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="INFLATE" value={inflate} min={0} max={100} step={1} unit="%" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('inflate', v)} onDragStateChange={handleCompDragState} tooltipKey="inflate" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
                                 <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="THRESHOLD" shortLabel={"THRE-\nSHOLD"} value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" defaultValue={0} onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
                                 <RotaryKnob disabled={isDryMode} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" shortLabel={"LOOK-\nAHEAD"} value={lookaheadControl} min={0} max={100} step={1} displayValue={lookaheadControlToMs(lookaheadControl).toFixed(1)} unit="ms" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile parseEditValue={(v) => lookaheadMsToControl(parseFloat(v))} />
