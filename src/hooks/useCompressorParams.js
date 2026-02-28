@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { PRESETS_DATA } from '../utils/constants';
 import { loadParamsFromStorage } from '../utils/storage';
 import {
     dryGainControlToDb, dryGainDbToControl,
@@ -22,7 +21,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [dryGainControl, setDryGainControl] = useState(0);
 
     const [isCompBypass, setIsCompBypass] = useState(false);
-    const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted] = useState(true);
@@ -103,35 +101,28 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setHasThresholdBeenAdjusted(true);
     }, [updateParamGeneric]);
 
-    const applyPreset = useCallback((idx) => {
-        const p = PRESETS_DATA[idx]; if (!p) return;
-        logAction(`LOAD_PRESET: ${p.name}`);
-        setSelectedPresetIdx(idx); setIsCustomSettings(false); setIsProcessing(true);
-        setThreshold(p.params.threshold);
-        setInflate(p.params.inflate ?? 0);
-        setLookahead(p.params.lookahead);
-        setLookaheadControl(lookaheadMsToControl(p.params.lookahead));
-        const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
-        setMakeupGain(clampedMakeup);
-        setWetGainControl(wetGainDbToControl(clampedMakeup));
-        setDryGain(p.params.dryGain);
-        setDryGainControl(dryGainDbToControl(p.params.dryGain));
-        setIsCompBypass(false);
-        ensureProcessedMode();
-    }, [logAction, ensureProcessedMode]);
-
     const resetAllParams = useCallback(() => {
-        applyPreset(0);
+        setThreshold(0);
+        setInflate(0);
+        setLookahead(3);
+        setLookaheadControl(lookaheadMsToControl(3));
+        setMakeupGain(0);
+        setWetGainControl(50);
+        setDryGain(-200);
+        setDryGainControl(0);
+        setIsCustomSettings(false);
+        setIsProcessing(true);
+        setIsCompBypass(false);
         gainAdjustedRef.current = false;
         setHasThresholdBeenAdjusted(true);
-        setIsCompBypass(false);
-    }, [applyPreset]);
+        ensureProcessedMode();
+    }, [ensureProcessedMode]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
         threshold, inflate, lookahead, lookaheadControl, makeupGain, wetGainControl, dryGain, dryGainControl,
-        selectedPresetIdx, isCustomSettings, isCompBypass
+        isCustomSettings, isCompBypass
     }), [threshold, inflate, lookahead, lookaheadControl, makeupGain, wetGainControl, dryGain, dryGainControl,
-        selectedPresetIdx, isCustomSettings, isCompBypass]);
+        isCustomSettings, isCompBypass]);
 
     const applyStateSnapshot = useCallback((snap) => {
         if (!snap) return;
@@ -143,23 +134,19 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
         setDryGain(snap.dryGain);
         setDryGainControl(snap.dryGainControl !== undefined ? snap.dryGainControl : dryGainDbToControl(snap.dryGain));
-        setSelectedPresetIdx(snap.selectedPresetIdx); setIsCustomSettings(snap.isCustomSettings);
+        setIsCustomSettings(snap.isCustomSettings);
         setIsCompBypass(snap.isCompBypass || false);
         setIsProcessing(true);
         ensureProcessedMode();
     }, [ensureProcessedMode]);
 
-    const getDefaultSnapshot = useCallback(() => {
-        const def = PRESETS_DATA[0].params;
-        const clampedMakeup = Math.max(-200, Math.min(15, def.makeupGain));
-        return {
-            ...def, makeupGain: clampedMakeup,
-            wetGainControl: wetGainDbToControl(clampedMakeup),
-            dryGainControl: dryGainDbToControl(def.dryGain),
-            selectedPresetIdx: 0, isCustomSettings: false,
-            isCompBypass: false
-        };
-    }, []);
+    const getDefaultSnapshot = useCallback(() => ({
+        threshold: 0, inflate: 0, lookahead: 3,
+        lookaheadControl: lookaheadMsToControl(3),
+        makeupGain: 0, wetGainControl: 50,
+        dryGain: -200, dryGainControl: 0,
+        isCustomSettings: false, isCompBypass: false
+    }), []);
 
     const handleModeDryGainSync = useCallback((type) => {
         if (!gainAdjustedRef.current) {
@@ -172,13 +159,13 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         threshold, inflate, lookahead, lookaheadControl,
         makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
         isCompBypass, setIsCompBypass,
-        selectedPresetIdx, isCustomSettings, setIsCustomSettings,
+        isCustomSettings, setIsCustomSettings,
         isProcessing, setIsProcessing,
         hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted,
         gainAdjustedRef, currentParams, paramsRef,
         updateParamGeneric, handleCompKnobChange,
         handleGainChange, handleThresholdChange,
-        applyPreset, resetAllParams,
+        resetAllParams,
         getCurrentStateSnapshot, applyStateSnapshot, getDefaultSnapshot,
         handleModeDryGainSync,
         setThreshold,

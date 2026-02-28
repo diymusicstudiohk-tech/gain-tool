@@ -5,7 +5,7 @@
  */
 
 import { useCallback } from 'react';
-import { AUDIO_SOURCES, PRESETS_DATA } from '../utils/constants';
+import { AUDIO_SOURCES } from '../utils/constants';
 import { saveAudioFileToDB } from '../utils/storage';
 import { fetchAudioBuffer } from '../utils/audioLoader';
 import { calculateControlFromRatio } from '../utils/paramHelpers';
@@ -33,7 +33,6 @@ export const useAudioLoader = ({
     setResolutionPct,
     applyStateSnapshot,
     handleModeChange,
-    applyPreset
 }) => {
     /**
      * 處理解碼後的音訊 Buffer
@@ -119,33 +118,12 @@ export const useAudioLoader = ({
             const decoded = await audioContext.decodeAudioData(arrayBuffer);
             handleDecodedBuffer(decoded);
             setIsLoading(false);
-
-            // Auto-load matching preset
-            if (preset.category) {
-                const trackCategory = preset.category;
-                console.log(`[AutoLoad] Track Category: "${trackCategory}"`);
-
-                // Find first preset where track category matches loosely (case-insensitive, partial)
-                const matchingPresetIdx = PRESETS_DATA.findIndex(p => {
-                    if (!p.category) return false;
-                    const tc = trackCategory.trim().toLowerCase();
-                    const pc = p.category.trim().toLowerCase();
-                    return tc.includes(pc) || pc.includes(tc);
-                });
-
-                if (matchingPresetIdx !== -1) {
-                    console.log(`[AutoLoad] Found matching preset: "${PRESETS_DATA[matchingPresetIdx].name}" (Idx: ${matchingPresetIdx})`);
-                    applyPreset(matchingPresetIdx);
-                } else {
-                    console.log(`[AutoLoad] No matching preset found for category: "${trackCategory}"`);
-                }
-            }
         } catch (err) {
             console.error(err);
             setErrorMsg(`載入失敗: ${err.message}`);
             setIsLoading(false);
         }
-    }, [audioContext, setIsLoading, setErrorMsg, sourceNodeRef, setPlayingType, isPlayingRef, setOriginalBuffer, setLoopStart, setLoopEnd, startOffsetRef, setCurrentSourceId, setLastPracticeSourceId, setFileName, handleDecodedBuffer, applyPreset]);
+    }, [audioContext, setIsLoading, setErrorMsg, sourceNodeRef, setPlayingType, isPlayingRef, setOriginalBuffer, setLoopStart, setLoopEnd, startOffsetRef, setCurrentSourceId, setLastPracticeSourceId, setFileName, handleDecodedBuffer]);
 
     /**
      * 處理使用者上傳音訊檔案
@@ -182,8 +160,6 @@ export const useAudioLoader = ({
                 lookahead: 0,
                 makeupGain: 0,
                 dryGain: -200,
-                selectedPresetIdx: 0,
-                isCustomSettings: false,
                 isCompBypass: false
             });
 

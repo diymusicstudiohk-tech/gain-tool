@@ -319,6 +319,10 @@ const App = () => {
         toggleDeltaMode: playback.toggleDeltaMode,
         togglePlayback: playback.togglePlayback,
     };
+    const outputProps = {
+        wetGainControl: comp.wetGainControl, dryGainControl: comp.dryGainControl,
+        handleGainChange: comp.handleGainChange,
+    };
     const uiProps = {
         isDraggingKnobRef,
         handleNormalDragState: (isActive) => {
@@ -414,7 +418,7 @@ const App = () => {
             <ControlHud
                 compressor={compProps}
                 playback={playbackProps}
-
+                output={outputProps}
                 ui={uiProps}
                 tooltipsOff={tooltipsOff}
             />

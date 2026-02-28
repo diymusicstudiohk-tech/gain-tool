@@ -5,7 +5,6 @@
  */
 
 import { useCallback } from 'react';
-import { PRESETS_DATA } from '../utils/constants';
 import { calculateControlFromRatio } from '../utils/paramHelpers';
 
 export const useStateManagement = ({
@@ -29,8 +28,6 @@ export const useStateManagement = ({
     cuePoint,
     loopStart,
     loopEnd,
-    selectedPresetIdx,
-    isCustomSettings,
     isGateBypass,
     isCompBypass,
     currentSourceId,
@@ -58,8 +55,6 @@ export const useStateManagement = ({
     setCuePoint,
     setLoopStart,
     setLoopEnd,
-    setSelectedPresetIdx,
-    setIsCustomSettings,
     setIsGateBypass,
     setIsCompBypass,
     setIsProcessing,
@@ -92,13 +87,11 @@ export const useStateManagement = ({
         cuePoint,
         loopStart,
         loopEnd,
-        selectedPresetIdx,
-        isCustomSettings,
         isGateBypass,
         isCompBypass
     }), [threshold, ratio, ratioControl, attack, release, knee, lookahead, makeupGain, dryGain,
         gateThreshold, gateRatio, gateAttack, gateRelease, zoomX, zoomY, panOffset, panOffsetY,
-        cuePoint, loopStart, loopEnd, selectedPresetIdx, isCustomSettings, isGateBypass, isCompBypass]);
+        cuePoint, loopStart, loopEnd, isGateBypass, isCompBypass]);
 
     /**
      * 套用狀態快照
@@ -126,8 +119,6 @@ export const useStateManagement = ({
         setCuePoint(snap.cuePoint);
         setLoopStart(snap.loopStart || null);
         setLoopEnd(snap.loopEnd || null);
-        setSelectedPresetIdx(snap.selectedPresetIdx);
-        setIsCustomSettings(snap.isCustomSettings);
         setIsGateBypass(snap.isGateBypass || false);
         setIsCompBypass(snap.isCompBypass || false);
 
@@ -137,34 +128,29 @@ export const useStateManagement = ({
     }, [setThreshold, setRatio, setRatioControl, setAttack, setRelease, setKnee, setLookahead,
         setMakeupGain, setDryGain, setGateThreshold, setGateRatio, setGateAttack, setGateRelease,
         setZoomX, setZoomY, setPanOffset, setPanOffsetY, setCuePoint, setLoopStart, setLoopEnd,
-        setSelectedPresetIdx, setIsCustomSettings, setIsGateBypass, setIsCompBypass,
+        setIsGateBypass, setIsCompBypass,
         playingType, startOffsetRef, handleModeChange, setIsProcessing]);
 
     /**
      * 獲取預設狀態快照
      * 用於重置所有參數
      */
-    const getDefaultSnapshot = useCallback(() => {
-        const def = PRESETS_DATA[0].params;
-        return {
-            ...def,
-            ratioControl: calculateControlFromRatio(def.ratio),
-            gateRatio: 4,
-            gateAttack: 2,
-            gateRelease: 100,
-            zoomX: 1,
-            zoomY: 0.8,
-            panOffset: 0,
-            panOffsetY: 0,
-            cuePoint: 0,
-            loopStart: null,
-            loopEnd: null,
-            selectedPresetIdx: 0,
-            isCustomSettings: false,
-            isGateBypass: true,
-            isCompBypass: false
-        };
-    }, []);
+    const getDefaultSnapshot = useCallback(() => ({
+        inflate: 0, threshold: -18, lookahead: 3, makeupGain: 0, dryGain: -200,
+        ratioControl: calculateControlFromRatio(undefined),
+        gateRatio: 4,
+        gateAttack: 2,
+        gateRelease: 100,
+        zoomX: 1,
+        zoomY: 0.8,
+        panOffset: 0,
+        panOffsetY: 0,
+        cuePoint: 0,
+        loopStart: null,
+        loopEnd: null,
+        isGateBypass: true,
+        isCompBypass: false
+    }), []);
 
     /**
      * 保存會話狀態

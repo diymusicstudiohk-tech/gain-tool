@@ -1,6 +1,3 @@
-import { PRESETS_DATA } from './presetsData';
-export { PRESETS_DATA };
-
 export const AUDIO_SOURCES = [
     // === Bass (貝斯) ===
     { id: 'Bass-01', name: 'Bass-01', category: 'Bass (貝斯)', trackName: 'Bass-01' },

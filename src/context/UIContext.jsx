@@ -11,8 +11,6 @@ export const useUIContext = () => {
 };
 
 export const UIProvider = ({ children }) => {
-    const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
-    const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [hoveredKnob, setHoveredKnob] = useState(null);
     const [showInfoPanel, setShowInfoPanel] = useState(false);
     const [isInfoPanelEnabled, setIsInfoPanelEnabled] = useState(false);
@@ -22,8 +20,6 @@ export const UIProvider = ({ children }) => {
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
 
     const value = {
-        selectedPresetIdx, setSelectedPresetIdx,
-        isCustomSettings, setIsCustomSettings,
         hoveredKnob, setHoveredKnob,
         showInfoPanel, setShowInfoPanel,
         isInfoPanelEnabled, setIsInfoPanelEnabled,

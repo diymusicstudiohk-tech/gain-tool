@@ -3,7 +3,6 @@
  * Extracted from App.jsx to reduce complexity
  */
 
-import { PRESETS_DATA } from './constants';
 import { fetchAudioBuffer } from './audioLoader';
 import { writeWavFile } from './audioHelper';
 import { processCompressor } from './dsp';
@@ -57,52 +56,6 @@ export const handleDecodedBuffer = (decodedBuffer, audioContext, setOriginalBuff
         if (autoPct === 100 && idealStep > 1) autoPct = 99;
     }
     setResolutionPct(autoPct);
-};
-
-/**
- * Load preset audio file
- */
-export const handleLoadPreset = async (preset, audioContext, setIsLoading, setErrorMsg, sourceNodeRef, setPlayingType, isPlayingRef, setOriginalBuffer, setLoopStart, setLoopEnd, startOffsetRef, setCurrentSourceId, setLastPracticeSourceId, setFileName, handleDecodedBufferFn, applyPresetFn) => {
-    if (!audioContext) return;
-    try {
-        setIsLoading(true);
-        setErrorMsg('');
-        if (sourceNodeRef.current) {
-            try {
-                sourceNodeRef.current.stop();
-            } catch (e) {}
-        }
-        setPlayingType('none');
-        isPlayingRef.current = false;
-        setOriginalBuffer(null);
-        setLoopStart(null);
-        setLoopEnd(null);
-        startOffsetRef.current = 0;
-        setCurrentSourceId(preset.id);
-        setLastPracticeSourceId(preset.id);
-        setFileName(preset.name);
-
-        const arrayBuffer = await fetchAudioBuffer(preset.url);
-        const decoded = await audioContext.decodeAudioData(arrayBuffer);
-        handleDecodedBufferFn(decoded);
-        setIsLoading(false);
-
-        if (preset.category) {
-            const matchingPresetIdx = PRESETS_DATA.findIndex(p => {
-                if (!p.category) return false;
-                const tc = preset.category.trim().toLowerCase();
-                const pc = p.category.trim().toLowerCase();
-                return tc.includes(pc) || pc.includes(tc);
-            });
-            if (matchingPresetIdx !== -1) {
-                applyPresetFn(matchingPresetIdx);
-            }
-        }
-    } catch (err) {
-        console.error(err);
-        setErrorMsg(`載入失敗: ${err.message}`);
-        setIsLoading(false);
-    }
 };
 
 /**
