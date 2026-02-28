@@ -158,7 +158,10 @@ export const handleDownloadLogic = (currentSourceId, originalBuffer, audioContex
             const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);
             exportBuffer.copyToChannel(mixedData, 0);
             const url = URL.createObjectURL(writeWavFile(exportBuffer));
-            const dlName = `${fileName.substring(0, fileName.lastIndexOf('.')) || fileName}${AUDIO_CONFIG.EXPORT.SUFFIX}.${AUDIO_CONFIG.EXPORT.FORMAT}`;
+            const dotIdx = fileName.lastIndexOf('.');
+            const baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
+            const ext = dotIdx > 0 ? fileName.substring(dotIdx) : '.wav';
+            const dlName = `After Limited - ${baseName}${ext}`;
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
