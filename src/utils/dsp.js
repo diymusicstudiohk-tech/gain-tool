@@ -74,11 +74,29 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     let compEnvelope = 0;
     let peakHold = 0; // Track peak for two-stage release
 
+    // Helper: apply inflate waveshaper to a sample
+    const applyInflate = (sample) => {
+        if (inflateAmt <= 0.001) return sample;
+        const clamped = sample < -1 ? -1 : sample > 1 ? 1 : sample;
+        const y = clamped < 0 ? -clamped : clamped;
+        const y2 = y * y;
+        const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+        const sign = clamped < 0 ? -1 : 1;
+        return (shaped * inflateWet + y * inflateDry) * sign;
+    };
+
     for (let i = 0; i < length; i++) {
-        // Look ahead into the future for detection
+        // Apply input gain first
+        const inputWithGain = inputData[i] * inputGainLinear;
+        
+        // Apply inflate BEFORE limiter detection
+        const inflatedInput = applyInflate(inputWithGain);
+        
+        // Look ahead into the future for detection (on inflated signal)
         const detectorIndex = Math.min(i + lookaheadSamples, length - 1);
-        const detectorSample = Math.abs(inputData[detectorIndex] * inputGainLinear);
-        const currentInput = inputData[i] * inputGainLinear;
+        const futureInputWithGain = inputData[detectorIndex] * inputGainLinear;
+        const futureInflated = applyInflate(futureInputWithGain);
+        const detectorSample = Math.abs(futureInflated);
 
         // --- True peak detection (4-point Lagrange interpolation) ---
         tpHistory[tpPos] = detectorSample;
@@ -172,17 +190,8 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
         }
 
         const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
-        let limited = currentInput * compGainLinear;
-
-        // Inflate waveshaper (after gain reduction, before makeup)
-        if (inflateAmt > 0.001) {
-            const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
-            const y = clamped < 0 ? -clamped : clamped;
-            const y2 = y * y;
-            const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
-            const sign = clamped < 0 ? -1 : 1;
-            limited = (shaped * inflateWet + y * inflateDry) * sign;
-        }
+        // Apply limiter gain reduction to the inflated signal
+        let limited = inflatedInput * compGainLinear;
 
         let wet = limited * makeUpLinear * outputGainLinear;
         outputData[i] = wet;
@@ -300,12 +309,26 @@ export const createRealTimeCompressor = (sampleRate) => {
 
                 const inputSample = inputData[i] * inputGainLinear;
 
-                // Write to delay line (P3)
-                delayBuffer[writePos] = inputSample;
+                // Apply inflate BEFORE limiter detection
+                const sInflate = smoothed.inflate * 0.01;
+                let inflatedSample = inputSample;
+                if (sInflate > 0.001) {
+                    const clamped = inputSample < -1 ? -1 : inputSample > 1 ? 1 : inputSample;
+                    const y = clamped < 0 ? -clamped : clamped;
+                    const y2 = y * y;
+                    const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+                    const sign = clamped < 0 ? -1 : 1;
+                    const iWet = sInflate * 0.99999955296;
+                    const iDry = 1 - sInflate;
+                    inflatedSample = (shaped * iWet + y * iDry) * sign;
+                }
+
+                // Write inflated sample to delay line (P3)
+                delayBuffer[writePos] = inflatedSample;
                 const delayedSample = delayBuffer[(writePos - _lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK];
 
-                // --- True peak detection (4-point Lagrange interpolation) ---
-                const absSample = Math.abs(inputSample);
+                // --- True peak detection (4-point Lagrange interpolation) on inflated signal ---
+                const absSample = Math.abs(inflatedSample);
                 tpHistory[tpPos] = absSample;
                 let truePeak = absSample;
 
@@ -392,21 +415,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
                 const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
-                // Output uses delayed sample (P3)
+                // Output uses delayed inflated sample with gain reduction (P3)
                 let limited = delayedSample * compGainLinear;
-
-                // Inflate waveshaper (after gain reduction, before makeup)
-                const sInflate = smoothed.inflate * 0.01;
-                if (sInflate > 0.001) {
-                    const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
-                    const y = clamped < 0 ? -clamped : clamped;
-                    const y2 = y * y;
-                    const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
-                    const sign = clamped < 0 ? -1 : 1;
-                    const iWet = sInflate * 0.99999955296;
-                    const iDry = 1 - sInflate;
-                    limited = (shaped * iWet + y * iDry) * sign;
-                }
 
                 let wet = limited * makeUpLinear * outputGainLinear;
 

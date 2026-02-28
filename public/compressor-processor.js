@@ -223,14 +223,28 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             const inputSample = inputData[i] * inputGainLinear;
 
-            // Write to delay line (P3)
-            delayBuffer[writePos] = inputSample;
+            // Apply inflate BEFORE limiter detection
+            const inflateAmt = sInflate * 0.01;
+            let inflatedSample = inputSample;
+            if (inflateAmt > 0.001) {
+                const clamped = inputSample < -1 ? -1 : inputSample > 1 ? 1 : inputSample;
+                const y = clamped < 0 ? -clamped : clamped;
+                const y2 = y * y;
+                const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
+                const sign = clamped < 0 ? -1 : 1;
+                const iWet = inflateAmt * 0.99999955296;
+                const iDry = 1 - inflateAmt;
+                inflatedSample = (shaped * iWet + y * iDry) * sign;
+            }
+
+            // Write inflated sample to delay line (P3)
+            delayBuffer[writePos] = inflatedSample;
 
             // Read delayed sample for output
             const delayedSample = delayBuffer[(writePos - lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) & bufferMask];
 
-            // --- True peak detection (4-point Lagrange interpolation) ---
-            const absSample = Math.abs(inputSample);
+            // --- True peak detection (4-point Lagrange interpolation) on inflated signal ---
+            const absSample = Math.abs(inflatedSample);
             tpHistory[tpPos] = absSample;
             let truePeak = absSample;
 
@@ -321,21 +335,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
             const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
 
-            // Output uses delayed sample (P3)
+            // Output uses delayed inflated sample with gain reduction (P3)
             let limited = delayedSample * compGainLinear;
-
-            // Inflate waveshaper (after gain reduction, before makeup)
-            const inflateAmt = sInflate * 0.01;
-            if (inflateAmt > 0.001) {
-                const clamped = limited < -1 ? -1 : limited > 1 ? 1 : limited;
-                const y = clamped < 0 ? -clamped : clamped;
-                const y2 = y * y;
-                const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
-                const sign = clamped < 0 ? -1 : 1;
-                const iWet = inflateAmt * 0.99999955296;
-                const iDry = 1 - inflateAmt;
-                limited = (shaped * iWet + y * iDry) * sign;
-            }
 
             let wet = limited * makeUpLinear * outputGainLinear;
 
