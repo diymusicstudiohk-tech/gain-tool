@@ -319,14 +319,6 @@ const App = () => {
         toggleDeltaMode: playback.toggleDeltaMode,
         togglePlayback: playback.togglePlayback,
     };
-    const presetProps = {
-        selectedPresetIdx: comp.selectedPresetIdx, isCustomSettings: comp.isCustomSettings,
-        applyPreset: comp.applyPreset, currentSourceId: engine.currentSourceId,
-    };
-    const outputProps = {
-        wetGainControl: comp.wetGainControl, dryGainControl: comp.dryGainControl,
-        handleGainChange: comp.handleGainChange,
-    };
     const uiProps = {
         isDraggingKnobRef,
         handleNormalDragState: (isActive) => {
@@ -422,8 +414,7 @@ const App = () => {
             <ControlHud
                 compressor={compProps}
                 playback={playbackProps}
-                preset={presetProps}
-                output={outputProps}
+
                 ui={uiProps}
                 tooltipsOff={tooltipsOff}
             />
