@@ -4,6 +4,7 @@ import { loadParamsFromStorage } from '../utils/storage';
 import {
     dryGainControlToDb, dryGainDbToControl,
     wetGainControlToDb, wetGainDbToControl,
+    lookaheadControlToMs, lookaheadMsToControl,
 } from '../utils/gainConversion';
 
 /**
@@ -14,6 +15,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [threshold, setThreshold] = useState(0);
     const [inflate, setInflate] = useState(0);
     const [lookahead, setLookahead] = useState(3);
+    const [lookaheadControl, setLookaheadControl] = useState(() => lookaheadMsToControl(3));
     const [makeupGain, setMakeupGain] = useState(0);
     const [wetGainControl, setWetGainControl] = useState(50);
     const [dryGain, setDryGain] = useState(-200);
@@ -43,6 +45,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         if (savedParams) {
             setThreshold(savedParams.threshold);
             setLookahead(savedParams.lookahead);
+            setLookaheadControl(lookaheadMsToControl(savedParams.lookahead));
             // Always start wet gain at 0dB on load
             setMakeupGain(0);
             setWetGainControl(50);
@@ -67,7 +70,13 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [ensureProcessedMode]);
 
     const handleCompKnobChange = useCallback((key, value) => {
-        const setters = { inflate: setInflate, lookahead: setLookahead };
+        if (key === 'lookahead') {
+            setLookaheadControl(value);
+            const ms = lookaheadControlToMs(value);
+            updateParamGeneric(setLookahead, ms);
+            return;
+        }
+        const setters = { inflate: setInflate };
         if (setters[key]) updateParamGeneric(setters[key], value);
     }, [updateParamGeneric]);
 
@@ -101,6 +110,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setThreshold(p.params.threshold);
         setInflate(p.params.inflate ?? 0);
         setLookahead(p.params.lookahead);
+        setLookaheadControl(lookaheadMsToControl(p.params.lookahead));
         const clampedMakeup = Math.max(-200, Math.min(15, p.params.makeupGain));
         setMakeupGain(clampedMakeup);
         setWetGainControl(wetGainDbToControl(clampedMakeup));
@@ -118,9 +128,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [applyPreset]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
-        threshold, inflate, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
+        threshold, inflate, lookahead, lookaheadControl, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass
-    }), [threshold, inflate, lookahead, makeupGain, wetGainControl, dryGain, dryGainControl,
+    }), [threshold, inflate, lookahead, lookaheadControl, makeupGain, wetGainControl, dryGain, dryGainControl,
         selectedPresetIdx, isCustomSettings, isCompBypass]);
 
     const applyStateSnapshot = useCallback((snap) => {
@@ -128,6 +138,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setThreshold(snap.threshold);
         setInflate(snap.inflate ?? 0);
         setLookahead(snap.lookahead);
+        setLookaheadControl(snap.lookaheadControl !== undefined ? snap.lookaheadControl : lookaheadMsToControl(snap.lookahead));
         setMakeupGain(snap.makeupGain);
         setWetGainControl(snap.wetGainControl !== undefined ? snap.wetGainControl : wetGainDbToControl(snap.makeupGain));
         setDryGain(snap.dryGain);
@@ -158,7 +169,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, []);
 
     return {
-        threshold, inflate, lookahead,
+        threshold, inflate, lookahead, lookaheadControl,
         makeupGain, wetGainControl, dryGain, setDryGain, dryGainControl,
         isCompBypass, setIsCompBypass,
         selectedPresetIdx, isCustomSettings, setIsCustomSettings,
@@ -174,5 +185,5 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     };
 };
 
-export { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl };
+export { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl, lookaheadControlToMs, lookaheadMsToControl };
 export default useCompressorParams;

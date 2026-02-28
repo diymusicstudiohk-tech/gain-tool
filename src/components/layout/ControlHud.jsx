@@ -4,12 +4,12 @@ import RotaryKnob from '../ui/RotaryKnob';
 import PowerButton from '../ui/PowerButton';
 import PlaybackControls from './PlaybackControls';
 import { TOOLTIPS } from '../../utils/constants';
-import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl } from '../../hooks/useCompressorParams';
+import { dryGainControlToDb, dryGainDbToControl, wetGainControlToDb, wetGainDbToControl, lookaheadControlToMs, lookaheadMsToControl } from '../../hooks/useCompressorParams';
 
 const ControlHud = ({ compressor, playback, preset, output, ui, tooltipsOff }) => {
     // Destructure grouped props
     const {
-        threshold, inflate, lookahead,
+        threshold, inflate, lookahead, lookaheadControl,
         handleThresholdChange, handleCompKnobChange, handleCompDragState, hasThresholdBeenAdjusted,
         isCompBypass, setIsCompBypass,
     } = compressor;
@@ -82,7 +82,7 @@ const ControlHud = ({ compressor, playback, preset, output, ui, tooltipsOff }) =
                             <div className={`grid grid-cols-3 min-[740px]:flex pt-[18px] min-[740px]:pt-[25px] overflow-hidden transition-all duration-300 ease-in-out ${expandedModule === 'comp' ? 'max-w-[800px] opacity-100' : 'max-w-0 opacity-0'}`}>
                                 <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="INFLATE" value={inflate} min={0} max={100} step={1} unit="%" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('inflate', v)} onDragStateChange={handleCompDragState} tooltipKey="inflate" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
                                 <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="THRESHOLD" shortLabel={"THRE-\nSHOLD"} value={threshold} min={-60} max={0} step={1} unit="dB" color="gold" defaultValue={0} onChange={handleThresholdChange} onDragStateChange={handleCompDragState} tooltipKey="threshold" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
-                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" shortLabel={"LOOK-\nAHEAD"} value={lookahead} min={0} max={100} step={1} unit="ms" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile />
+                                <RotaryKnob disabled={isDryMode || isCompBypass} dragLockRef={isDraggingKnobRef} label="LOOKAHEAD" shortLabel={"LOOK-\nAHEAD"} value={lookaheadControl} min={0} max={100} step={1} displayValue={lookaheadControlToMs(lookaheadControl).toFixed(1)} unit="ms" color="gold" defaultValue={0} onChange={(v) => handleCompKnobChange('lookahead', v)} onDragStateChange={handleCompDragState} tooltipKey="lookahead" onHover={handleKnobEnter} onLeave={handleKnobLeave} onTouchLegendShow={handleTouchKnobLegend} onTouchLegendHide={hideLegendTooltip} tooltipsOff={tooltipsOff} breakReadingOnMobile parseEditValue={(v) => lookaheadMsToControl(parseFloat(v))} />
                             </div>
                         </div>
 

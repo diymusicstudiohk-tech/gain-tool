@@ -303,6 +303,7 @@ const App = () => {
         threshold: comp.threshold,
         inflate: comp.inflate,
         lookahead: comp.lookahead,
+        lookaheadControl: comp.lookaheadControl,
         handleThresholdChange: comp.handleThresholdChange,
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
