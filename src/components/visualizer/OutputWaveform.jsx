@@ -2,7 +2,7 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import useOutputWaveformDrawer from '../../hooks/useOutputWaveformDrawer';
 
 const HANDLE_PX = 14;    // hit-zone half-width in px (comfortable for both mouse & touch)
-const MIN_REGION = 0.02;
+const MIN_SECONDS = 3;   // gold box can never be narrower than 3 seconds
 
 // 3 white grip dots rendered inside a handle bar
 const HandleDots = () => (
@@ -38,6 +38,11 @@ const OutputWaveform = ({
     const containerRef = useRef(null);
     const canvasRef = useRef(null);
     const dragRef = useRef(null);
+
+    // Minimum region width as a fraction — at least 3 seconds, capped at full duration
+    const minRegion = originalBuffer ? Math.min(1, MIN_SECONDS / originalBuffer.duration) : 0.02;
+    const minRegionRef = useRef(minRegion);
+    useEffect(() => { minRegionRef.current = minRegion; });
 
     // Track hover zone for overlay styling — only re-render when zone category changes
     const hoverZoneRef = useRef('outside');
@@ -99,11 +104,12 @@ const OutputWaveform = ({
         const { mode, startX, startRegionStart, startRegionEnd, totalWidth } = dragRef.current;
         const dx = (clientX - startX) / totalWidth;
 
+        const mr = minRegionRef.current;
         if (mode === 'left') {
-            const newStart = Math.max(0, Math.min(startRegionStart + dx, startRegionEnd - MIN_REGION));
+            const newStart = Math.max(0, Math.min(startRegionStart + dx, startRegionEnd - mr));
             onRegionChangeRef.current(newStart, startRegionEnd);
         } else if (mode === 'right') {
-            const newEnd = Math.min(1, Math.max(startRegionEnd + dx, startRegionStart + MIN_REGION));
+            const newEnd = Math.min(1, Math.max(startRegionEnd + dx, startRegionStart + mr));
             onRegionChangeRef.current(startRegionStart, newEnd);
         } else {
             const w = startRegionEnd - startRegionStart;
