@@ -283,7 +283,6 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
 
     ctx.fillStyle = TEXT_MID; ctx.font = 'bold ' + Math.max(7, Math.round(8 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("DR", grCenterX, cfTop - 2 * s);
-    if (!hideReadings && dynamicRange > 0.1) { ctx.fillStyle = CREST_GREEN; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.fillText(`${dynamicRange.toFixed(1)}`, grCenterX, cfY - 5 * s); }
 
     // Text Labels
     if (!hideReadings) {
