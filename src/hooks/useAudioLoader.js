@@ -174,12 +174,25 @@ export const useAudioLoader = ({
             userBufferRef.current = decoded;
             userFileNameRef.current = file.name;
             handleDecodedBuffer(decoded);
+
+            // Reset to upload defaults
+            applyStateSnapshot({
+                threshold: -1,
+                inflate: 0,
+                lookahead: 0,
+                makeupGain: 0,
+                dryGain: -200,
+                selectedPresetIdx: 0,
+                isCustomSettings: false,
+                isCompBypass: false
+            });
+
             setIsLoading(false);
         } catch (err) {
             setErrorMsg(`Failed: ${err.message}`);
             setIsLoading(false);
         }
-    }, [audioContext, setIsLoading, setErrorMsg, sourceNodeRef, setPlayingType, isPlayingRef, setLoopStart, setLoopEnd, startOffsetRef, setCurrentSourceId, setFileName, setOriginalBuffer, userBufferRef, userFileNameRef, handleDecodedBuffer]);
+    }, [audioContext, setIsLoading, setErrorMsg, sourceNodeRef, setPlayingType, isPlayingRef, setLoopStart, setLoopEnd, startOffsetRef, setCurrentSourceId, setFileName, setOriginalBuffer, userBufferRef, userFileNameRef, handleDecodedBuffer, applyStateSnapshot]);
 
     /**
      * 只加載音訊，不重置參數（用於模式切換）
