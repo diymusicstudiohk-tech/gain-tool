@@ -736,9 +736,8 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
             onDoubleClick={handleDoubleClick}
             style={{
                 position: 'absolute',
-                // Position on the right half (output meter column)
                 left: '50%',
-                right: 0,
+                transform: 'translateX(-50%)',
                 top: topPx - btnHeight / 2,
                 height: btnHeight,
                 display: 'flex',
@@ -757,6 +756,8 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 userSelect: 'none',
                 zIndex: 10,
                 lineHeight: 1,
+                whiteSpace: 'nowrap',
+                padding: '0 5px',
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
