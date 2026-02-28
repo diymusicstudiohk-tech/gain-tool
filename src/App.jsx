@@ -293,8 +293,6 @@ const App = () => {
         handleCompKnobChange: comp.handleCompKnobChange,
         handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass,
-        setIsCompBypass: (v) => { comp.setIsCompBypass(v); comp.setIsCustomSettings(true); comp.setIsProcessing(true); if (playback.lastPlayedType !== 'processed') playback.handleModeChange('processed'); },
     };
     const playbackProps = {
         playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,

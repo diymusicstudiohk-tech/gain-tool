@@ -14,7 +14,8 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [lookahead, setLookahead] = useState(3);
     const [lookaheadControl, setLookaheadControl] = useState(() => lookaheadMsToControl(3));
 
-    const [isCompBypass, setIsCompBypass] = useState(false);
+    const isCompBypass = false;
+    const setIsCompBypass = useCallback(() => {}, []);
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted] = useState(true);
@@ -37,7 +38,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setLookahead(savedParams.lookahead);
             setLookaheadControl(lookaheadMsToControl(savedParams.lookahead));
             setInflate(savedParams.inflate ?? 0);
-            setIsCompBypass(savedParams.isCompBypass ?? false);
         }
     }, []);
 
@@ -77,16 +77,15 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setLookaheadControl(lookaheadMsToControl(3));
         setIsCustomSettings(false);
         setIsProcessing(true);
-        setIsCompBypass(false);
         setHasThresholdBeenAdjusted(true);
         ensureProcessedMode();
     }, [ensureProcessedMode]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
         threshold, inflate, lookahead, lookaheadControl,
-        isCustomSettings, isCompBypass
+        isCustomSettings,
     }), [threshold, inflate, lookahead, lookaheadControl,
-        isCustomSettings, isCompBypass]);
+        isCustomSettings]);
 
     const applyStateSnapshot = useCallback((snap) => {
         if (!snap) return;
@@ -95,7 +94,6 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setLookahead(snap.lookahead);
         setLookaheadControl(snap.lookaheadControl !== undefined ? snap.lookaheadControl : lookaheadMsToControl(snap.lookahead));
         setIsCustomSettings(snap.isCustomSettings);
-        setIsCompBypass(snap.isCompBypass || false);
         setIsProcessing(true);
         ensureProcessedMode();
     }, [ensureProcessedMode]);
@@ -103,7 +101,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const getDefaultSnapshot = useCallback(() => ({
         threshold: 0, inflate: 0, lookahead: 3,
         lookaheadControl: lookaheadMsToControl(3),
-        isCustomSettings: false, isCompBypass: false
+        isCustomSettings: false,
     }), []);
 
     return {
