@@ -1,5 +1,17 @@
 import { LN10_OVER_20, TWENTY_LOG10E, LOG_FLOOR } from './dspConstants';
 
+// --- Pre-computed Lagrange interpolation coefficients ---
+// v25 (t=0.25): coefficients for h0..h3
+const L25_0 =  0.0390625;   //  5/128
+const L25_1 =  0.8203125;   // 105/128
+const L25_2 = -0.1640625;   // -21/128
+const L25_3 = -35 / 384;    // -0.09114583...
+// v75 (t=0.75): coefficients for h0..h3
+const L75_0 = -0.1171875;   // -15/128
+const L75_1 = -0.2109375;   // -27/128
+const L75_2 =  0.1171875;   //  15/128
+const L75_3 = -0.3515625;   // -45/128
+
 // --- Adaptive Envelope Constants (hardcoded, no user control) ---
 const ATTACK_MS = 0.1;           // Fixed ultra-fast attack for brickwall limiting
 const FAST_RELEASE_MS = 30;      // For high-crest (transient/drums) material
@@ -76,17 +88,9 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
         const h3 = detectorSample;
 
         // Lagrange interpolation between h1 and h2 at t=0.25, 0.5, 0.75
-        const t1 = -0.75, t1p1 = 0.25, t1p2 = 1.25, t1m1 = -1.75;
-        const v25 = h0 * (t1p1 * t1p2 * t1 / (-6)) +
-                     h1 * (t1m1 * t1p2 * t1 / (2)) +
-                     h2 * (t1m1 * t1p1 * t1 / (-2)) +
-                     h3 * (t1m1 * t1p1 * t1p2 / (6));
+        const v25 = h0 * L25_0 + h1 * L25_1 + h2 * L25_2 + h3 * L25_3;
         const v50 = (-h0 + 9 * h1 + 9 * h2 - h3) / 16;
-        const t3 = 0.25, t3p1 = 1.25, t3p2 = 2.25, t3m1 = -0.75;
-        const v75 = h0 * (t3p1 * t3p2 * t3 / (-6)) +
-                     h1 * (t3m1 * t3p2 * t3 / (2)) +
-                     h2 * (t3m1 * t3p1 * t3 / (-2)) +
-                     h3 * (t3m1 * t3p1 * t3p2 / (6));
+        const v75 = h0 * L75_0 + h1 * L75_1 + h2 * L75_2 + h3 * L75_3;
 
         const abs25 = v25 < 0 ? -v25 : v25;
         const abs50 = v50 < 0 ? -v50 : v50;
@@ -297,17 +301,9 @@ export const createRealTimeCompressor = (sampleRate) => {
                 const h2 = tpHistory[(tpPos - 1 + 4) % 4];
                 const h3 = absSample;
 
-                const t1 = -0.75, t1p1 = 0.25, t1p2 = 1.25, t1m1 = -1.75;
-                const v25 = h0 * (t1p1 * t1p2 * t1 / (-6)) +
-                             h1 * (t1m1 * t1p2 * t1 / (2)) +
-                             h2 * (t1m1 * t1p1 * t1 / (-2)) +
-                             h3 * (t1m1 * t1p1 * t1p2 / (6));
+                const v25 = h0 * L25_0 + h1 * L25_1 + h2 * L25_2 + h3 * L25_3;
                 const v50 = (-h0 + 9 * h1 + 9 * h2 - h3) / 16;
-                const t3 = 0.25, t3p1 = 1.25, t3p2 = 2.25, t3m1 = -0.75;
-                const v75 = h0 * (t3p1 * t3p2 * t3 / (-6)) +
-                             h1 * (t3m1 * t3p2 * t3 / (2)) +
-                             h2 * (t3m1 * t3p1 * t3 / (-2)) +
-                             h3 * (t3m1 * t3p1 * t3p2 / (6));
+                const v75 = h0 * L75_0 + h1 * L75_1 + h2 * L75_2 + h3 * L75_3;
 
                 const abs25 = v25 < 0 ? -v25 : v25;
                 const abs50 = v50 < 0 ? -v50 : v50;
