@@ -175,12 +175,12 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
     const bgColor = 'rgba(255, 255, 255, 0.06)';
     const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
-    // 2 bars: scale all positions proportionally from 55px reference width
-    const s = width / 55;
+    // 2 bars: scale all positions proportionally from 63px reference width (8px gap between bars)
+    const s = width / 63;
     const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
     const grCenterX = 16.5 * s;
-    const outCenterX = 38.5 * s;
+    const outCenterX = 46.5 * s;
     const grX = grCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
 
@@ -635,7 +635,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div className="flex-none h-full relative w-[7.5%] min-[740px]:w-[55px]"
+        <div className="flex-none h-full relative w-[8.5%] min-[740px]:w-[63px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
