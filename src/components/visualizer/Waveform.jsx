@@ -3,7 +3,7 @@ import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
 import {
     GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED,
-    COMP_BLUE, BG_PANEL, INACTIVE, TEXT_DIM,
+    BG_PANEL, INACTIVE, TEXT_DIM,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade, drawHatchedPolygon, drawGRLine } from '../../utils/canvasPolygons';
 import { drawDbGrid } from '../../utils/canvasGrid';
@@ -505,7 +505,7 @@ export const drawMainWaveform = ({
     if (!isCompBypass) {
         drawThresholdLine(ctx, {
             thresholdDb: threshold,
-            color: isDry || isCompBypass ? INACTIVE : COMP_BLUE,
+            color: isDry || isCompBypass ? INACTIVE : BRICK_RED,
             isHighlight: hoverLine === 'comp' || isDraggingLine === 'comp',
             centerY, ampScale, width, height,
         });
