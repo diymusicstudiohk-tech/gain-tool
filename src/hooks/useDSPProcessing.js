@@ -4,14 +4,12 @@ import { toMono } from '../utils/audioHelper';
 import { buildMipmaps } from '../utils/mipmapCache';
 
 const MAX_SMOOTH_POINTS = 250000;
-const MAX_INTERACTION_POINTS = 50000;
 
 const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
     const fullResCacheRef = useRef(null);
-    const interactionCacheRef = useRef(null);
     // Pre-allocated buffers to avoid GC pressure on recompute
     const preallocBufRef = useRef({ output: null, gr: null });
 
@@ -26,7 +24,9 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
     useEffect(() => {
         if (!originalBuffer) return;
         const length = originalBuffer.length;
-        const monoData = toMono(originalBuffer);
+        const monoData = originalBuffer.numberOfChannels === 1
+            ? originalBuffer.getChannelData(0)
+            : toMono(originalBuffer);
 
         const buildCache = (maxPoints) => {
             let targetStep = 1;
@@ -51,9 +51,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         };
 
         const fullRes = buildCache(MAX_SMOOTH_POINTS);
-        const interaction = buildCache(MAX_INTERACTION_POINTS);
         fullResCacheRef.current = fullRes;
-        interactionCacheRef.current = interaction;
         setVisualSourceCache(fullRes);
     }, [originalBuffer]);
 

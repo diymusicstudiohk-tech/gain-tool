@@ -73,6 +73,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
 
     let compEnvelope = 0;
     let peakHold = 0; // Track peak for two-stage release
+    let peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E; // Cached dB value of peakHold
 
     // Helper: apply inflate waveshaper to a sample
     const applyInflate = (sample) => {
@@ -165,9 +166,9 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
             // Attack phase
             compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
             peakHold = compEnvelope;
+            peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
         } else {
             // Release phase: two-stage
-            const peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
             const envdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
             const recoveryDb = envdB - peakHolddB;
 
@@ -215,6 +216,7 @@ const LOOKAHEAD_MASK = MAX_LOOKAHEAD_SAMPLES - 1; // 8191
 export const createRealTimeCompressor = (sampleRate) => {
     let compEnvelope = 0;
     let peakHold = 0;
+    let peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E; // Cached dB value of peakHold
 
     // Look-ahead ring buffer (P3)
     const delayBuffer = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
@@ -256,6 +258,14 @@ export const createRealTimeCompressor = (sampleRate) => {
     let _isCompBypass, _isDeltaMode;
     let _lookaheadSamples = 0;
     let _windowSize = 1;
+
+    // Cached linear gain values — avoid Math.exp when smoothed value unchanged
+    let _prevMakeupGain = 0;
+    let _makeupLinear = Math.exp(0 * LN10_OVER_20);
+    let _prevInputGain = 0;
+    let _inputGainLinear = 1.0;
+    let _prevOutputGain = 0;
+    let _outputGainLinear = 1.0;
 
     return {
         processBlock: (inputBuffer, outputBuffer, params) => {
@@ -303,9 +313,21 @@ export const createRealTimeCompressor = (sampleRate) => {
                 smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
                 smoothed.outputGain += smoothCoeff * (targets.outputGain - smoothed.outputGain);
 
-                const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
-                const inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
-                const outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
+                if (smoothed.makeupGain !== _prevMakeupGain) {
+                    _makeupLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
+                    _prevMakeupGain = smoothed.makeupGain;
+                }
+                if (smoothed.inputGain !== _prevInputGain) {
+                    _inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
+                    _prevInputGain = smoothed.inputGain;
+                }
+                if (smoothed.outputGain !== _prevOutputGain) {
+                    _outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
+                    _prevOutputGain = smoothed.outputGain;
+                }
+                const makeUpLinear = _makeupLinear;
+                const inputGainLinear = _inputGainLinear;
+                const outputGainLinear = _outputGainLinear;
 
                 const inputSample = inputData[i] * inputGainLinear;
 
@@ -391,8 +413,8 @@ export const createRealTimeCompressor = (sampleRate) => {
                     if (inputLevel > compEnvelope) {
                         compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
                         peakHold = compEnvelope;
+                        peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
                     } else {
-                        const peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
                         const envdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
                         const recoveryDb = envdB - peakHolddB;
 
@@ -432,6 +454,7 @@ export const createRealTimeCompressor = (sampleRate) => {
         reset: () => {
             compEnvelope = 0;
             peakHold = 0;
+            peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E;
             delayBuffer.fill(0);
             writePos = 0;
             rmsBuffer.fill(0);

@@ -78,4 +78,4 @@ const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
     );
 };
 
-export default ControlHud;
+export default React.memo(ControlHud);

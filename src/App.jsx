@@ -25,9 +25,7 @@ const App = () => {
     // --- Shared Refs ---
     const containerRef = useRef(null);
     const waveformCanvasRef = useRef(null);
-    const grBarCanvasRef = useRef(null);
     const outputMeterCanvasRef = useRef(null);
-    const cfMeterCanvasRef = useRef(null);
     const inputMeterCanvasRef = useRef(null);
     const playheadRef = useRef(null);
     const outputPlayheadRef = useRef(null);
@@ -143,6 +141,7 @@ const App = () => {
     // --- 4. Playback (uses animateRef to break cycle) ---
     const playback = usePlayback({
         audioContext, originalBuffer,
+        currentParams: comp.currentParams,
         paramsRef: comp.paramsRef,
         animateRef,
         fullAudioDataRef,
@@ -190,6 +189,7 @@ const App = () => {
         startOffsetRef, playingTypeRef: playback.playingTypeRef, playBufferRef,
         playheadRef, outputPlayheadRef,
         zoomX: view.zoomX, panOffset: view.panOffset,
+        isPlayingRef,
     });
 
     // --- 7. DSP Processing ---
@@ -213,6 +213,7 @@ const App = () => {
         isDeltaMode: playback.isDeltaMode,
         threshold: comp.threshold,
         mousePos: waveform.mousePos,
+        mousePosRef: waveform.mousePosRef,
         hoverLine: waveform.hoverLine,
         isDraggingLineRef: waveform.isDraggingLineRef,
         isCompAdjusting: waveform.isCompAdjusting,
@@ -223,7 +224,7 @@ const App = () => {
         mipmaps: dsp.mipmaps,
         fullAudioDataRef,
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
-        waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef,
+        waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef,
         playheadRef, meterStateRef,
         hoverGrRef: waveform.hoverGrRef,
         isHoveringGRAreaRef: waveform.isHoveringGRAreaRef,
@@ -362,9 +363,7 @@ const App = () => {
                 </Waveform>
 
                 <Meters
-                    grCanvasRef={grBarCanvasRef}
                     outputCanvasRef={outputMeterCanvasRef}
-                    cfMeterCanvasRef={cfMeterCanvasRef}
                     height={view.canvasDims.height}
                     hoveredMeterRef={hoveredMeterRef}
                     meterStateRef={meterStateRef}

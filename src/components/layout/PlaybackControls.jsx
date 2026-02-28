@@ -61,4 +61,4 @@ const PlaybackControls = ({ playback, onTouchLegend }) => {
     );
 };
 
-export default PlaybackControls;
+export default React.memo(PlaybackControls);

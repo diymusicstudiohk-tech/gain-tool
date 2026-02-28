@@ -28,9 +28,11 @@ const useWaveformInteraction = ({
     startOffsetRef, playingTypeRef, playBufferRef,
     playheadRef, outputPlayheadRef,
     zoomX, panOffset,
+    isPlayingRef,
 }) => {
     const [hoverLine, setHoverLine] = useState(null);
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
+    const mousePosRef = useRef({ x: -1, y: -1 });
     const [isKnobDragging, setIsKnobDragging] = useState(false);
     const [isCompAdjusting, setIsCompAdjusting] = useState(false);
 
@@ -57,6 +59,7 @@ const useWaveformInteraction = ({
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const relX = clientX - rect.left;
             const relY = clientY - rect.top;
+            mousePosRef.current = { x: relX, y: relY };
             setMousePos({ x: relX, y: relY });
             const height = rect.height;
             const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
@@ -216,7 +219,12 @@ const useWaveformInteraction = ({
         const height = rect.height;
         const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
-        setMousePos({ x: relX, y: relY });
+        // Always update the ref (read by animate loop during playback)
+        mousePosRef.current = { x: relX, y: relY };
+        // Only trigger React re-render when not playing (for static draw path)
+        if (!isPlayingRef.current) {
+            setMousePos({ x: relX, y: relY });
+        }
 
         const HIT_TOLERANCE = HIT_TOLERANCE_MOUSE;
         const compThreshPx = displayAmp(Math.pow(10, threshold / 20)) * ampScale;
@@ -231,16 +239,17 @@ const useWaveformInteraction = ({
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
     }, [threshold, zoomY, panOffsetY,
-        isDraggingKnobRef, waveformCanvasRef, containerRef]);
+        isDraggingKnobRef, waveformCanvasRef, containerRef, isPlayingRef]);
 
     const handleMouseLeave = useCallback(() => {
+        mousePosRef.current = { x: -1, y: -1 };
         setMousePos({ x: -1, y: -1 });
         setHoverLine(null);
         if (containerRef.current) containerRef.current.style.cursor = 'crosshair';
     }, [containerRef]);
 
     return {
-        hoverLine, mousePos,
+        hoverLine, mousePos, mousePosRef,
         isKnobDragging, setIsKnobDragging,
         isCompAdjusting, setIsCompAdjusting,
         isDraggingLineRef, isDraggingRef, hoverGrRef, isHoveringGRAreaRef,

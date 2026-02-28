@@ -32,7 +32,8 @@ const RotaryKnob = ({
     const [isEditing, setIsEditing] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [inputValue, setInputValue] = useState(displayValue || value);
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const mousePosRef = useRef({ x: 0, y: 0 });
+    const tooltipRef = useRef(null);
 
     // 使用 Refs 儲存變數，以便在事件監聯器中訪問最新值
     const startY = useRef(0);
@@ -191,7 +192,7 @@ const RotaryKnob = ({
     }
 
     return (
-        <div className={`flex flex-col items-center gap-1 group relative w-12 min-[740px]:w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }} onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
+        <div className={`flex flex-col items-center gap-1 group relative w-12 min-[740px]:w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }} onMouseMove={(e) => { mousePosRef.current = { x: e.clientX, y: e.clientY }; if (tooltipRef.current) { tooltipRef.current.style.left = `${e.clientX + 16}px`; tooltipRef.current.style.top = `${e.clientY - 12}px`; } }}>
             <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                 <svg className="w-full h-full transform -rotate-90">
                     <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
@@ -215,8 +216,9 @@ const RotaryKnob = ({
             </div>
             {isHovered && !isDraggingRef.current && !tooltipsOff && tooltipKey && TOOLTIPS[tooltipKey] && (
                 <div
+                    ref={tooltipRef}
                     className="pointer-events-none"
-                    style={{ position: 'fixed', left: mousePos.x + 16, top: mousePos.y - 12, transform: 'translateY(-100%)', zIndex: 9999 }}
+                    style={{ position: 'fixed', left: mousePosRef.current.x + 16, top: mousePosRef.current.y - 12, transform: 'translateY(-100%)', zIndex: 9999 }}
                 >
                     <div className="bg-black/70 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl text-[11px] font-medium text-white max-w-[320px] whitespace-pre-line">
                         {TOOLTIPS[tooltipKey].desc}

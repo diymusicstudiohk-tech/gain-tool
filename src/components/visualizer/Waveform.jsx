@@ -113,6 +113,9 @@ export const drawMainWaveform = ({
 
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
     const mipmapBias = interactionDPR ? 1 : 0;
+    // Pre-compute all mipmap selections once for Phase 2 (avoids repeated calls with same step)
+    const mmInput = useMipmaps ? selectMipmapLevel(mipmaps.input, step, mipmapBias) : null;
+    const mmOutput = useMipmaps ? selectMipmapLevel(mipmaps.output, step, mipmapBias) : null;
     const mmGR = useMipmaps ? selectMipmapLevel(mipmaps.gr, step, mipmapBias) : null;
 
     // Mouse GR Inspection + Hover Layers
@@ -130,9 +133,8 @@ export const drawMainWaveform = ({
             if (hStart >= 0 && hStart < srcLength) {
                 let maxOut = 0;
                 let maxIn = 0;
-                if (useMipmaps && mipmaps.output) {
-                    const mmO = selectMipmapLevel(mipmaps.output, step, mipmapBias);
-                    const oLv = mmO.level; const oBs = mmO.blockSize;
+                if (useMipmaps && mmOutput) {
+                    const oLv = mmOutput.level; const oBs = mmOutput.blockSize;
                     const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
                     for (let i = oS; i < oE && i < oLv.length; i++) { const a = Math.abs(oLv[i]); if (a > maxOut) maxOut = a; }
                 } else {
@@ -141,9 +143,8 @@ export const drawMainWaveform = ({
                         if (a > maxOut) maxOut = a;
                     }
                 }
-                if (useMipmaps && mipmaps.input) {
-                    const mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
-                    const inLv = mmIn.level; const inBs = mmIn.blockSize;
+                if (useMipmaps && mmInput) {
+                    const inLv = mmInput.level; const inBs = mmInput.blockSize;
                     const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
                     for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
                 } else {
@@ -167,10 +168,6 @@ export const drawMainWaveform = ({
             const outPts = [];
             const hlStartX = Math.max(0, Math.floor(panOffset) - 1);
             const hlEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            let hmOut;
-            if (useMipmaps) {
-                hmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
-            }
             for (let x = hlStartX; x < hlEndX; x++) {
                 const vx = x - panOffset;
                 const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
@@ -179,8 +176,8 @@ export const drawMainWaveform = ({
                 let mxOut = 0;
                 const ls = Math.max(s, 0);
                 if (se - ls > 0) {
-                    if (useMipmaps && hmOut) {
-                        const oL = hmOut.level; const oB = hmOut.blockSize;
+                    if (useMipmaps && mmOutput) {
+                        const oL = mmOutput.level; const oB = mmOutput.blockSize;
                         const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
                         for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
                     } else {
@@ -203,11 +200,6 @@ export const drawMainWaveform = ({
             const inPts = []; const outPts = [];
             const brStartX = Math.max(0, Math.floor(panOffset) - 1);
             const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            let hmIn, hmOut;
-            if (useMipmaps) {
-                hmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
-                hmOut = selectMipmapLevel(mipmaps.output, step, mipmapBias);
-            }
             for (let x = brStartX; x < brEndX; x++) {
                 const vx = x - panOffset;
                 const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
@@ -217,10 +209,10 @@ export const drawMainWaveform = ({
                 const ls = Math.max(s, 0);
                 if (se - ls > 0) {
                     if (useMipmaps) {
-                        const iL = hmIn.level; const iB = hmIn.blockSize;
+                        const iL = mmInput.level; const iB = mmInput.blockSize;
                         const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
                         for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
-                        const oL = hmOut.level; const oB = hmOut.blockSize;
+                        const oL = mmOutput.level; const oB = mmOutput.blockSize;
                         const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
                         for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
                     } else {
@@ -367,9 +359,8 @@ export const drawMainWaveform = ({
         const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
         if (hStart >= 0 && hStart < srcLength) {
             let maxIn = 0;
-            if (useMipmaps && mipmaps && mipmaps.input) {
-                const mmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
-                const inLv = mmIn.level; const inBs = mmIn.blockSize;
+            if (useMipmaps && mmInput) {
+                const inLv = mmInput.level; const inBs = mmInput.blockSize;
                 const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
                 for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
             } else {
@@ -388,10 +379,6 @@ export const drawMainWaveform = ({
             const inPts = [];
             const brStartX = Math.max(0, Math.floor(panOffset) - 1);
             const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            let hmIn;
-            if (useMipmaps && mipmaps && mipmaps.input) {
-                hmIn = selectMipmapLevel(mipmaps.input, step, mipmapBias);
-            }
             for (let x = brStartX; x < brEndX; x++) {
                 const vx = x - panOffset;
                 const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
@@ -400,8 +387,8 @@ export const drawMainWaveform = ({
                 let mxIn = 0;
                 const ls = Math.max(s, 0);
                 if (se - ls > 0) {
-                    if (useMipmaps && hmIn) {
-                        const iL = hmIn.level; const iB = hmIn.blockSize;
+                    if (useMipmaps && mmInput) {
+                        const iL = mmInput.level; const iB = mmInput.blockSize;
                         const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
                         for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
                     } else {
@@ -501,4 +488,4 @@ const Waveform = ({
     );
 };
 
-export default Waveform;
+export default React.memo(Waveform);

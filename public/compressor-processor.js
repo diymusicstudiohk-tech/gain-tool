@@ -38,6 +38,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Envelope state
         this.compEnvelope = 0;
         this.peakHold = 0;
+        this.peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E; // Cached dB value
 
         // Look-ahead ring buffer (P3)
         this.delayBuffer = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
@@ -160,6 +161,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         let compEnvelope = this.compEnvelope;
         let peakHold = this.peakHold;
+        let peakHolddB = this.peakHolddB;
         let writePos = this.writePos;
         let rmsSum = this.rmsSum;
         let rmsWritePos = this.rmsWritePos;
@@ -311,8 +313,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 if (inputLevel > compEnvelope) {
                     compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
                     peakHold = compEnvelope;
+                    peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
                 } else {
-                    const peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
                     const envdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
                     const recoveryDb = envdB - peakHolddB;
 
@@ -352,6 +354,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         // Write back state
         this.compEnvelope = compEnvelope;
         this.peakHold = peakHold;
+        this.peakHolddB = peakHolddB;
         this.writePos = writePos;
         this.rmsSum = rmsSum;
         this.rmsWritePos = rmsWritePos;

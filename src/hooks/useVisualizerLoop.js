@@ -11,6 +11,7 @@ const useVisualizerLoop = ({
     isDeltaMode,
     threshold,
     mousePos,
+    mousePosRef,
     hoverLine,
     isDraggingLineRef,
     isCompAdjusting,
@@ -26,9 +27,7 @@ const useVisualizerLoop = ({
     isPlayingRef,
     rafIdRef,
     waveformCanvasRef,
-    grBarCanvasRef,
     outputMeterCanvasRef,
-    cfMeterCanvasRef,
     inputMeterCanvasRef,
     playheadRef,
     meterStateRef,
@@ -52,8 +51,7 @@ const useVisualizerLoop = ({
     const lastDrawParamsRef = useRef(null);
     const thresholdRef = useRef(threshold);
     useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
-    const mousePosRef = useRef(mousePos);
-    useEffect(() => { mousePosRef.current = mousePos; }, [mousePos]);
+    // mousePosRef is passed in directly from useWaveformInteraction
     const hoverLineRef = useRef(hoverLine);
     useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
 
@@ -182,15 +180,21 @@ const useVisualizerLoop = ({
             let instantDR = 0;
             const filled = meterStateRef.current.drHistoryFilled;
             if (filled >= 10) {
-                // Collect non-silent values
-                const vals = [];
-                for (let i = 0; i < filled; i++) {
-                    if (drH[i] > DR_SILENCE_THRESHOLD) vals.push(drH[i]);
+                // Collect non-silent values into pre-allocated scratch buffer
+                if (!meterStateRef.current.drScratch) {
+                    meterStateRef.current.drScratch = new Float32Array(DR_HISTORY_SIZE);
                 }
-                if (vals.length >= 5) {
-                    vals.sort((a, b) => a - b);
-                    const p10 = vals[Math.floor(vals.length * 0.1)];
-                    const p90 = vals[Math.floor(vals.length * 0.9)];
+                const scratch = meterStateRef.current.drScratch;
+                let count = 0;
+                for (let i = 0; i < filled; i++) {
+                    if (drH[i] > DR_SILENCE_THRESHOLD) scratch[count++] = drH[i];
+                }
+                if (count >= 5) {
+                    // Sort only the filled portion (Float32Array.sort is in-place, no allocation)
+                    const slice = scratch.subarray(0, count);
+                    slice.sort();
+                    const p10 = slice[Math.floor(count * 0.1)];
+                    const p90 = slice[Math.floor(count * 0.9)];
                     instantDR = p90 - p10;
                 }
             }
@@ -267,7 +271,7 @@ const useVisualizerLoop = ({
         visualStep, mipmaps, canvasDims,
         isCompAdjusting, hasThresholdBeenAdjusted, lastPlayedType,
         isCompBypass, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        rafIdRef, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
     // --- Static Draw for Initial State ---
@@ -305,7 +309,7 @@ const useVisualizerLoop = ({
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, threshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted,
-        isCompBypass, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        isCompBypass, interactionDPR, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps,
     ]);
 

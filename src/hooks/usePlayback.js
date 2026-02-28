@@ -6,7 +6,7 @@ import { createRealTimeCompressor } from '../utils/dsp';
  * The RAF restart effect is managed by App.jsx.
  */
 const usePlayback = ({
-    audioContext, originalBuffer, paramsRef,
+    audioContext, originalBuffer, currentParams, paramsRef,
     animateRef, fullAudioDataRef, logAction,
     // Shared refs from App
     sourceNodeRef, startTimeRef, startOffsetRef,
@@ -50,7 +50,7 @@ const usePlayback = ({
                 workletNodeRef.current.port.postMessage(current);
             }
         }
-    });
+    }, [currentParams, isDeltaMode, paramsRef]);
 
     // Sync Delta Mode
     useEffect(() => {

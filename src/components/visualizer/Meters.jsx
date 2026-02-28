@@ -685,7 +685,8 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
     );
 };
 
-export { InputMeter };
+const InputMeterMemo = React.memo(InputMeter);
+export { InputMeterMemo as InputMeter };
 
 // --- Output Gain Button ---
 // Out bar center ratio within the dual-meter canvas (outCenterX = 41 * s, s = width / 52)
@@ -791,7 +792,7 @@ const getMetersTooltipText = (activeZone, ms) => {
     }
 };
 
-const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, outputGain, onOutputGainChange }) => {
+const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, outputGain, onOutputGainChange }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
     const tooltipTextRef = useRef(null);
     const tooltipDivRef = useRef(null);
@@ -884,9 +885,6 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             onMouseLeave={handleMouseLeave}
         >
             <canvas ref={outputCanvasRef} className="w-full h-full" />
-            {/* Hidden canvases (kept for ref compatibility) */}
-            <canvas ref={grCanvasRef} className="hidden" />
-            <canvas ref={cfMeterCanvasRef} className="hidden" />
             {onOutputGainChange && containerHeight > 0 && (
                 <OutputGainButton
                     outputGain={outputGain ?? 0}
@@ -913,4 +911,4 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     );
 };
 
-export default Meters;
+export default React.memo(Meters);

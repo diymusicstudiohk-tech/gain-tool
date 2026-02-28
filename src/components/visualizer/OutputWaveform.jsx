@@ -290,4 +290,4 @@ const OutputWaveform = ({
     );
 };
 
-export default OutputWaveform;
+export default React.memo(OutputWaveform);
