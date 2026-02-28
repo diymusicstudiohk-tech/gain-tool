@@ -22,7 +22,6 @@ const useWaveformInteraction = ({
     zoomY, panOffsetY,
     setIsCustomSettings, setIsProcessing,
     setHasThresholdBeenAdjusted,
-    isCompBypass, setIsCompBypass,
     lastPlayedType, handleModeChange,
     isDraggingKnobRef,
     // Seek-related refs
@@ -135,11 +134,6 @@ const useWaveformInteraction = ({
         if (isDraggingKnobRef.current || !originalBuffer) return;
 
         if (hoverLine) {
-            if (hoverLine === 'comp' && isCompBypass) {
-                setIsCompBypass(false);
-                setIsCustomSettings(true);
-                if (lastPlayedType !== 'processed') handleModeChange('processed');
-            }
             isDraggingLineRef.current = hoverLine;
             document.body.style.cursor = 'ns-resize';
 
@@ -149,8 +143,7 @@ const useWaveformInteraction = ({
             // Seek — click on empty space to move playhead
             handleSeekOnWaveform(e.clientX);
         }
-    }, [originalBuffer, hoverLine, isCompBypass, lastPlayedType,
-        setIsCompBypass, setIsCustomSettings, handleModeChange,
+    }, [originalBuffer, hoverLine,
         onWaveformGlobalMove, onWaveformGlobalUp, isDraggingKnobRef, handleSeekOnWaveform]);
 
     // Touch equivalent of handleWaveformMouseDown.
@@ -184,15 +177,10 @@ const useWaveformInteraction = ({
             const distToCompTop = Math.abs(relY - (centerY - compThreshPx));
             const distToCompBot = Math.abs(relY - (centerY + compThreshPx));
 
-            if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) touchHoverLine = 'comp';
+            if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) touchHoverLine = 'comp';
         }
 
         if (touchHoverLine) {
-            if (touchHoverLine === 'comp' && isCompBypass) {
-                setIsCompBypass(false);
-                setIsCustomSettings(true);
-                if (lastPlayedType !== 'processed') handleModeChange('processed');
-            }
             isDraggingLineRef.current = touchHoverLine;
             setHoverLine(touchHoverLine);
 
@@ -204,8 +192,6 @@ const useWaveformInteraction = ({
         }
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomY, panOffsetY,
         threshold,
-        isCompBypass, lastPlayedType,
-        setIsCompBypass, setIsCustomSettings, handleModeChange,
         onWaveformGlobalMove, onWaveformGlobalUp, handleSeekOnWaveform]);
 
     // Keep refs pointing to the latest handlers so closures stay current.
@@ -242,12 +228,11 @@ const useWaveformInteraction = ({
 
         let newHoverLine = null;
         let cursor = 'crosshair';
-        if (!isCompBypass && (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE)) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
+        if (distToCompTop < HIT_TOLERANCE || distToCompBot < HIT_TOLERANCE) { newHoverLine = 'comp'; cursor = 'ns-resize'; }
 
         setHoverLine(newHoverLine);
         if (containerRef.current) containerRef.current.style.cursor = cursor;
     }, [threshold, zoomY, panOffsetY,
-        isCompBypass,
         isDraggingKnobRef, waveformCanvasRef, containerRef]);
 
     const handleMouseLeave = useCallback(() => {

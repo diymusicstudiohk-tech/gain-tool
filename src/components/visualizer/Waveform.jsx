@@ -52,7 +52,7 @@ export const drawMainWaveform = ({
 
     // ── Cache key ──
     const adjustBit = isCompAdjusting ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}_${isCompBypass?1:0}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${dryGain.toFixed(2)}_${adjustBit}_${isGainKnobActive?1:0}_${activeGainKnob||''}`;
 
     const cache = waveformCacheRef?.current;
     const isAnyDrag = isDraggingLine || isCompAdjusting || isGainKnobDragging;
@@ -502,14 +502,12 @@ export const drawMainWaveform = ({
     // ── Threshold Lines ──
     const isDry = lastPlayedType === 'original';
 
-    if (!isCompBypass) {
-        drawThresholdLine(ctx, {
-            thresholdDb: threshold,
-            color: isDry || isCompBypass ? INACTIVE : BRICK_RED,
-            isHighlight: hoverLine === 'comp' || isDraggingLine === 'comp',
-            centerY, ampScale, width, height,
-        });
-    }
+    drawThresholdLine(ctx, {
+        thresholdDb: threshold,
+        color: isDry ? INACTIVE : BRICK_RED,
+        isHighlight: hoverLine === 'comp' || isDraggingLine === 'comp',
+        centerY, ampScale, width, height,
+    });
 
     ctx.setLineDash([]);
 

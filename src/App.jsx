@@ -223,7 +223,6 @@ const App = () => {
         isDraggingLineRef: waveform.isDraggingLineRef,
         isCompAdjusting: waveform.isCompAdjusting,
         hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass,
         hoveredKnob: view.hoveredKnob,
         isGainKnobDragging: waveform.isGainKnobDragging,
         draggingGainKnob: waveform.draggingGainKnob,

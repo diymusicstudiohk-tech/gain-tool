@@ -16,7 +16,6 @@ const useVisualizerLoop = ({
     isDraggingLineRef,
     isCompAdjusting,
     hasThresholdBeenAdjusted,
-    isCompBypass,
     hoveredKnob,
     isGainKnobDragging,
     draggingGainKnob,
@@ -66,10 +65,6 @@ const useVisualizerLoop = ({
     const hoverLineRef = useRef(hoverLine);
     useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
 
-    // Use refs for bypass state + visual data so animate() picks up changes
-    // immediately without waiting for useCallback recreation + RAF restart.
-    const isCompBypassRef = useRef(isCompBypass);
-    useEffect(() => { isCompBypassRef.current = isCompBypass; }, [isCompBypass]);
     const visualResultRef = useRef(visualResult);
     useEffect(() => { visualResultRef.current = visualResult; }, [visualResult]);
     const mipmapsRef = useRef(mipmaps);
@@ -86,7 +81,7 @@ const useVisualizerLoop = ({
     useEffect(() => {
         lastDrawParamsRef.current = null;
         if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
-    }, [visualResult, mipmaps, mixMipmaps, isCompBypass]);
+    }, [visualResult, mipmaps, mixMipmaps]);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -124,8 +119,6 @@ const useVisualizerLoop = ({
         const liveVisualResult = visualResultRef.current;
         const liveMipmaps = mipmapsRef.current;
         const liveMixMipmaps = mixMipmapsRef.current;
-        const liveIsCompBypass = isCompBypassRef.current;
-
         if (liveVisualResult) {
             // RMS Calculation
             const step = visualStep;
@@ -247,7 +240,7 @@ const useVisualizerLoop = ({
                         isCompAdjusting, hasThresholdBeenAdjusted,
                         hoverGrRef,
                         isHoveringGRAreaRef,
-                        isCompBypass: liveIsCompBypass,
+                        isCompBypass: false,
                         isGainKnobActive,
                         activeGainKnob,
                         isGainKnobDragging,
@@ -280,7 +273,7 @@ const useVisualizerLoop = ({
         originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
         visualStep, mipmaps, mixMipmaps, canvasDims,
         isCompAdjusting, hasThresholdBeenAdjusted, lastPlayedType,
-        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
+        isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
         rafIdRef, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
     ]);
 
@@ -302,7 +295,7 @@ const useVisualizerLoop = ({
                 isCompAdjusting, hasThresholdBeenAdjusted,
                 hoverGrRef,
                 isHoveringGRAreaRef,
-                isCompBypass,
+                isCompBypass: false,
                 isGainKnobActive,
                 activeGainKnob,
                 isGainKnobDragging,
@@ -322,7 +315,7 @@ const useVisualizerLoop = ({
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
         lastPlayedType, isDeltaMode, dryGain, threshold,
         mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted,
-        isCompBypass, isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        isGainKnobActive, activeGainKnob, isGainKnobDragging, interactionDPR, waveformCanvasRef, grBarCanvasRef, outputMeterCanvasRef, cfMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
         mipmaps, mixMipmaps
     ]);
 
