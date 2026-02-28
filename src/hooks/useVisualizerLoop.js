@@ -164,8 +164,8 @@ const useVisualizerLoop = ({
             if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
             // --- Short-term Dynamic Range (DR) Calculation ---
-            // Store output RMS in dB into a circular buffer (3 seconds @ 60fps = 180 entries)
-            const DR_HISTORY_SIZE = 180;
+            // Store output RMS in dB into a circular buffer (1 second @ 60fps = 60 entries)
+            const DR_HISTORY_SIZE = 60;
             const DR_SILENCE_THRESHOLD = -60; // dB — ignore silent frames
             if (!meterStateRef.current.drHistory) {
                 meterStateRef.current.drHistory = new Float32Array(DR_HISTORY_SIZE);

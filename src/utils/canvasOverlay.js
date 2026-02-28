@@ -11,8 +11,8 @@ import {
 export const drawCrosshair = (ctx, mousePos, width, height) => {
     // Vertical crosshair line
     ctx.save();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
-    ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+    ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height);
     ctx.stroke();
@@ -21,12 +21,12 @@ export const drawCrosshair = (ctx, mousePos, width, height) => {
     // Horizontal crosshair line with edge-fade gradient
     ctx.save();
     const hGrad = ctx.createLinearGradient(0, 0, width, 0);
-    hGrad.addColorStop(0, 'rgba(255,255,255,0.6)');
-    hGrad.addColorStop(0.15, 'rgba(255,255,255,1)');
-    hGrad.addColorStop(0.85, 'rgba(255,255,255,1)');
-    hGrad.addColorStop(1, 'rgba(255,255,255,0.6)');
+    hGrad.addColorStop(0, 'rgba(255,255,255,0.3)');
+    hGrad.addColorStop(0.15, 'rgba(255,255,255,0.5)');
+    hGrad.addColorStop(0.85, 'rgba(255,255,255,0.5)');
+    hGrad.addColorStop(1, 'rgba(255,255,255,0.3)');
     ctx.strokeStyle = hGrad; ctx.lineWidth = 1;
-    ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(0, mousePos.y); ctx.lineTo(width, mousePos.y);
     ctx.stroke();
