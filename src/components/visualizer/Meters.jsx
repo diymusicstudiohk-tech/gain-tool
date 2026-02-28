@@ -63,28 +63,63 @@ function updateCfHeatMap(heatArray, cfDb) {
     }
 }
 
+// CF heat map offscreen canvas cache
+let _cfOffscreen = null;
+let _cfOffscreenCtx = null;
+
+// Pre-rendered radial gradient blob cache (white, for tinting)
+let _cfBlobCache = null;
+
+function getCfGradientBlob(radius) {
+    if (_cfBlobCache && _cfBlobCache.radius === radius) return _cfBlobCache.canvas;
+    const size = radius * 2;
+    const offscreen = new OffscreenCanvas(size, size);
+    const octx = offscreen.getContext('2d');
+    const grad = octx.createRadialGradient(radius, radius, 0, radius, radius, radius);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.5, 'rgba(255,255,255,0.5)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    octx.fillStyle = grad;
+    octx.fillRect(0, 0, size, size);
+    _cfBlobCache = { radius, canvas: offscreen };
+    return offscreen;
+}
+
 function renderCfHeatMapVertical(ctx, heatArray, x, columnWidth, top, areaHeight) {
     const prevComposite = ctx.globalCompositeOperation;
     ctx.globalCompositeOperation = 'lighter';
     const radius = Math.max(6, columnWidth / 2);
-    const centerX = x + columnWidth / 2;
+    const blobSize = radius * 2;
+    const blob = getCfGradientBlob(radius);
+
+    // Use offscreen canvas for per-bucket compositing to avoid corrupting main canvas
+    const offW = Math.ceil(columnWidth);
+    const offH = Math.ceil(blobSize);
+    if (!_cfOffscreen || _cfOffscreen.width !== offW || _cfOffscreen.height !== offH) {
+        _cfOffscreen = new OffscreenCanvas(offW, offH);
+        _cfOffscreenCtx = _cfOffscreen.getContext('2d');
+    }
+    const octx = _cfOffscreenCtx;
 
     for (let i = 0; i < CF_HEAT_BUCKETS; i++) {
         const heat = heatArray[i];
+        if (heat <= 0.01) continue;
         const color = cfHeatToColor(heat);
         if (!color) continue;
 
-        // bucket 0 = bottom (3 dB), bucket 49 = top (20 dB)
         const pct = i / (CF_HEAT_BUCKETS - 1);
         const y = top + areaHeight - (pct * areaHeight);
 
-        const gradient = ctx.createRadialGradient(centerX, y, 0, centerX, y, radius);
-        gradient.addColorStop(0, color);
-        gradient.addColorStop(0.5, color.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * 0.5})`));
-        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        // Render tinted gradient blob in offscreen canvas
+        octx.clearRect(0, 0, offW, offH);
+        octx.globalCompositeOperation = 'source-over';
+        octx.drawImage(blob, 0, 0, offW, offH);
+        octx.globalCompositeOperation = 'source-in';
+        octx.fillStyle = color;
+        octx.fillRect(0, 0, offW, offH);
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y - radius, columnWidth, radius * 2);
+        // Stamp onto main canvas
+        ctx.drawImage(_cfOffscreen, x, y - radius, columnWidth, blobSize);
     }
 
     ctx.globalCompositeOperation = prevComposite;
