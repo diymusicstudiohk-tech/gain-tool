@@ -44,7 +44,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.writePos = 0;
 
         // Sliding window maximum (monotonic deque) — pre-allocated, no GC
-        this.dequeValues = new Float64Array(MAX_LOOKAHEAD_SAMPLES);
+        this.dequeValues = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
         this.dequeIndices = new Int32Array(MAX_LOOKAHEAD_SAMPLES);
         this.dequeHead = 0;
         this.dequeTail = 0;

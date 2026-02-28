@@ -51,7 +51,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
 
     // Sliding window maximum (monotonic deque) — pre-allocated
     const maxDequeSize = Math.max(lookaheadSamples + 1, 2);
-    const dequeValues = new Float64Array(maxDequeSize);
+    const dequeValues = new Float32Array(maxDequeSize);
     const dequeIndices = new Int32Array(maxDequeSize);
     let dequeHead = 0;
     let dequeTail = 0;
@@ -203,7 +203,7 @@ export const createRealTimeCompressor = (sampleRate) => {
     let writePos = 0;
 
     // Sliding window maximum (monotonic deque) — pre-allocated, no GC
-    const dequeValues = new Float64Array(MAX_LOOKAHEAD_SAMPLES);
+    const dequeValues = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
     const dequeIndices = new Int32Array(MAX_LOOKAHEAD_SAMPLES);
     let dequeHead = 0;
     let dequeTail = 0;
