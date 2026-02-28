@@ -687,6 +687,9 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
 export { InputMeter };
 
 // --- Output Gain Button ---
+// Out bar center ratio within the dual-meter canvas (outCenterX = 41 * s, s = width / 52)
+const OUT_BAR_CENTER_PCT = (41 / 52) * 100;
+
 const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) => {
     const dragging = useRef(false);
     const startY = useRef(0);
@@ -736,7 +739,7 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
             onDoubleClick={handleDoubleClick}
             style={{
                 position: 'absolute',
-                left: '50%',
+                left: `${OUT_BAR_CENTER_PCT}%`,
                 transform: 'translateX(-50%)',
                 top: topPx - btnHeight / 2,
                 height: btnHeight,
