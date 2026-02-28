@@ -558,7 +558,7 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
-                fontSize: isZero ? 8 : 9,
+                fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
                 cursor: 'ns-resize',
@@ -568,6 +568,7 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
                 padding: '0 5px',
+                minWidth: '5ch',
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
@@ -751,7 +752,7 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
-                fontSize: isZero ? 8 : 9,
+                fontSize: 9,
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
                 cursor: 'ns-resize',
@@ -761,6 +762,7 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 lineHeight: 1,
                 whiteSpace: 'nowrap',
                 padding: '0 5px',
+                minWidth: '5ch',
             }}
         >
             {isZero ? <><span>▲</span><span>▼</span></> : label}
