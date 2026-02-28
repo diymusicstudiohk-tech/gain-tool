@@ -176,11 +176,11 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
     const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
 
     // 2 bars: scale all positions proportionally from 63px reference width (8px gap between bars)
-    const s = width / 63;
+    const s = width / 52;
     const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
-    const grCenterX = 16.5 * s;
-    const outCenterX = 46.5 * s;
+    const grCenterX = 11 * s;
+    const outCenterX = 41 * s;
     const grX = grCenterX - (barWidth / 2);
     const outX = outCenterX - (barWidth / 2);
 
@@ -410,10 +410,10 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
     const PADDING = 0; const maxPixelHeight = (height / 2) - PADDING;
 
     // Scale from 30px reference width
-    const s = width / 30;
+    const s = width / 22;
     const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
-    const centerX = 15 * s;
+    const centerX = 11 * s;
     const x = centerX - (barWidth / 2);
     const bgRadius = METER_BAR_RADIUS * s;
 
@@ -516,7 +516,7 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef }) => {
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div className="flex-none h-full relative w-[4%] min-[740px]:w-[30px]"
+        <div className="flex-none h-full relative w-[4%] max-w-[22px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -635,7 +635,7 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div className="flex-none h-full relative w-[8.5%] min-[740px]:w-[63px]"
+        <div className="flex-none h-full relative w-[8.5%] max-w-[52px]"
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
