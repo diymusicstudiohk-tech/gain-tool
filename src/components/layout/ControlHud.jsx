@@ -44,7 +44,7 @@ const ControlHud = ({ compressor, playback, ui, tooltipsOff }) => {
             {legendTooltip && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none max-w-[90vw]">
                     <div className="bg-black/70 backdrop-blur-md border border-white/10 rounded-lg px-3 py-1.5 shadow-xl whitespace-pre-line">
-                        <span className="text-[11px] font-medium text-slate-300">{legendTooltip}</span>
+                        <span className="text-[11px] font-medium text-white">{legendTooltip}</span>
                     </div>
                 </div>
             )}
