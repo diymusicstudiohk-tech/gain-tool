@@ -25,7 +25,7 @@ const STAGE1_DEPTH_DB = 3.0;     // Two-stage: fast release for first 3dB of rec
 
 export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null) => {
     const {
-        threshold, inflate, inputGain, lookahead,
+        threshold, inflate, inputGain, outputGain, lookahead,
         makeupGain, isCompBypass
     } = params;
 
@@ -34,6 +34,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     const grCurve = (preallocated?.gr?.length === length) ? preallocated.gr : new Float32Array(length);
     const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
     const inputGainLinear = Math.exp((inputGain || 0) * LN10_OVER_20);
+    const outputGainLinear = Math.exp((outputGain || 0) * LN10_OVER_20);
 
     // Inflate (Oxford Inflator waveshaper) pre-compute
     const inflateAmt = (inflate ?? 0) * 0.01;
@@ -183,7 +184,7 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
             limited = (shaped * inflateWet + y * inflateDry) * sign;
         }
 
-        let wet = limited * makeUpLinear;
+        let wet = limited * makeUpLinear * outputGainLinear;
         outputData[i] = wet;
         grCurve[i] = Math.min(0, compGainReductiondB);
     }
@@ -223,8 +224,8 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     // Parameter smoothing state (P2) — ~5ms time constant
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0 };
-    const targets = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0 };
+    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0, outputGain: 0 };
+    const targets = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0, outputGain: 0 };
 
     // Pre-compute adaptive coefficients (depend only on sampleRate)
     let compAttCoeff = 1 - Math.exp(-1 / ((ATTACK_MS / 1000) * sampleRate));
@@ -257,7 +258,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 _cachedParams = params;
 
                 const {
-                    threshold, inflate, inputGain: ig,
+                    threshold, inflate, inputGain: ig, outputGain: og,
                     makeupGain, isCompBypass,
                     isDeltaMode, lookahead,
                 } = params;
@@ -267,6 +268,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                 targets.makeupGain = makeupGain;
                 targets.inflate = inflate ?? 0;
                 targets.inputGain = ig ?? 0;
+                targets.outputGain = og ?? 0;
 
                 _isCompBypass = isCompBypass;
                 _isDeltaMode = isDeltaMode;
@@ -290,9 +292,11 @@ export const createRealTimeCompressor = (sampleRate) => {
                 smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
                 smoothed.inflate += smoothCoeff * (targets.inflate - smoothed.inflate);
                 smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
+                smoothed.outputGain += smoothCoeff * (targets.outputGain - smoothed.outputGain);
 
                 const makeUpLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
                 const inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
+                const outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
 
                 const inputSample = inputData[i] * inputGainLinear;
 
@@ -404,7 +408,7 @@ export const createRealTimeCompressor = (sampleRate) => {
                     limited = (shaped * iWet + y * iDry) * sign;
                 }
 
-                let wet = limited * makeUpLinear;
+                let wet = limited * makeUpLinear * outputGainLinear;
 
                 if (_isDeltaMode) {
                     outputData[i] = wet - delayedSample;

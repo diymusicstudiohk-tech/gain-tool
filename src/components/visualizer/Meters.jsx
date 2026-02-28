@@ -465,7 +465,7 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
     ctx.fillText("In", centerX, 12 * s);
 };
 
-// --- Input Gain Button: Non-linear dB ↔ position mapping ---
+// --- Gain Button: Non-linear dB ↔ position mapping ---
 // Position 0 (top) = +20dB, 0.25 = +5dB, 0.5 (center) = 0dB, 0.75 = -5dB, 1.0 (bottom) = -20dB
 
 function dbToPosition(db) {
@@ -683,6 +683,83 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
 
 export { InputMeter };
 
+// --- Output Gain Button ---
+const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) => {
+    const dragging = useRef(false);
+    const startY = useRef(0);
+    const startPos = useRef(0);
+
+    const pos = dbToPosition(outputGain);
+    const topPx = pos * containerHeight;
+    const btnHeight = 28;
+
+    const handlePointerDown = useCallback((e) => {
+        e.preventDefault();
+        e.target.setPointerCapture(e.pointerId);
+        dragging.current = true;
+        startY.current = e.clientY;
+        startPos.current = dbToPosition(outputGain);
+    }, [outputGain]);
+
+    const handlePointerMove = useCallback((e) => {
+        if (!dragging.current || containerHeight <= 0) return;
+        const deltaY = e.clientY - startY.current;
+        const deltaPos = deltaY / containerHeight;
+        const newPos = Math.max(0, Math.min(1, startPos.current + deltaPos));
+        const newDb = positionToDb(newPos);
+        const rounded = Math.round(newDb * 10) / 10;
+        onOutputGainChange(Math.max(-20, Math.min(20, rounded)));
+    }, [containerHeight, onOutputGainChange]);
+
+    const handlePointerUp = useCallback((e) => {
+        dragging.current = false;
+        try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+    }, []);
+
+    const handleDoubleClick = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOutputGainChange(0);
+    }, [onOutputGainChange]);
+
+    const isZero = Math.abs(outputGain) < 0.05;
+    const label = isZero ? '▲▼' : (outputGain > 0 ? `+${outputGain.toFixed(1)}` : outputGain.toFixed(1));
+
+    return (
+        <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onDoubleClick={handleDoubleClick}
+            style={{
+                position: 'absolute',
+                // Position on the right half (output meter column)
+                left: '50%',
+                right: 0,
+                top: topPx - btnHeight / 2,
+                height: btnHeight,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.75)',
+                border: '1.5px solid rgba(255,255,255,0.8)',
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: isZero ? 10 : 9,
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                cursor: 'ns-resize',
+                touchAction: 'none',
+                userSelect: 'none',
+                zIndex: 10,
+                letterSpacing: isZero ? 2 : 0,
+            }}
+        >
+            {label}
+        </div>
+    );
+};
+
 // --- Component ---
 
 // Meter hit-zone boundary as ratio of 55px reference width (GR+Out only)
@@ -704,11 +781,26 @@ const getMetersTooltipText = (activeZone, ms) => {
     }
 };
 
-const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef }) => {
+const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, outputGain, onOutputGainChange }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
     const tooltipTextRef = useRef(null);
     const tooltipDivRef = useRef(null);
     const rafRef = useRef(null);
+    const containerDivRef = useRef(null);
+    const [containerHeight, setContainerHeight] = useState(0);
+
+    // ResizeObserver to track container height for gain button positioning
+    useEffect(() => {
+        const el = containerDivRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerHeight(entry.contentRect.height);
+            }
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
@@ -776,7 +868,8 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div className="flex-none h-full relative w-[8.5%] max-w-[52px]"
+        <div ref={containerDivRef} className="flex-none h-full relative w-[8.5%] max-w-[52px]"
+            style={{ overflow: 'visible' }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
@@ -784,6 +877,13 @@ const Meters = ({ grCanvasRef, outputCanvasRef, cfMeterCanvasRef, height, hovere
             {/* Hidden canvases (kept for ref compatibility) */}
             <canvas ref={grCanvasRef} className="hidden" />
             <canvas ref={cfMeterCanvasRef} className="hidden" />
+            {onOutputGainChange && containerHeight > 0 && (
+                <OutputGainButton
+                    outputGain={outputGain ?? 0}
+                    onOutputGainChange={onOutputGainChange}
+                    containerHeight={containerHeight}
+                />
+            )}
             {tooltipPos.visible && (
                 <div ref={tooltipDivRef} style={{
                     position: 'fixed',

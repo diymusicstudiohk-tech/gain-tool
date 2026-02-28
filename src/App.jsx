@@ -370,6 +370,8 @@ const App = () => {
                     meterStateRef={meterStateRef}
                     hoverGrRef={waveform.hoverGrRef}
                     isHoveringGRAreaRef={waveform.isHoveringGRAreaRef}
+                    outputGain={comp.outputGain}
+                    onOutputGainChange={(v) => comp.handleCompKnobChange('outputGain', v)}
                 />
             </div>
 

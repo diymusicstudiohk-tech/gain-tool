@@ -63,6 +63,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             makeupGain: 0,
             inflate: 0,
             inputGain: 0,
+            outputGain: 0,
         };
         // Smoothing targets
         this.targets = {
@@ -70,6 +71,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             makeupGain: 0,
             inflate: 0,
             inputGain: 0,
+            outputGain: 0,
         };
 
         // Pre-compute adaptive coefficients (depend only on sampleRate)
@@ -87,6 +89,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this._cachedMakeupLinear = Math.exp(0 * LN10_OVER_20);
         this._prevInputGain = 0;
         this._cachedInputGainLinear = 1.0;
+        this._prevOutputGain = 0;
+        this._cachedOutputGainLinear = 1.0;
         this.isDeltaMode = false;
 
         // Smoothing coefficient (~5ms time constant)
@@ -110,6 +114,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             this.targets.makeupGain = p.makeupGain;
             this.targets.inflate = p.inflate ?? 0;
             this.targets.inputGain = p.inputGain ?? 0;
+            this.targets.outputGain = p.outputGain ?? 0;
 
             // Look-ahead (P3)
             this.lookaheadSamples = Math.min(
@@ -179,17 +184,21 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let sMakeupGain = this.smoothed.makeupGain;
         let sInflate = this.smoothed.inflate;
         let sInputGain = this.smoothed.inputGain;
+        let sOutputGain = this.smoothed.outputGain;
 
         const tThreshold = this.targets.threshold;
         const tMakeupGain = this.targets.makeupGain;
         const tInflate = this.targets.inflate;
         const tInputGain = this.targets.inputGain;
+        const tOutputGain = this.targets.outputGain;
 
         // Cached linear gain values — avoid Math.exp when smoothed value unchanged
         let prevMakeup = this._prevMakeupGain;
         let makeUpLinear = this._cachedMakeupLinear;
         let prevInputGain = this._prevInputGain;
         let inputGainLinear = this._cachedInputGainLinear;
+        let prevOutputGain = this._prevOutputGain;
+        let outputGainLinear = this._cachedOutputGainLinear;
 
         for (let i = 0; i < length; i++) {
             // Per-sample parameter smoothing (P2)
@@ -197,6 +206,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
             sMakeupGain += smoothCoeff * (tMakeupGain - sMakeupGain);
             sInflate += smoothCoeff * (tInflate - sInflate);
             sInputGain += smoothCoeff * (tInputGain - sInputGain);
+            sOutputGain += smoothCoeff * (tOutputGain - sOutputGain);
 
             if (sMakeupGain !== prevMakeup) {
                 makeUpLinear = Math.exp(sMakeupGain * LN10_OVER_20);
@@ -205,6 +215,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
             if (sInputGain !== prevInputGain) {
                 inputGainLinear = Math.exp(sInputGain * LN10_OVER_20);
                 prevInputGain = sInputGain;
+            }
+            if (sOutputGain !== prevOutputGain) {
+                outputGainLinear = Math.exp(sOutputGain * LN10_OVER_20);
+                prevOutputGain = sOutputGain;
             }
 
             const inputSample = inputData[i] * inputGainLinear;
@@ -323,7 +337,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 limited = (shaped * iWet + y * iDry) * sign;
             }
 
-            let wet = limited * makeUpLinear;
+            let wet = limited * makeUpLinear * outputGainLinear;
 
             if (isDeltaMode) {
                 outputData[i] = wet - delayedSample;
@@ -350,10 +364,13 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.smoothed.makeupGain = sMakeupGain;
         this.smoothed.inflate = sInflate;
         this.smoothed.inputGain = sInputGain;
+        this.smoothed.outputGain = sOutputGain;
         this._prevMakeupGain = prevMakeup;
         this._cachedMakeupLinear = makeUpLinear;
         this._prevInputGain = prevInputGain;
         this._cachedInputGainLinear = inputGainLinear;
+        this._prevOutputGain = prevOutputGain;
+        this._cachedOutputGainLinear = outputGainLinear;
 
         return true;
     }

@@ -12,6 +12,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [threshold, setThreshold] = useState(0);
     const [inflate, setInflate] = useState(0);
     const [inputGain, setInputGain] = useState(0);
+    const [outputGain, setOutputGain] = useState(0);
     const [lookahead, setLookahead] = useState(3);
     const [lookaheadControl, setLookaheadControl] = useState(() => lookaheadMsToControl(3));
 
@@ -22,9 +23,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     const [hasThresholdBeenAdjusted, setHasThresholdBeenAdjusted] = useState(true);
 
     const currentParams = useMemo(() => ({
-        threshold, inflate, inputGain, lookahead, makeupGain: 0,
+        threshold, inflate, inputGain, outputGain, lookahead, makeupGain: 0,
         isCompBypass
-    }), [threshold, inflate, inputGain, lookahead, isCompBypass]);
+    }), [threshold, inflate, inputGain, outputGain, lookahead, isCompBypass]);
 
     const paramsRef = useRef({ ...currentParams, dryGain: -200, isDeltaMode: false });
     useEffect(() => {
@@ -40,6 +41,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             setLookaheadControl(lookaheadMsToControl(savedParams.lookahead));
             setInflate(savedParams.inflate ?? 0);
             setInputGain(savedParams.inputGain ?? 0);
+            setOutputGain(savedParams.outputGain ?? 0);
         }
     }, []);
 
@@ -63,7 +65,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
             updateParamGeneric(setLookahead, ms);
             return;
         }
-        const setters = { inflate: setInflate, inputGain: setInputGain };
+        const setters = { inflate: setInflate, inputGain: setInputGain, outputGain: setOutputGain };
         if (setters[key]) updateParamGeneric(setters[key], value);
     }, [updateParamGeneric]);
 
@@ -76,6 +78,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setThreshold(0);
         setInflate(0);
         setInputGain(0);
+        setOutputGain(0);
         setLookahead(3);
         setLookaheadControl(lookaheadMsToControl(3));
         setIsCustomSettings(false);
@@ -85,9 +88,9 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [ensureProcessedMode]);
 
     const getCurrentStateSnapshot = useCallback(() => ({
-        threshold, inflate, inputGain, lookahead, lookaheadControl,
+        threshold, inflate, inputGain, outputGain, lookahead, lookaheadControl,
         isCustomSettings,
-    }), [threshold, inflate, inputGain, lookahead, lookaheadControl,
+    }), [threshold, inflate, inputGain, outputGain, lookahead, lookaheadControl,
         isCustomSettings]);
 
     const applyStateSnapshot = useCallback((snap) => {
@@ -95,6 +98,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         setThreshold(snap.threshold);
         setInflate(snap.inflate ?? 0);
         setInputGain(snap.inputGain ?? 0);
+        setOutputGain(snap.outputGain ?? 0);
         setLookahead(snap.lookahead);
         setLookaheadControl(snap.lookaheadControl !== undefined ? snap.lookaheadControl : lookaheadMsToControl(snap.lookahead));
         setIsCustomSettings(snap.isCustomSettings);
@@ -103,13 +107,13 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
     }, [ensureProcessedMode]);
 
     const getDefaultSnapshot = useCallback(() => ({
-        threshold: 0, inflate: 0, inputGain: 0, lookahead: 3,
+        threshold: 0, inflate: 0, inputGain: 0, outputGain: 0, lookahead: 3,
         lookaheadControl: lookaheadMsToControl(3),
         isCustomSettings: false,
     }), []);
 
     return {
-        threshold, inflate, inputGain, lookahead, lookaheadControl,
+        threshold, inflate, inputGain, outputGain, lookahead, lookaheadControl,
         isCompBypass, setIsCompBypass,
         isCustomSettings, setIsCustomSettings,
         isProcessing, setIsProcessing,
