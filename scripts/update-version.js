@@ -3,7 +3,7 @@
 /**
  * Update version.js by incrementing the patch version number
  * Run this script before building for deployment
- * Example: 1.0.0 -> 1.0.1, 1.3.8 -> 1.3.9
+ * Example: 1.0.0 -> 1.0.1, 1.0.29 -> 1.1.0, 1.3.29 -> 1.4.0
  */
 
 import fs from 'fs';
@@ -31,9 +31,16 @@ try {
     const minor = parseInt(versionMatch[2], 10);
     const patch = parseInt(versionMatch[3], 10);
 
-    // Increment patch version
-    const newPatch = patch + 1;
-    const newVersion = `${major}.${minor}.${newPatch}`;
+    // Increment version: patch 0-29 (30 commits per minor), then roll over
+    let newMinor, newPatch;
+    if (patch >= 29) {
+        newMinor = minor + 1;
+        newPatch = 0;
+    } else {
+        newMinor = minor;
+        newPatch = patch + 1;
+    }
+    const newVersion = `${major}.${newMinor}.${newPatch}`;
 
     // Generate the new version.js content
     const content = `/**
