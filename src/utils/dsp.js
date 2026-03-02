@@ -1,202 +1,15 @@
-import { LN10_OVER_20, TWENTY_LOG10E, LOG_FLOOR } from './dspConstants';
-
-// --- Pre-computed Lagrange interpolation coefficients ---
-// v25 (t=0.25): coefficients for h0..h3
-const L25_0 =  0.0390625;   //  5/128
-const L25_1 =  0.8203125;   // 105/128
-const L25_2 = -0.1640625;   // -21/128
-const L25_3 = -35 / 384;    // -0.09114583...
-// v75 (t=0.75): coefficients for h0..h3
-const L75_0 = -0.1171875;   // -15/128
-const L75_1 = -0.2109375;   // -27/128
-const L75_2 =  0.1171875;   //  15/128
-const L75_3 = -0.3515625;   // -45/128
-
-// --- Adaptive Envelope Constants (hardcoded, no user control) ---
-const ATTACK_MS = 0.1;           // Fixed ultra-fast attack for brickwall limiting
-const FAST_RELEASE_MS = 30;      // For high-crest (transient/drums) material
-const SLOW_RELEASE_MS = 300;     // For low-crest (sustained/vocals) material
-const CF_RMS_WINDOW_MS = 10;     // RMS measurement window (~480 samples @ 48kHz)
-const CF_PEAK_COEFF_MS = 0.5;    // Peak follower time constant for CF
-const CF_SMOOTH_MS = 50;         // Smoothing on crest factor value
-const CF_LOW = 3.0;              // Below → slow release (dB)
-const CF_HIGH = 12.0;            // Above → fast release (dB)
-const STAGE1_DEPTH_DB = 3.0;     // Two-stage: fast release for first 3dB of recovery
+import { LN10_OVER_20 } from './dspConstants';
 
 export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null) => {
-    const {
-        threshold, inflate, inputGain, outputGain, lookahead,
-        makeupGain, isCompBypass
-    } = params;
+    const { inputGain, outputGain } = params;
 
     const length = inputData.length;
     const outputData = (preallocated?.output?.length === length) ? preallocated.output : new Float32Array(length);
-    const grCurve = (preallocated?.gr?.length === length) ? preallocated.gr : new Float32Array(length);
-    const makeUpLinear = Math.exp(makeupGain * LN10_OVER_20);
     const inputGainLinear = Math.exp((inputGain || 0) * LN10_OVER_20);
     const outputGainLinear = Math.exp((outputGain || 0) * LN10_OVER_20);
 
-    // Inflate (Oxford Inflator waveshaper) pre-compute
-    const inflateAmt = (inflate ?? 0) * 0.01;
-    const inflateWet = inflateAmt * 0.99999955296;
-    const inflateDry = 1 - inflateAmt;
-    const effectiveSampleRate = sampleRate / step;
-
-    // Dynamic attack: derive from lookahead for smooth pre-reduction
-    const effectiveAttackMs = Math.max(ATTACK_MS, (lookahead || 0) * 0.7);
-    const compAttCoeff = 1 - Math.exp(-1 / ((effectiveAttackMs / 1000) * effectiveSampleRate));
-    const fastRelCoeff = 1 - Math.exp(-1 / ((FAST_RELEASE_MS / 1000) * effectiveSampleRate));
-    const slowRelCoeff = 1 - Math.exp(-1 / ((SLOW_RELEASE_MS / 1000) * effectiveSampleRate));
-    const cfPeakCoeff = 1 - Math.exp(-1 / ((CF_PEAK_COEFF_MS / 1000) * effectiveSampleRate));
-    const cfSmoothCoeff = 1 - Math.exp(-1 / ((CF_SMOOTH_MS / 1000) * effectiveSampleRate));
-    const lookaheadSamples = Math.floor(((lookahead / 1000) * effectiveSampleRate));
-
-    // Sliding window maximum (monotonic deque) — pre-allocated
-    const maxDequeSize = Math.max(lookaheadSamples + 1, 2);
-    const dequeValues = new Float32Array(maxDequeSize);
-    const dequeIndices = new Int32Array(maxDequeSize);
-    let dequeHead = 0;
-    let dequeTail = 0;
-    const windowSize = lookaheadSamples > 0 ? lookaheadSamples : 1;
-
-    // True peak detection — 4-sample history buffer
-    const tpHistory = new Float32Array(4);
-    let tpPos = 0;
-
-    // Crest factor state
-    const rmsWindowSize = Math.max(1, Math.round((CF_RMS_WINDOW_MS / 1000) * effectiveSampleRate));
-    const rmsBuffer = new Float32Array(rmsWindowSize);
-    let rmsSum = 0;
-    let rmsWritePos = 0;
-    let cfPeak = 0;
-    let smoothedCF = 6.0; // Start at midpoint
-
-    let compEnvelope = 0;
-    let peakHold = 0; // Track peak for two-stage release
-    let peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E; // Cached dB value of peakHold
-
-    // Helper: apply inflate waveshaper to a sample
-    const applyInflate = (sample) => {
-        if (inflateAmt <= 0.001) return sample;
-        const clamped = sample < -1 ? -1 : sample > 1 ? 1 : sample;
-        const y = clamped < 0 ? -clamped : clamped;
-        const y2 = y * y;
-        const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
-        const sign = clamped < 0 ? -1 : 1;
-        return (shaped * inflateWet + y * inflateDry) * sign;
-    };
-
     for (let i = 0; i < length; i++) {
-        // Apply input gain first
-        const inputWithGain = inputData[i] * inputGainLinear;
-        
-        // Apply inflate BEFORE limiter detection
-        const inflatedInput = applyInflate(inputWithGain);
-        
-        // Look ahead into the future for detection (on inflated signal)
-        const detectorIndex = Math.min(i + lookaheadSamples, length - 1);
-        const futureInputWithGain = inputData[detectorIndex] * inputGainLinear;
-        const futureInflated = applyInflate(futureInputWithGain);
-        const detectorSample = Math.abs(futureInflated);
-
-        // --- True peak detection (4-point Lagrange interpolation) ---
-        tpHistory[tpPos] = detectorSample;
-        let truePeak = detectorSample;
-
-        const h0 = tpHistory[(tpPos - 3 + 4) % 4];
-        const h1 = tpHistory[(tpPos - 2 + 4) % 4];
-        const h2 = tpHistory[(tpPos - 1 + 4) % 4];
-        const h3 = detectorSample;
-
-        // Lagrange interpolation between h1 and h2 at t=0.25, 0.5, 0.75
-        const v25 = h0 * L25_0 + h1 * L25_1 + h2 * L25_2 + h3 * L25_3;
-        const v50 = (-h0 + 9 * h1 + 9 * h2 - h3) / 16;
-        const v75 = h0 * L75_0 + h1 * L75_1 + h2 * L75_2 + h3 * L75_3;
-
-        const abs25 = v25 < 0 ? -v25 : v25;
-        const abs50 = v50 < 0 ? -v50 : v50;
-        const abs75 = v75 < 0 ? -v75 : v75;
-        if (abs25 > truePeak) truePeak = abs25;
-        if (abs50 > truePeak) truePeak = abs50;
-        if (abs75 > truePeak) truePeak = abs75;
-
-        tpPos = (tpPos + 1) % 4;
-
-        // --- Sliding window maximum (monotonic deque) ---
-        while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + maxDequeSize) % maxDequeSize] <= truePeak) {
-            dequeTail = (dequeTail - 1 + maxDequeSize) % maxDequeSize;
-        }
-        dequeValues[dequeTail] = truePeak;
-        dequeIndices[dequeTail] = i;
-        dequeTail = (dequeTail + 1) % maxDequeSize;
-
-        // Remove expired elements from front
-        while (dequeHead !== dequeTail && dequeIndices[dequeHead] <= i - windowSize) {
-            dequeHead = (dequeHead + 1) % maxDequeSize;
-        }
-
-        const inputLevel = dequeValues[dequeHead]; // Window maximum
-
-        // --- Crest factor measurement ---
-        const sampleSq = detectorSample * detectorSample;
-        rmsSum -= rmsBuffer[rmsWritePos];
-        rmsBuffer[rmsWritePos] = sampleSq;
-        rmsSum += sampleSq;
-        rmsWritePos = (rmsWritePos + 1) % rmsWindowSize;
-
-        const rmsLevel = Math.sqrt(Math.max(0, rmsSum / rmsWindowSize));
-
-        // Peak follower for CF
-        if (detectorSample > cfPeak) cfPeak = detectorSample;
-        else cfPeak += cfPeakCoeff * (detectorSample - cfPeak);
-
-        // Crest factor in dB
-        const cfRaw = (rmsLevel > LOG_FLOOR && cfPeak > LOG_FLOOR)
-            ? Math.log(cfPeak / rmsLevel) * TWENTY_LOG10E
-            : 0;
-        smoothedCF += cfSmoothCoeff * (cfRaw - smoothedCF);
-
-        // --- Map CF → release coefficient (linear interpolation) ---
-        const cfClamped = Math.max(CF_LOW, Math.min(CF_HIGH, smoothedCF));
-        const cfNorm = (cfClamped - CF_LOW) / (CF_HIGH - CF_LOW); // 0=slow, 1=fast
-        const adaptiveRelCoeff = slowRelCoeff + cfNorm * (fastRelCoeff - slowRelCoeff);
-
-        // --- Envelope follower with two-stage release ---
-        if (inputLevel > compEnvelope) {
-            // Attack phase
-            compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
-            peakHold = compEnvelope;
-            peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
-        } else {
-            // Release phase: two-stage
-            const envdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
-            const recoveryDb = envdB - peakHolddB;
-
-            if (recoveryDb < STAGE1_DEPTH_DB) {
-                // Stage 1: fast release for first 3dB of recovery
-                compEnvelope += fastRelCoeff * (inputLevel - compEnvelope);
-            } else {
-                // Stage 2: adaptive release
-                compEnvelope += adaptiveRelCoeff * (inputLevel - compEnvelope);
-            }
-        }
-
-        let compEnvdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
-        let compGainReductiondB = 0;
-
-        if (!isCompBypass) {
-            if (compEnvdB > threshold) {
-                compGainReductiondB = threshold - compEnvdB;
-            }
-        }
-
-        const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
-        // Apply limiter gain reduction to the inflated signal
-        let limited = inflatedInput * compGainLinear;
-
-        let wet = limited * makeUpLinear * outputGainLinear;
-        outputData[i] = wet;
-        grCurve[i] = Math.min(0, compGainReductiondB);
+        outputData[i] = inputData[i] * inputGainLinear * outputGainLinear;
     }
 
     let visualInput = inputData;
@@ -206,66 +19,22 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
         for (let i = 0; i < length; i++) visualInput[i] = inputData[i] * inputGainLinear;
     }
 
-    return { outputData, grCurve, visualInput };
+    return { outputData, visualInput };
 };
 
-// Max look-ahead: power-of-2 for bitmask modulo (>= 4800 needed for 100ms @ 48kHz)
-const MAX_LOOKAHEAD_SAMPLES = 8192;
-const LOOKAHEAD_MASK = MAX_LOOKAHEAD_SAMPLES - 1; // 8191
-
 export const createRealTimeCompressor = (sampleRate) => {
-    let compEnvelope = 0;
-    let peakHold = 0;
-    let peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E; // Cached dB value of peakHold
-
-    // Look-ahead ring buffer (P3)
-    const delayBuffer = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
-    let writePos = 0;
-
-    // Sliding window maximum (monotonic deque) — pre-allocated, no GC
-    const dequeValues = new Float32Array(MAX_LOOKAHEAD_SAMPLES);
-    const dequeIndices = new Int32Array(MAX_LOOKAHEAD_SAMPLES);
-    let dequeHead = 0;
-    let dequeTail = 0;
-    let dequeSampleCounter = 0;
-
-    // True peak detection — 4-sample history buffer
-    const tpHistory = new Float32Array(4);
-    let tpPos = 0;
-
-    // Parameter smoothing state (P2) — ~5ms time constant
+    // Parameter smoothing state (~5ms time constant)
     const smoothCoeff = 1 - Math.exp(-1 / (0.005 * sampleRate));
-    const smoothed = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0, outputGain: 0 };
-    const targets = { threshold: -24, makeupGain: 0, inflate: 0, inputGain: 0, outputGain: 0 };
-
-    // Pre-compute adaptive coefficients (depend only on sampleRate)
-    let compAttCoeff = 1 - Math.exp(-1 / ((ATTACK_MS / 1000) * sampleRate));
-    const fastRelCoeff = 1 - Math.exp(-1 / ((FAST_RELEASE_MS / 1000) * sampleRate));
-    const slowRelCoeff = 1 - Math.exp(-1 / ((SLOW_RELEASE_MS / 1000) * sampleRate));
-    const cfPeakCoeff = 1 - Math.exp(-1 / ((CF_PEAK_COEFF_MS / 1000) * sampleRate));
-    const cfSmoothCoeff = 1 - Math.exp(-1 / ((CF_SMOOTH_MS / 1000) * sampleRate));
-
-    // Crest factor state
-    const rmsWindowSize = Math.max(1, Math.round((CF_RMS_WINDOW_MS / 1000) * sampleRate));
-    const rmsBuffer = new Float32Array(rmsWindowSize);
-    let rmsSum = 0;
-    let rmsWritePos = 0;
-    let cfPeak = 0;
-    let smoothedCF = 6.0;
-
-    // Coefficient cache — only recalculate when params object identity changes
-    let _cachedParams = null;
-    let _isCompBypass, _isDeltaMode;
-    let _lookaheadSamples = 0;
-    let _windowSize = 1;
+    const smoothed = { inputGain: 0, outputGain: 0 };
+    const targets = { inputGain: 0, outputGain: 0 };
 
     // Cached linear gain values — avoid Math.exp when smoothed value unchanged
-    let _prevMakeupGain = 0;
-    let _makeupLinear = Math.exp(0 * LN10_OVER_20);
     let _prevInputGain = 0;
     let _inputGainLinear = 1.0;
     let _prevOutputGain = 0;
     let _outputGainLinear = 1.0;
+
+    let _cachedParams = null;
 
     return {
         processBlock: (inputBuffer, outputBuffer, params) => {
@@ -275,48 +44,14 @@ export const createRealTimeCompressor = (sampleRate) => {
 
             if (params !== _cachedParams) {
                 _cachedParams = params;
-
-                const {
-                    threshold, inflate, inputGain: ig, outputGain: og,
-                    makeupGain, isCompBypass,
-                    isDeltaMode, lookahead,
-                } = params;
-
-                // Update smoothing targets (P2)
-                targets.threshold = threshold;
-                targets.makeupGain = makeupGain;
-                targets.inflate = inflate ?? 0;
-                targets.inputGain = ig ?? 0;
-                targets.outputGain = og ?? 0;
-
-                _isCompBypass = isCompBypass;
-                _isDeltaMode = isDeltaMode;
-
-                // Look-ahead (P3)
-                _lookaheadSamples = Math.min(
-                    Math.floor((lookahead / 1000) * sampleRate),
-                    MAX_LOOKAHEAD_SAMPLES - 1
-                );
-
-                _windowSize = _lookaheadSamples > 0 ? _lookaheadSamples : 1;
-
-                // Dynamic attack: derive from lookahead for smooth pre-reduction
-                const effectiveAttackMs = Math.max(ATTACK_MS, (lookahead || 0) * 0.7);
-                compAttCoeff = 1 - Math.exp(-1 / ((effectiveAttackMs / 1000) * sampleRate));
+                targets.inputGain = params.inputGain ?? 0;
+                targets.outputGain = params.outputGain ?? 0;
             }
 
             for (let i = 0; i < length; i++) {
-                // Per-sample parameter smoothing (P2)
-                smoothed.threshold += smoothCoeff * (targets.threshold - smoothed.threshold);
-                smoothed.makeupGain += smoothCoeff * (targets.makeupGain - smoothed.makeupGain);
-                smoothed.inflate += smoothCoeff * (targets.inflate - smoothed.inflate);
                 smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
                 smoothed.outputGain += smoothCoeff * (targets.outputGain - smoothed.outputGain);
 
-                if (smoothed.makeupGain !== _prevMakeupGain) {
-                    _makeupLinear = Math.exp(smoothed.makeupGain * LN10_OVER_20);
-                    _prevMakeupGain = smoothed.makeupGain;
-                }
                 if (smoothed.inputGain !== _prevInputGain) {
                     _inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
                     _prevInputGain = smoothed.inputGain;
@@ -325,148 +60,20 @@ export const createRealTimeCompressor = (sampleRate) => {
                     _outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
                     _prevOutputGain = smoothed.outputGain;
                 }
-                const makeUpLinear = _makeupLinear;
-                const inputGainLinear = _inputGainLinear;
-                const outputGainLinear = _outputGainLinear;
 
-                const inputSample = inputData[i] * inputGainLinear;
-
-                // Apply inflate BEFORE limiter detection
-                const sInflate = smoothed.inflate * 0.01;
-                let inflatedSample = inputSample;
-                if (sInflate > 0.001) {
-                    const clamped = inputSample < -1 ? -1 : inputSample > 1 ? 1 : inputSample;
-                    const y = clamped < 0 ? -clamped : clamped;
-                    const y2 = y * y;
-                    const shaped = 1.5 * y - 0.0625 * y2 - 0.375 * y2 * y - 0.0625 * y2 * y2;
-                    const sign = clamped < 0 ? -1 : 1;
-                    const iWet = sInflate * 0.99999955296;
-                    const iDry = 1 - sInflate;
-                    inflatedSample = (shaped * iWet + y * iDry) * sign;
-                }
-
-                // Write inflated sample to delay line (P3)
-                delayBuffer[writePos] = inflatedSample;
-                const delayedSample = delayBuffer[(writePos - _lookaheadSamples + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK];
-
-                // --- True peak detection (4-point Lagrange interpolation) on inflated signal ---
-                const absSample = Math.abs(inflatedSample);
-                tpHistory[tpPos] = absSample;
-                let truePeak = absSample;
-
-                const h0 = tpHistory[(tpPos - 3 + 4) % 4];
-                const h1 = tpHistory[(tpPos - 2 + 4) % 4];
-                const h2 = tpHistory[(tpPos - 1 + 4) % 4];
-                const h3 = absSample;
-
-                const v25 = h0 * L25_0 + h1 * L25_1 + h2 * L25_2 + h3 * L25_3;
-                const v50 = (-h0 + 9 * h1 + 9 * h2 - h3) / 16;
-                const v75 = h0 * L75_0 + h1 * L75_1 + h2 * L75_2 + h3 * L75_3;
-
-                const abs25 = v25 < 0 ? -v25 : v25;
-                const abs50 = v50 < 0 ? -v50 : v50;
-                const abs75 = v75 < 0 ? -v75 : v75;
-                if (abs25 > truePeak) truePeak = abs25;
-                if (abs50 > truePeak) truePeak = abs50;
-                if (abs75 > truePeak) truePeak = abs75;
-
-                tpPos = (tpPos + 1) % 4;
-
-                // --- Sliding window maximum (monotonic deque) ---
-                while (dequeTail !== dequeHead && dequeValues[(dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK] <= truePeak) {
-                    dequeTail = (dequeTail - 1 + MAX_LOOKAHEAD_SAMPLES) & LOOKAHEAD_MASK;
-                }
-                dequeValues[dequeTail] = truePeak;
-                dequeIndices[dequeTail] = dequeSampleCounter;
-                dequeTail = (dequeTail + 1) & LOOKAHEAD_MASK;
-
-                while (dequeHead !== dequeTail && dequeIndices[dequeHead] <= dequeSampleCounter - _windowSize) {
-                    dequeHead = (dequeHead + 1) & LOOKAHEAD_MASK;
-                }
-
-                dequeSampleCounter++;
-                const inputLevel = dequeValues[dequeHead]; // Window maximum
-
-                // --- Crest factor measurement ---
-                const sampleSq = absSample * absSample;
-                rmsSum -= rmsBuffer[rmsWritePos];
-                rmsBuffer[rmsWritePos] = sampleSq;
-                rmsSum += sampleSq;
-                rmsWritePos = (rmsWritePos + 1) % rmsWindowSize;
-
-                const rmsLevel = Math.sqrt(Math.max(0, rmsSum / rmsWindowSize));
-
-                if (absSample > cfPeak) cfPeak = absSample;
-                else cfPeak += cfPeakCoeff * (absSample - cfPeak);
-
-                const cfRaw = (rmsLevel > LOG_FLOOR && cfPeak > LOG_FLOOR)
-                    ? Math.log(cfPeak / rmsLevel) * TWENTY_LOG10E
-                    : 0;
-                smoothedCF += cfSmoothCoeff * (cfRaw - smoothedCF);
-
-                const cfClamped = Math.max(CF_LOW, Math.min(CF_HIGH, smoothedCF));
-                const cfNorm = (cfClamped - CF_LOW) / (CF_HIGH - CF_LOW);
-                const adaptiveRelCoeff = slowRelCoeff + cfNorm * (fastRelCoeff - slowRelCoeff);
-
-                // --- Compressor with two-stage release ---
-                if (!_isCompBypass) {
-                    if (inputLevel > compEnvelope) {
-                        compEnvelope += compAttCoeff * (inputLevel - compEnvelope);
-                        peakHold = compEnvelope;
-                        peakHolddB = Math.log(peakHold + LOG_FLOOR) * TWENTY_LOG10E;
-                    } else {
-                        const envdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
-                        const recoveryDb = envdB - peakHolddB;
-
-                        if (recoveryDb < STAGE1_DEPTH_DB) {
-                            compEnvelope += fastRelCoeff * (inputLevel - compEnvelope);
-                        } else {
-                            compEnvelope += adaptiveRelCoeff * (inputLevel - compEnvelope);
-                        }
-                    }
-                }
-
-                let compEnvdB = Math.log(compEnvelope + LOG_FLOOR) * TWENTY_LOG10E;
-                let compGainReductiondB = 0;
-
-                if (!_isCompBypass) {
-                    if (compEnvdB > smoothed.threshold) {
-                        compGainReductiondB = smoothed.threshold - compEnvdB;
-                    }
-                }
-
-                const compGainLinear = Math.exp(compGainReductiondB * LN10_OVER_20);
-
-                // Output uses delayed inflated sample with gain reduction (P3)
-                let limited = delayedSample * compGainLinear;
-
-                let wet = limited * makeUpLinear * outputGainLinear;
-
-                if (_isDeltaMode) {
-                    outputData[i] = wet - delayedSample;
-                } else {
-                    outputData[i] = wet;
-                }
-
-                writePos = (writePos + 1) & LOOKAHEAD_MASK;
+                outputData[i] = inputData[i] * _inputGainLinear * _outputGainLinear;
             }
         },
         reset: () => {
-            compEnvelope = 0;
-            peakHold = 0;
-            peakHolddB = Math.log(LOG_FLOOR) * TWENTY_LOG10E;
-            delayBuffer.fill(0);
-            writePos = 0;
-            rmsBuffer.fill(0);
-            rmsSum = 0;
-            rmsWritePos = 0;
-            cfPeak = 0;
-            smoothedCF = 6.0;
-            dequeHead = 0;
-            dequeTail = 0;
-            dequeSampleCounter = 0;
-            tpHistory.fill(0);
-            tpPos = 0;
+            smoothed.inputGain = 0;
+            smoothed.outputGain = 0;
+            targets.inputGain = 0;
+            targets.outputGain = 0;
+            _prevInputGain = 0;
+            _inputGainLinear = 1.0;
+            _prevOutputGain = 0;
+            _outputGainLinear = 1.0;
+            _cachedParams = null;
         }
     };
 };

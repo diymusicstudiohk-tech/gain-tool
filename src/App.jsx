@@ -42,11 +42,9 @@ const App = () => {
     const meterStateRef = useRef({
         peakLevel: 0, holdPeakLevel: 0, holdTimer: 0,
         dryPeakLevel: 0, dryHoldPeakLevel: 0, dryHoldTimer: 0,
-        grPeakLevel: 0, grHoldPeakLevel: 0, grHoldTimer: 0,
-        dryRmsLevel: 0, outRmsLevel: 0, dynamicRange: 0,
+        dryRmsLevel: 0, outRmsLevel: 0,
         outClipping: false,
         inClipping: false,
-        cfHeatArray: new Float32Array(50),
     });
 
     // Ref-based callbacks (break circular deps)
@@ -87,7 +85,6 @@ const App = () => {
     const view = useViewState({ containerRef });
 
     // --- Region: controls what portion of audio is shown in the main visualizer ---
-    // regionStart / regionEnd are normalized fractions [0, 1]
     const [regionStart, setRegionStart] = useState(0);
     const [regionEnd, setRegionEnd] = useState(1);
 
@@ -97,12 +94,10 @@ const App = () => {
     const handleRegionChange = useCallback((s, e) => {
         setRegionStart(s);
         setRegionEnd(e);
-        // Synchronously update refs so the rAF animation loop picks up changes immediately
         regionStartRef.current = s;
         regionEndRef.current = e;
     }, []);
 
-    // Keep refs in sync with state
     useEffect(() => { regionStartRef.current = regionStart; }, [regionStart]);
     useEffect(() => { regionEndRef.current = regionEnd; }, [regionEnd]);
 
@@ -114,7 +109,7 @@ const App = () => {
             setRegionStart(0);
             setRegionEnd(1);
         } else {
-            const half = 2.5 / D; // 2.5 seconds expressed as fraction
+            const half = 2.5 / D;
             setRegionStart(0.5 - half);
             setRegionEnd(0.5 + half);
         }
@@ -174,18 +169,7 @@ const App = () => {
     // --- 6. Waveform Interaction ---
     const waveform = useWaveformInteraction({
         waveformCanvasRef, containerRef, originalBuffer,
-        threshold: comp.threshold,
-        setThreshold: comp.setThreshold,
-        zoomY: view.zoomY,
-        panOffsetY: view.panOffsetY,
-        setIsCustomSettings: comp.setIsCustomSettings,
-        setIsProcessing: comp.setIsProcessing,
-        setHasThresholdBeenAdjusted: comp.setHasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass, setIsCompBypass: comp.setIsCompBypass,
-        lastPlayedType: playback.lastPlayedType,
-        handleModeChange: playback.handleModeChange,
         isDraggingKnobRef,
-        // Seek-related refs
         startOffsetRef, playingTypeRef: playback.playingTypeRef, playBufferRef,
         playheadRef, outputPlayheadRef,
         zoomX: view.zoomX, panOffset: view.panOffset,
@@ -193,12 +177,11 @@ const App = () => {
     });
 
     // --- 7. DSP Processing ---
-    const isAnyKnobDragging = waveform.isKnobDragging || waveform.isCompAdjusting;
+    const isAnyKnobDragging = waveform.isKnobDragging;
     const dsp = useDSPProcessing({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
         playingType: playback.playingType,
-        isDeltaMode: playback.isDeltaMode,
         setIsProcessing: comp.setIsProcessing,
         fullAudioDataRef,
         isDraggingKnobRef,
@@ -210,15 +193,8 @@ const App = () => {
         audioContext, originalBuffer,
         playingType: playback.playingType,
         lastPlayedType: playback.lastPlayedType,
-        isDeltaMode: playback.isDeltaMode,
-        threshold: comp.threshold,
         mousePos: waveform.mousePos,
         mousePosRef: waveform.mousePosRef,
-        hoverLine: waveform.hoverLine,
-        isDraggingLineRef: waveform.isDraggingLineRef,
-        isCompAdjusting: waveform.isCompAdjusting,
-        hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-        isCompBypass: comp.isCompBypass,
         visualResult: dsp.visualResult,
         visualStep: dsp.visualStep,
         mipmaps: dsp.mipmaps,
@@ -226,8 +202,6 @@ const App = () => {
         playBufferRef, startTimeRef, startOffsetRef, isPlayingRef, rafIdRef,
         waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef,
         playheadRef, meterStateRef,
-        hoverGrRef: waveform.hoverGrRef,
-        isHoveringGRAreaRef: waveform.isHoveringGRAreaRef,
         canvasDims: view.canvasDims,
         zoomX: view.zoomX, zoomY: view.zoomY,
         panOffset: view.panOffset, panOffsetY: view.panOffsetY,
@@ -286,21 +260,11 @@ const App = () => {
     }, [engine.currentSourceId, comp.getCurrentStateSnapshot, engine.isLoading]);
 
     // --- Prop Groups for ControlHud ---
-    const compProps = {
-        threshold: comp.threshold,
-        inflate: comp.inflate,
-        lookahead: comp.lookahead,
-        lookaheadControl: comp.lookaheadControl,
-        handleThresholdChange: comp.handleThresholdChange,
-        handleCompKnobChange: comp.handleCompKnobChange,
-        handleCompDragState: (isActive) => { waveform.setIsKnobDragging(isActive); waveform.setIsCompAdjusting(isActive); },
-        hasThresholdBeenAdjusted: comp.hasThresholdBeenAdjusted,
-    };
+    const compProps = {};
     const playbackProps = {
         playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,
-        isDryMode: playback.isDryMode, isDeltaMode: playback.isDeltaMode,
+        isDryMode: playback.isDryMode,
         handleModeChange: playback.handleModeChange,
-        toggleDeltaMode: playback.toggleDeltaMode,
         togglePlayback: playback.togglePlayback,
     };
     const uiProps = {
@@ -310,7 +274,6 @@ const App = () => {
         resetAllParams: () => {
             comp.resetAllParams();
             view.resetView();
-            playback.setIsDeltaMode(false);
             setRegionStart(0);
             setRegionEnd(1);
         },
@@ -367,8 +330,6 @@ const App = () => {
                     height={view.canvasDims.height}
                     hoveredMeterRef={hoveredMeterRef}
                     meterStateRef={meterStateRef}
-                    hoverGrRef={waveform.hoverGrRef}
-                    isHoveringGRAreaRef={waveform.isHoveringGRAreaRef}
                     outputGain={comp.outputGain}
                     onOutputGainChange={(v) => comp.handleCompKnobChange('outputGain', v)}
                 />

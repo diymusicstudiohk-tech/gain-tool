@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { drawPolygon, drawPolygonWithStroke, drawHatchedPolygon, drawGRLine } from '../canvasPolygons';
+import { describe, it, expect } from 'vitest';
+import { drawPolygon, drawPolygonWithStroke, drawHatchedPolygon } from '../canvasPolygons';
 
 /** Minimal mock canvas context that records calls. */
 const createMockCtx = () => {
@@ -69,24 +69,5 @@ describe('drawHatchedPolygon', () => {
         const names = ctx.calls.map(c => c.name);
         expect(names).toContain('clip');
         expect(names).toContain('stroke');
-    });
-});
-
-describe('drawGRLine', () => {
-    it('does nothing for empty points', () => {
-        const ctx = createMockCtx();
-        drawGRLine(ctx, [], '#fff');
-        expect(ctx.calls.length).toBe(0);
-    });
-
-    it('draws a polyline through all points', () => {
-        const ctx = createMockCtx();
-        const pts = [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 5 }];
-        drawGRLine(ctx, pts, '#618C71');
-        const names = ctx.calls.map(c => c.name);
-        expect(names).toContain('beginPath');
-        expect(names).toContain('stroke');
-        const lineToCalls = ctx.calls.filter(c => c.name === 'lineTo');
-        expect(lineToCalls.length).toBe(2); // 2 lineTo after initial moveTo
     });
 });

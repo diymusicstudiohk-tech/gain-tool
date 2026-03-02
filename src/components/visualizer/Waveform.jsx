@@ -1,19 +1,17 @@
 import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
-import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
+import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
 import {
-    GOLD, BRICK_RED, CLIP_RED, HOVER_RED, ORIGINAL_RED, GREEN,
-    BG_PANEL, INACTIVE, TEXT_DIM,
+    GOLD, BRICK_RED, HOVER_RED, ORIGINAL_RED,
+    BG_PANEL, TEXT_DIM,
 } from '../../utils/colors';
-import { drawPolygon, drawPolygonWithPeakFade, drawGRLine } from '../../utils/canvasPolygons';
+import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
-import { drawThresholdLine } from '../../utils/canvasThresholdLines';
-import { drawCrosshair, drawGainTooltip, drawThresholdTooltip } from '../../utils/canvasOverlay';
+import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
     LEGEND_HEIGHT, LEGEND_PAD_X, LEGEND_TEXT_BASELINE, LEGEND_BG,
-    GR_HOVER_THRESHOLD_DB, GR_HOVER_DASH,
 } from '../../utils/canvasConstants';
 
 // --- Main Draw Logic (Exported for App.jsx) ---
@@ -21,15 +19,11 @@ import {
 export const drawMainWaveform = ({
     canvas, canvasDims, visualResult, originalBuffer,
     zoomX, zoomY, panOffset, panOffsetY,
-    playingType, lastPlayedType, isDeltaMode,
-    threshold,
-    mousePos, hoverLine, isDraggingLine, isCompAdjusting, hasThresholdBeenAdjusted,
-    hoverGrRef, // ref object
-    isHoveringGRAreaRef, // ref object — true when mouse is in GR curve area
-    isCompBypass,
-    mipmaps, // mipmap data
-    waveformCacheRef,   // { current: { key, imageData } } — optional ImageData cache
-    interactionDPR,     // number | null — force lower DPR during interaction
+    playingType, lastPlayedType,
+    mousePos,
+    mipmaps,
+    waveformCacheRef,
+    interactionDPR,
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -48,12 +42,10 @@ export const drawMainWaveform = ({
     }
 
     // ── Cache key ──
-    const adjustBit = isCompAdjusting ? 1 : 0;
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${isDeltaMode?1:0}_${adjustBit}`;
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}`;
 
     const cache = waveformCacheRef?.current;
-    const isAnyDrag = isDraggingLine || isCompAdjusting;
-    const cacheHit = isAnyDrag ? (cache?.imageData) : (cache?.key === cacheKey && cache?.imageData);
+    const cacheHit = cache?.key === cacheKey && cache?.imageData;
 
     // ── PHASE 1: Waveform background (skip when cache hit) ──
     if (!cacheHit) {
@@ -64,28 +56,22 @@ export const drawMainWaveform = ({
             const step = srcLength / (width * zoomX);
             if (!Number.isFinite(step) || step <= 0) return;
 
-            const { centerY, maxPixelHeight, ampScale, grMaxHeight } = computeWaveformGeometry(height, zoomY, panOffsetY);
+            const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
             drawDbGrid(ctx, width, height, centerY, ampScale);
 
-            const { inPoints, outPoints, grPoints, deltaPoints, diffOuterPoints, diffInnerPoints } = computeWaveformPoints({
-                visualResult, width, zoomX, panOffset, centerY, ampScale, grMaxHeight,
-                isDeltaMode, lastPlayedType,
+            const { inPoints, outPoints } = computeWaveformPoints({
+                visualResult, width, zoomX, panOffset, centerY, ampScale,
+                lastPlayedType,
                 mipmaps, interactionDPR, step,
             });
 
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
-            else if (isDeltaMode) {
-                drawPolygonWithPeakFade(ctx, diffOuterPoints, GREEN, width, centerY, 0.85, 0.25);
-                drawPolygonWithPeakFade(ctx, diffInnerPoints, BG_PANEL, width, centerY, 1.0, 0.0);
-            }
             else {
-                const redOpacity = isCompAdjusting ? 1.0 : 0.5;
-                drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, redOpacity);
+                drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, 0.5);
                 drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 1.0, 0.2);
             }
-            if (grPoints.length > 0) drawGRLine(ctx, grPoints, CLIP_RED);
 
             // Save background to cache
             if (waveformCacheRef) {
@@ -102,68 +88,62 @@ export const drawMainWaveform = ({
         ctx.putImageData(cache.imageData, 0, 0);
     }
 
-    // ── PHASE 2: Overlay — always drawn (threshold lines + mouse inspection) ──
-    if (isHoveringGRAreaRef) isHoveringGRAreaRef.current = false;
+    // ── PHASE 2: Overlay — mouse inspection ──
 
     const srcLength = visualResult.visualInput.length;
     const step = srcLength / (width * zoomX);
     if (!Number.isFinite(step) || step <= 0) return;
 
-    const { centerY, maxPixelHeight, ampScale, grMaxHeight } = computeWaveformGeometry(height, zoomY, panOffsetY);
+    const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
 
-    const useMipmaps = mipmaps && mipmaps.input && mipmaps.output && mipmaps.gr;
+    const useMipmaps = mipmaps && mipmaps.input && mipmaps.output;
     const mipmapBias = interactionDPR ? 1 : 0;
-    // Pre-compute all mipmap selections once for Phase 2 (avoids repeated calls with same step)
     const mmInput = useMipmaps ? selectMipmapLevel(mipmaps.input, step, mipmapBias) : null;
     const mmOutput = useMipmaps ? selectMipmapLevel(mipmaps.output, step, mipmapBias) : null;
-    const mmGR = useMipmaps ? selectMipmapLevel(mipmaps.gr, step, mipmapBias) : null;
 
-    // Mouse GR Inspection + Hover Layers
+    // Mouse hover inspection
     if (mousePos.x >= 0 && lastPlayedType === 'processed') {
-        // --- Detect hover on output area or brick-red area ---
         let isHoveringOnOutput = false;
         let isHoveringOnBrickRed = false;
         const srcOutput = visualResult.outputData;
         const srcInput = visualResult.visualInput;
-        if (!isDeltaMode)
-        {
-            const hvX = mousePos.x - panOffset;
-            const hStart = Math.floor(hvX * step);
-            const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
-            if (hStart >= 0 && hStart < srcLength) {
-                let maxOut = 0;
-                let maxIn = 0;
-                if (useMipmaps && mmOutput) {
-                    const oLv = mmOutput.level; const oBs = mmOutput.blockSize;
-                    const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
-                    for (let i = oS; i < oE && i < oLv.length; i++) { const a = Math.abs(oLv[i]); if (a > maxOut) maxOut = a; }
-                } else {
-                    for (let i = hStart; i < hEnd; i++) {
-                        const a = Math.abs(srcOutput[i]);
-                        if (a > maxOut) maxOut = a;
-                    }
+
+        const hvX = mousePos.x - panOffset;
+        const hStart = Math.floor(hvX * step);
+        const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
+        if (hStart >= 0 && hStart < srcLength) {
+            let maxOut = 0;
+            let maxIn = 0;
+            if (useMipmaps && mmOutput) {
+                const oLv = mmOutput.level; const oBs = mmOutput.blockSize;
+                const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
+                for (let i = oS; i < oE && i < oLv.length; i++) { const a = Math.abs(oLv[i]); if (a > maxOut) maxOut = a; }
+            } else {
+                for (let i = hStart; i < hEnd; i++) {
+                    const a = Math.abs(srcOutput[i]);
+                    if (a > maxOut) maxOut = a;
                 }
-                if (useMipmaps && mmInput) {
-                    const inLv = mmInput.level; const inBs = mmInput.blockSize;
-                    const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
-                    for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
-                } else {
-                    for (let i = hStart; i < hEnd; i++) {
-                        const a = Math.abs(srcInput[i]);
-                        if (a > maxIn) maxIn = a;
-                    }
+            }
+            if (useMipmaps && mmInput) {
+                const inLv = mmInput.level; const inBs = mmInput.blockSize;
+                const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
+                for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
+            } else {
+                for (let i = hStart; i < hEnd; i++) {
+                    const a = Math.abs(srcInput[i]);
+                    if (a > maxIn) maxIn = a;
                 }
-                const hOut = displayAmp(maxOut) * ampScale;
-                const hIn = displayAmp(maxIn) * ampScale;
-                if (mousePos.y >= centerY - hOut && mousePos.y <= centerY + hOut) {
-                    isHoveringOnOutput = true;
-                } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
-                    isHoveringOnBrickRed = true;
-                }
+            }
+            const hOut = displayAmp(maxOut) * ampScale;
+            const hIn = displayAmp(maxIn) * ampScale;
+            if (mousePos.y >= centerY - hOut && mousePos.y <= centerY + hOut) {
+                isHoveringOnOutput = true;
+            } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
+                isHoveringOnBrickRed = true;
             }
         }
 
-        // --- Draw hover layers (below crosshair/labels) ---
+        // --- Draw hover layers ---
         if (isHoveringOnOutput) {
             const outPts = [];
             const hlStartX = Math.max(0, Math.floor(panOffset) - 1);
@@ -195,7 +175,6 @@ export const drawMainWaveform = ({
             drawPolygon(ctx, outPts, GOLD, width, centerY);
         }
 
-        // --- Draw brick-red hover overlay (bright red) ---
         if (isHoveringOnBrickRed) {
             const inPts = []; const outPts = [];
             const brStartX = Math.max(0, Math.floor(panOffset) - 1);
@@ -237,85 +216,11 @@ export const drawMainWaveform = ({
             drawPolygonWithPeakFade(ctx, outPts, '#ffffff', width, centerY, 1.0, 0.2);
         }
 
-        // --- GR value computation ---
-        const srcGR = visualResult.grCurve;
-        const vX = mousePos.x - panOffset;
-        const start = Math.floor(vX * step);
-        const end = Math.floor((vX + 1) * step);
-        let hoverGR = 0;
-        if (start >= 0 && start < srcLength) {
-            if (useMipmaps && mmGR) {
-                const grLevel = mmGR.level; const grBS = mmGR.blockSize;
-                const grStart = Math.floor(start / grBS);
-                const grEnd = Math.ceil(Math.min(end, srcLength) / grBS);
-                hoverGR = grLevel[grStart] || 0;
-                for (let i = grStart + 1; i < grEnd && i < grLevel.length; i++) { if (grLevel[i] < hoverGR) hoverGR = grLevel[i]; }
-            } else {
-                hoverGR = srcGR[start];
-                const safeEnd = Math.min(end, srcLength);
-                for (let i = start + 1; i < safeEnd; i++) { if (srcGR[i] < hoverGR) hoverGR = srcGR[i]; }
-            }
-        }
-        if (hoverGrRef) hoverGrRef.current = hoverGR;
-
-        // --- GR Area Hover Detection + Gradient Fill ---
-        if (isHoveringGRAreaRef && playingType === 'none' && lastPlayedType === 'processed' && hoverGR < GR_HOVER_THRESHOLD_DB) {
-            const grCurveY = (1.0 - Math.pow(10, hoverGR / 20)) * grMaxHeight;
-            if (mousePos.y >= 0 && mousePos.y <= grCurveY) {
-                isHoveringGRAreaRef.current = true;
-
-                const grFillStartX = Math.max(0, Math.floor(panOffset) - 1);
-                const grFillEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(grFillStartX, 0);
-                ctx.lineTo(grFillEndX, 0);
-
-                for (let x = grFillEndX - 1; x >= grFillStartX; x--) {
-                    const vx = x - panOffset;
-                    const s = Math.floor(vx * step);
-                    const e = Math.floor((vx + 1) * step);
-                    if (s < 0 || s >= srcLength) { ctx.lineTo(x, 0); continue; }
-                    const se = Math.min(srcLength, e);
-                    let minGR = 0;
-                    const ls = Math.max(s, 0);
-                    if (useMipmaps && mmGR) {
-                        const grLevel = mmGR.level; const grBS = mmGR.blockSize;
-                        const grStart = Math.floor(ls / grBS); const grEnd = Math.ceil(se / grBS);
-                        for (let i = grStart; i < grEnd && i < grLevel.length; i++) { if (grLevel[i] < minGR) minGR = grLevel[i]; }
-                    } else {
-                        const srcGRArr = visualResult.grCurve;
-                        for (let i = ls; i < se; i++) { if (srcGRArr[i] < minGR) minGR = srcGRArr[i]; }
-                    }
-                    const yPos = minGR < 0 ? (1.0 - Math.pow(10, minGR / 20)) * grMaxHeight : 0;
-                    ctx.lineTo(x, yPos);
-                }
-                ctx.closePath();
-
-                const grGrad = ctx.createLinearGradient(0, 0, 0, grMaxHeight);
-                grGrad.addColorStop(0, 'rgba(181, 76, 53, 0)');
-                grGrad.addColorStop(1, 'rgba(181, 76, 53, 1.0)');
-                ctx.fillStyle = grGrad;
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.setLineDash(GR_HOVER_DASH);
-                ctx.strokeStyle = CLIP_RED;
-                ctx.lineWidth = 1.5;
-                ctx.moveTo(mousePos.x, grCurveY);
-                ctx.lineTo(width, grCurveY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.restore();
-            }
-        }
-
         // --- Legends ---
         const bgX = mousePos.x + TOOLTIP_OFFSET_X;
 
         if (isHoveringOnOutput) {
-            const legendText = '金色實色 = 壓縮後訊號';
+            const legendText = '金色實色 = 增益後訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
             const legendW = lw + LEGEND_PAD_X * 2;
@@ -332,7 +237,7 @@ export const drawMainWaveform = ({
         }
 
         if (isHoveringOnBrickRed) {
-            const legendText = '紅色 = 被壓縮處理減少了的訊號';
+            const legendText = '紅色 = 增益前後差異的訊號';
             ctx.font = 'bold 11px sans-serif';
             const lw = ctx.measureText(legendText).width;
             const legendW = lw + LEGEND_PAD_X * 2;
@@ -347,10 +252,9 @@ export const drawMainWaveform = ({
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
             ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
         }
-
     }
 
-    // Bypass (original) mode: hover detection + legend for brick-red waveform
+    // Bypass (original) mode: hover detection + legend
     if (mousePos.x >= 0 && lastPlayedType === 'original') {
         let isHoveringOnOriginalWaveform = false;
         const srcInput = visualResult.visualInput;
@@ -429,22 +333,7 @@ export const drawMainWaveform = ({
         drawGainTooltip(ctx, mousePos, centerY, ampScale, width);
     }
 
-    // ── Threshold Lines ──
-    const isDry = lastPlayedType === 'original';
-
-    drawThresholdLine(ctx, {
-        thresholdDb: threshold,
-        color: isDry ? INACTIVE : BRICK_RED,
-        isHighlight: hoverLine === 'comp' || isDraggingLine === 'comp',
-        centerY, ampScale, width, height,
-    });
-
     ctx.setLineDash([]);
-
-    // ── Threshold Tooltips ──
-    if ((hoverLine === 'comp' || isDraggingLine === 'comp') && mousePos.x >= 0) {
-        drawThresholdTooltip(ctx, mousePos, 'comp', threshold, width);
-    }
 };
 
 // --- Component ---

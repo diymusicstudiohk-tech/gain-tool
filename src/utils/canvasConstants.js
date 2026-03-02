@@ -5,18 +5,6 @@ export const GRID_DB_MAX = -5;
 export const GRID_DB_STEP = -5;
 export const GRID_LINE_WIDTH = 0.5;
 
-// --- Threshold Hit Detection ---
-export const HIT_TOLERANCE_MOUSE = 8;
-export const HIT_TOLERANCE_TOUCH = 20;
-
-// --- Threshold Drag Floors ---
-export const COMP_THRESHOLD_FLOOR_DB = -60;
-
-// --- GR ---
-export const GR_MAX_HEIGHT_RATIO = 0.5;
-export const GR_HOVER_THRESHOLD_DB = -0.1;
-export const GR_HOVER_DASH = [4, 4];
-
 // --- Tooltip ---
 export const TOOLTIP_OFFSET_X = 12;
 export const TOOLTIP_OFFSET_Y = 8;
@@ -35,14 +23,6 @@ export const LEGEND_BG = 'rgba(0, 0, 0, 0.75)';
 export const METER_HOLD_FRAMES = 60;
 export const METER_PEAK_DECAY = 0.92;
 export const METER_HOLD_DECAY = 0.98;
-export const METER_GR_HOLD_DECAY = 0.95;
 export const METER_BAR_WIDTH = 22;
 export const METER_BAR_RADIUS = 4;
 export const METER_OVERFLOW_CLAMP = 1.4;
-export const METER_GR_NEAR_ZERO = 0.001;
-
-// --- Dynamic Range ---
-export const CF_DB_MIN = 0;
-export const CF_DB_MAX = 18;
-export const CF_TOP_RATIO = 0.65;
-export const CF_BOTTOM_MARGIN = 8;

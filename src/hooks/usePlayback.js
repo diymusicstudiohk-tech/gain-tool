@@ -1,24 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createRealTimeCompressor } from '../utils/dsp';
 
-/**
- * Receives animateRef (not animate value) to break circular dep with useVisualizerLoop.
- * The RAF restart effect is managed by App.jsx.
- */
 const usePlayback = ({
     audioContext, originalBuffer, currentParams, paramsRef,
     animateRef, fullAudioDataRef, logAction,
-    // Shared refs from App
     sourceNodeRef, startTimeRef, startOffsetRef,
     isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
-    // Region bounds (normalized 0-1)
     regionStartRef, regionEndRef,
-    // AudioWorklet
     workletReady,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
-    const [isDeltaMode, setIsDeltaMode] = useState(false);
 
     const playingTypeRef = useRef(playingType);
     const lastPlayedTypeRef = useRef(lastPlayedType);
@@ -28,17 +20,8 @@ const usePlayback = ({
 
     const isDryMode = lastPlayedType === 'original';
 
-    // Ref to track active AudioWorkletNode for parameter updates
     const workletNodeRef = useRef(null);
-    // Track last sent params to avoid redundant postMessage calls
     const lastSentParamsRef = useRef(null);
-
-    // Sync isDeltaMode into paramsRef so processor reads the correct value
-    useEffect(() => {
-        if (paramsRef.current) {
-            paramsRef.current = { ...paramsRef.current, isDeltaMode };
-        }
-    }, [isDeltaMode, paramsRef]);
 
     // Send parameter updates to AudioWorklet processor via postMessage
     useEffect(() => {
@@ -50,19 +33,7 @@ const usePlayback = ({
                 workletNodeRef.current.port.postMessage(current);
             }
         }
-    }, [currentParams, isDeltaMode, paramsRef]);
-
-    // Sync Delta Mode
-    useEffect(() => {
-        if (playingType === 'none' || lastPlayedType === 'original' || !fullAudioDataRef.current) return;
-        const targetBuffer = isDeltaMode ? fullAudioDataRef.current.deltaBuffer : fullAudioDataRef.current.outputBuffer;
-        if (targetBuffer && audioContext) {
-            const elapsed = audioContext.currentTime - startTimeRef.current;
-            const currentPos = startOffsetRef.current + elapsed;
-            playBufferRef.current?.(targetBuffer, 'processed', currentPos);
-        }
-    }, [isDeltaMode, playingType, lastPlayedType, fullAudioDataRef, audioContext,
-        startTimeRef, startOffsetRef, playBufferRef]);
+    }, [currentParams, paramsRef]);
 
     const stopCurrentSource = useCallback(() => {
         if (sourceNodeRef.current) {
@@ -190,12 +161,6 @@ const usePlayback = ({
         logAction, sourceNodeRef, startTimeRef,
         startOffsetRef, isPlayingRef, stopCurrentSource]);
 
-    const toggleDeltaMode = useCallback((e) => {
-        e.stopPropagation();
-        if (lastPlayedType === 'original') return;
-        setIsDeltaMode(prev => !prev);
-    }, [lastPlayedType]);
-
     const stopAudio = useCallback(() => {
         if (sourceNodeRef.current) try { sourceNodeRef.current.stop(); } catch (e) { }
         workletNodeRef.current = null;
@@ -209,11 +174,10 @@ const usePlayback = ({
     return {
         playingType, setPlayingType,
         lastPlayedType, setLastPlayedType,
-        isDeltaMode, setIsDeltaMode,
         isDryMode,
         playingTypeRef, lastPlayedTypeRef,
         playBuffer, togglePlayback, handleModeChange,
-        toggleDeltaMode, stopAudio,
+        stopAudio,
     };
 };
 

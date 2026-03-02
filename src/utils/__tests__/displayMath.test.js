@@ -66,8 +66,8 @@ describe('computeWaveformGeometry', () => {
         expect(zoom2).toBe(zoom1 * 2);
     });
 
-    it('grMaxHeight is half of maxPixelHeight', () => {
-        const { maxPixelHeight, grMaxHeight } = computeWaveformGeometry(800, 1, 0);
-        expect(grMaxHeight).toBe(maxPixelHeight * 0.5);
+    it('does not include grMaxHeight', () => {
+        const result = computeWaveformGeometry(800, 1, 0);
+        expect(result.grMaxHeight).toBeUndefined();
     });
 });

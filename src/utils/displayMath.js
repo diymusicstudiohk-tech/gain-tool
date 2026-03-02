@@ -15,6 +15,5 @@ export const computeWaveformGeometry = (height, zoomY, panOffsetY) => {
     const VERT_PAD = height * 0.05;
     const maxPixelHeight = (height / 2) - VERT_PAD;
     const ampScale = maxPixelHeight * zoomY;
-    const grMaxHeight = maxPixelHeight * 0.5;
-    return { centerY, VERT_PAD, maxPixelHeight, ampScale, grMaxHeight };
+    return { centerY, VERT_PAD, maxPixelHeight, ampScale };
 };

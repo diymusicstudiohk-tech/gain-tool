@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { TWENTY_LOG10E } from '../utils/dspConstants';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
 import { drawDualMeter, drawInputMeter } from '../components/visualizer/Meters';
 
@@ -8,15 +7,8 @@ const useVisualizerLoop = ({
     originalBuffer,
     playingType,
     lastPlayedType,
-    isDeltaMode,
-    threshold,
     mousePos,
     mousePosRef,
-    hoverLine,
-    isDraggingLineRef,
-    isCompAdjusting,
-    hasThresholdBeenAdjusted,
-    isCompBypass,
     visualResult,
     visualStep,
     mipmaps,
@@ -31,8 +23,6 @@ const useVisualizerLoop = ({
     inputMeterCanvasRef,
     playheadRef,
     meterStateRef,
-    hoverGrRef,
-    isHoveringGRAreaRef,
     canvasDims,
     zoomX,
     zoomY,
@@ -49,14 +39,6 @@ const useVisualizerLoop = ({
     const waveformFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
     const lastDrawParamsRef = useRef(null);
-    const thresholdRef = useRef(threshold);
-    useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
-    // mousePosRef is passed in directly from useWaveformInteraction
-    const hoverLineRef = useRef(hoverLine);
-    useEffect(() => { hoverLineRef.current = hoverLine; }, [hoverLine]);
-
-    const isCompBypassRef = useRef(isCompBypass);
-    useEffect(() => { isCompBypassRef.current = isCompBypass; }, [isCompBypass]);
     const visualResultRef = useRef(visualResult);
     useEffect(() => { visualResultRef.current = visualResult; }, [visualResult]);
     const mipmapsRef = useRef(mipmaps);
@@ -64,11 +46,11 @@ const useVisualizerLoop = ({
 
     const interactionDPR = null;
 
-    // Invalidate draw key + waveform cache when DSP data or bypass state changes
+    // Invalidate draw key + waveform cache when DSP data changes
     useEffect(() => {
         lastDrawParamsRef.current = null;
         if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
-    }, [visualResult, mipmaps, isCompBypass]);
+    }, [visualResult, mipmaps]);
 
     const animate = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
@@ -102,10 +84,9 @@ const useVisualizerLoop = ({
             outputPlayheadRef.current.style.opacity = (pct < 0 || pct > 100) ? 0 : 1;
         }
 
-        // Read latest visual data + bypass state from refs
+        // Read latest visual data from refs
         const liveVisualResult = visualResultRef.current;
         const liveMipmaps = mipmapsRef.current;
-        const liveIsCompBypass = isCompBypassRef.current;
 
         if (liveVisualResult) {
             // RMS Calculation
@@ -113,9 +94,6 @@ const useVisualizerLoop = ({
             const visualIndex = Math.max(0, Math.floor((currentPosition * audioContext.sampleRate) / step));
             const windowSize = Math.max(1, Math.floor(2048 / step));
             const endIdx = Math.min(visualIndex + windowSize, liveVisualResult.outputData.length);
-
-            let currentGR = 0;
-            if (visualIndex < liveVisualResult.grCurve.length && visualIndex >= 0) currentGR = liveVisualResult.grCurve[visualIndex];
 
             let maxMix = 0; let maxInput = 0; let sumSqInput = 0; let sumSqMix = 0; let sampleCount = 0;
 
@@ -132,12 +110,7 @@ const useVisualizerLoop = ({
 
                 let mix = 0;
                 if (isProcessed) {
-                    const wet = liveVisualResult.outputData[i] || 0;
-                    if (isDeltaMode) {
-                        mix = wet - dry;
-                    } else {
-                        mix = wet;
-                    }
+                    mix = liveVisualResult.outputData[i] || 0;
                 } else {
                     mix = liveVisualResult.visualInput[i] || 0;
                 }
@@ -161,74 +134,30 @@ const useVisualizerLoop = ({
             if (!Number.isFinite(meterStateRef.current.dryRmsLevel)) meterStateRef.current.dryRmsLevel = 0;
             if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
-            // --- Short-term Dynamic Range (DR) Calculation ---
-            // Store output RMS in dB into a circular buffer (1 second @ 60fps = 60 entries)
-            const DR_HISTORY_SIZE = 60;
-            const DR_SILENCE_THRESHOLD = -60; // dB — ignore silent frames
-            if (!meterStateRef.current.drHistory) {
-                meterStateRef.current.drHistory = new Float32Array(DR_HISTORY_SIZE);
-                meterStateRef.current.drHistoryIdx = 0;
-                meterStateRef.current.drHistoryFilled = 0;
-            }
-            const currentRmsDb = currentOutRms > 0.00001 ? Math.log(currentOutRms) * TWENTY_LOG10E : -100;
-            const drH = meterStateRef.current.drHistory;
-            drH[meterStateRef.current.drHistoryIdx] = currentRmsDb;
-            meterStateRef.current.drHistoryIdx = (meterStateRef.current.drHistoryIdx + 1) % DR_HISTORY_SIZE;
-            if (meterStateRef.current.drHistoryFilled < DR_HISTORY_SIZE) meterStateRef.current.drHistoryFilled++;
-
-            // Compute DR from 10th–90th percentile of non-silent RMS values
-            let instantDR = 0;
-            const filled = meterStateRef.current.drHistoryFilled;
-            if (filled >= 10) {
-                // Collect non-silent values into pre-allocated scratch buffer
-                if (!meterStateRef.current.drScratch) {
-                    meterStateRef.current.drScratch = new Float32Array(DR_HISTORY_SIZE);
-                }
-                const scratch = meterStateRef.current.drScratch;
-                let count = 0;
-                for (let i = 0; i < filled; i++) {
-                    if (drH[i] > DR_SILENCE_THRESHOLD) scratch[count++] = drH[i];
-                }
-                if (count >= 5) {
-                    // Sort only the filled portion (Float32Array.sort is in-place, no allocation)
-                    const slice = scratch.subarray(0, count);
-                    slice.sort();
-                    const p10 = slice[Math.floor(count * 0.1)];
-                    const p90 = slice[Math.floor(count * 0.9)];
-                    instantDR = p90 - p10;
-                }
-            }
-            if (meterStateRef.current.dynamicRange === undefined) meterStateRef.current.dynamicRange = 0;
-            meterStateRef.current.dynamicRange = meterStateRef.current.dynamicRange * 0.9 + instantDR * 0.1;
-
             // Draw Meters
             drawInputMeter(inputMeterCanvasRef?.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
             if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, currentGR, hoverGrRef.current, meterStateRef.current.dynamicRange, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
             } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, 0, hoverGrRef.current, meterStateRef.current.dynamicRange, isHoveringGRAreaRef.current, hoveredMeterRef?.current);
+                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
             }
 
-            // Draw Main Waveform at 30fps; always draw when interacting or hovering
+            // Draw Main Waveform at 30fps; always draw when hovering
             waveformFrameRef.current = (waveformFrameRef.current + 1) % 2;
             const liveMousePos = mousePosRef.current;
-            const liveHoverLine = hoverLineRef.current;
             const isHovering = liveMousePos.x >= 0;
-            const isInteracting = isDraggingLineRef.current || isCompAdjusting;
 
-            if (waveformFrameRef.current === 0 || isInteracting || isHovering) {
+            if (waveformFrameRef.current === 0 || isHovering) {
                 let shouldDraw = true;
-                if (!isInteracting) {
-                    const cur = [canvasDims.width, canvasDims.height, liveZoomX, zoomY, livePanOffset, panOffsetY, playingType, lastPlayedType, isDeltaMode, thresholdRef.current, liveMousePos.x, liveMousePos.y, liveHoverLine, hasThresholdBeenAdjusted, liveIsCompBypass];
-                    const prev = lastDrawParamsRef.current;
-                    if (prev && prev.length === cur.length) {
-                        shouldDraw = false;
-                        for (let k = 0; k < cur.length; k++) {
-                            if (cur[k] !== prev[k]) { shouldDraw = true; break; }
-                        }
+                const cur = [canvasDims.width, canvasDims.height, liveZoomX, zoomY, livePanOffset, panOffsetY, playingType, lastPlayedType, liveMousePos.x, liveMousePos.y];
+                const prev = lastDrawParamsRef.current;
+                if (prev && prev.length === cur.length) {
+                    shouldDraw = false;
+                    for (let k = 0; k < cur.length; k++) {
+                        if (cur[k] !== prev[k]) { shouldDraw = true; break; }
                     }
-                    if (shouldDraw) lastDrawParamsRef.current = cur;
                 }
+                if (shouldDraw) lastDrawParamsRef.current = cur;
 
                 if (shouldDraw) {
                     drawMainWaveform({
@@ -237,14 +166,8 @@ const useVisualizerLoop = ({
                         visualResult: liveVisualResult,
                         originalBuffer,
                         zoomX: liveZoomX, zoomY, panOffset: livePanOffset, panOffsetY,
-                        playingType, lastPlayedType, isDeltaMode,
-                        threshold: thresholdRef.current,
-                        mousePos: liveMousePos, hoverLine: liveHoverLine,
-                        isDraggingLine: isDraggingLineRef.current,
-                        isCompAdjusting, hasThresholdBeenAdjusted,
-                        hoverGrRef,
-                        isHoveringGRAreaRef,
-                        isCompBypass: liveIsCompBypass,
+                        playingType, lastPlayedType,
+                        mousePos: liveMousePos,
                         mipmaps: liveMipmaps,
                         waveformCacheRef,
                         interactionDPR,
@@ -258,20 +181,18 @@ const useVisualizerLoop = ({
         const regionStartTime = (regionStartRef?.current ?? 0) * duration;
         if (currentPosition >= regionEndTime) {
             if (playBufferRef.current) {
-                const targetBuffer = playingType === 'original' ? originalBuffer :
-                    (isDeltaMode ? (fullAudioDataRef.current ? fullAudioDataRef.current.deltaBuffer : null) : originalBuffer);
-
+                const targetBuffer = originalBuffer;
                 if (targetBuffer) {
                     playBufferRef.current(targetBuffer, playingType, regionStartTime);
                 }
             }
         }
     }, [
-        originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY, isDeltaMode,
+        originalBuffer, audioContext, playingType, visualResult, zoomX, zoomY, panOffset, panOffsetY,
         visualStep, mipmaps, canvasDims,
-        isCompAdjusting, hasThresholdBeenAdjusted, lastPlayedType,
-        isCompBypass, interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
-        rafIdRef, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        lastPlayedType,
+        interactionDPR, fullAudioDataRef, playBufferRef, startTimeRef, startOffsetRef, isPlayingRef,
+        rafIdRef, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, playheadRef, meterStateRef,
     ]);
 
     // --- Static Draw for Initial State ---
@@ -285,14 +206,8 @@ const useVisualizerLoop = ({
                 visualResult,
                 originalBuffer,
                 zoomX, zoomY, panOffset, panOffsetY,
-                playingType, lastPlayedType, isDeltaMode,
-                threshold,
-                mousePos, hoverLine,
-                isDraggingLine: isDraggingLineRef.current,
-                isCompAdjusting, hasThresholdBeenAdjusted,
-                hoverGrRef,
-                isHoveringGRAreaRef,
-                isCompBypass,
+                playingType, lastPlayedType,
+                mousePos,
                 mipmaps,
                 waveformCacheRef,
                 interactionDPR,
@@ -303,13 +218,13 @@ const useVisualizerLoop = ({
             drawInputMeter(inputMeterCanvasRef.current, 0, 0, meterStateRef.current, hoveredMeterRef?.current, true);
         }
         if (outputMeterCanvasRef.current) {
-            drawDualMeter(outputMeterCanvasRef.current, 0, 0, meterStateRef.current, 0, hoverGrRef.current, 0, isHoveringGRAreaRef.current, hoveredMeterRef?.current, true);
+            drawDualMeter(outputMeterCanvasRef.current, 0, 0, meterStateRef.current, hoveredMeterRef?.current, true);
         }
     }, [
         playingType, originalBuffer, visualResult, canvasDims, zoomX, zoomY, panOffset, panOffsetY,
-        lastPlayedType, isDeltaMode, threshold,
-        mousePos, hoverLine, isCompAdjusting, hasThresholdBeenAdjusted,
-        isCompBypass, interactionDPR, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, isDraggingLineRef,
+        lastPlayedType,
+        mousePos,
+        interactionDPR, waveformCanvasRef, outputMeterCanvasRef, inputMeterCanvasRef, meterStateRef,
         mipmaps,
     ]);
 

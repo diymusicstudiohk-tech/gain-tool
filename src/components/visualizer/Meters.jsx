@@ -1,129 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { GOLD, GOLD_DARK, GOLD_LIGHT, BRICK_RED, CLIP_RED, CREST_GREEN, TEXT_MID } from '../../utils/colors';
+import { GOLD, GOLD_DARK, GOLD_LIGHT, CLIP_RED } from '../../utils/colors';
 import {
-    METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY, METER_GR_HOLD_DECAY,
-    METER_BAR_WIDTH, METER_BAR_RADIUS, METER_OVERFLOW_CLAMP, METER_GR_NEAR_ZERO,
-    GR_MAX_HEIGHT_RATIO, CF_DB_MIN, CF_DB_MAX, CF_TOP_RATIO, CF_BOTTOM_MARGIN,
+    METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY,
+    METER_BAR_WIDTH, METER_BAR_RADIUS, METER_OVERFLOW_CLAMP,
 } from '../../utils/canvasConstants';
-
-// --- CF Heat Map Constants ---
-const CF_HEAT_BUCKETS = 50;
-const CF_HEAT_INCREMENT = 1 / (60 * 3); // 3 seconds to saturate at 60fps
-const CF_HEAT_DECAY = 0.985;
-const CF_GAUSSIAN_SPREAD = 4;
-const CF_GAUSSIAN_SIGMA = 2;
-const CF_BASE_RGB = [150, 207, 173]; // #96CFAD
-
-// --- CF Heat Map Helper Functions ---
-function cfGaussianWeight(distance, sigma) {
-    return Math.exp(-(distance * distance) / (2 * sigma * sigma));
-}
-
-function cfHeatToColor(heat) {
-    if (heat <= 0.01) return null;
-    const [r, g, b] = CF_BASE_RGB;
-    if (heat <= 0.3) {
-        // Low: faint base color
-        const alpha = (heat / 0.3) * 0.4;
-        return `rgba(${r},${g},${b},${alpha})`;
-    } else if (heat <= 0.7) {
-        // Mid: solid vibrant base
-        const t = (heat - 0.3) / 0.4;
-        const alpha = 0.4 + t * 0.5;
-        return `rgba(${r},${g},${b},${alpha})`;
-    } else {
-        // High: blend toward white glow
-        const t = (heat - 0.7) / 0.3;
-        const wr = Math.round(r + (255 - r) * t * 0.6);
-        const wg = Math.round(g + (255 - g) * t * 0.6);
-        const wb = Math.round(b + (255 - b) * t * 0.6);
-        const alpha = 0.9 + t * 0.1;
-        return `rgba(${wr},${wg},${wb},${alpha})`;
-    }
-}
-
-function applyCfHeatDecay(heatArray) {
-    for (let i = 0; i < CF_HEAT_BUCKETS; i++) {
-        heatArray[i] *= CF_HEAT_DECAY;
-        if (heatArray[i] < 0.001) heatArray[i] = 0;
-    }
-}
-
-function updateCfHeatMap(heatArray, cfDb) {
-    // Map CF dB (3-20) to bucket index (0-49)
-    const cfMin = CF_DB_MIN, cfMax = CF_DB_MAX;
-    const normalized = (cfDb - cfMin) / (cfMax - cfMin);
-    const centerBucket = normalized * (CF_HEAT_BUCKETS - 1);
-    for (let i = -CF_GAUSSIAN_SPREAD; i <= CF_GAUSSIAN_SPREAD; i++) {
-        const idx = Math.round(centerBucket) + i;
-        if (idx >= 0 && idx < CF_HEAT_BUCKETS) {
-            const weight = cfGaussianWeight(Math.abs(i), CF_GAUSSIAN_SIGMA);
-            heatArray[idx] = Math.min(1, heatArray[idx] + CF_HEAT_INCREMENT * weight);
-        }
-    }
-}
-
-// CF heat map offscreen canvas cache
-let _cfOffscreen = null;
-let _cfOffscreenCtx = null;
-
-// Pre-rendered radial gradient blob cache (white, for tinting)
-let _cfBlobCache = null;
-
-function getCfGradientBlob(radius) {
-    if (_cfBlobCache && _cfBlobCache.radius === radius) return _cfBlobCache.canvas;
-    const size = radius * 2;
-    const offscreen = new OffscreenCanvas(size, size);
-    const octx = offscreen.getContext('2d');
-    const grad = octx.createRadialGradient(radius, radius, 0, radius, radius, radius);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.5, 'rgba(255,255,255,0.5)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    octx.fillStyle = grad;
-    octx.fillRect(0, 0, size, size);
-    _cfBlobCache = { radius, canvas: offscreen };
-    return offscreen;
-}
-
-function renderCfHeatMapVertical(ctx, heatArray, x, columnWidth, top, areaHeight) {
-    const prevComposite = ctx.globalCompositeOperation;
-    ctx.globalCompositeOperation = 'lighter';
-    const radius = Math.max(6, columnWidth / 2);
-    const blobSize = radius * 2;
-    const blob = getCfGradientBlob(radius);
-
-    // Use offscreen canvas for per-bucket compositing to avoid corrupting main canvas
-    const offW = Math.ceil(columnWidth);
-    const offH = Math.ceil(blobSize);
-    if (!_cfOffscreen || _cfOffscreen.width !== offW || _cfOffscreen.height !== offH) {
-        _cfOffscreen = new OffscreenCanvas(offW, offH);
-        _cfOffscreenCtx = _cfOffscreen.getContext('2d');
-    }
-    const octx = _cfOffscreenCtx;
-
-    for (let i = 0; i < CF_HEAT_BUCKETS; i++) {
-        const heat = heatArray[i];
-        if (heat <= 0.01) continue;
-        const color = cfHeatToColor(heat);
-        if (!color) continue;
-
-        const pct = i / (CF_HEAT_BUCKETS - 1);
-        const y = top + areaHeight - (pct * areaHeight);
-
-        // Render tinted gradient blob in offscreen canvas
-        octx.clearRect(0, 0, offW, offH);
-        octx.globalCompositeOperation = 'source-over';
-        octx.drawImage(blob, 0, 0, offW, offH);
-        octx.globalCompositeOperation = 'source-in';
-        octx.fillStyle = color;
-        octx.fillRect(0, 0, offW, offH);
-
-        // Stamp onto main canvas
-        ctx.drawImage(_cfOffscreen, x, y - radius, columnWidth, blobSize);
-    }
-
-    ctx.globalCompositeOperation = prevComposite;
-}
 
 // --- Gradient Cache (WeakMap keyed on canvas, invalidated on resize) ---
 const _gradientCache = new WeakMap();
@@ -140,7 +20,7 @@ const getCachedGradient = (canvas, ctx, key, width, height, PADDING, createFn) =
 
 // --- Drawing Functions (Exported for App.jsx loop) ---
 
-export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hoverGrDbVal = null, dynamicRange = 0, isHoveringGRArea = false, hoveredMeter = null, frozen = false) => {
+export const drawDualMeter = (canvas, outPeak, outRms, meterState, hoveredMeter = null, frozen = false) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -158,12 +38,6 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
         if (outPeak > meterState.peakLevel) meterState.peakLevel = outPeak; else meterState.peakLevel *= METER_PEAK_DECAY;
         if (meterState.peakLevel > meterState.holdPeakLevel) { meterState.holdPeakLevel = meterState.peakLevel; meterState.holdTimer = METER_HOLD_FRAMES; }
         else { if (meterState.holdTimer > 0) meterState.holdTimer--; else meterState.holdPeakLevel *= METER_HOLD_DECAY; }
-
-        // GR State Logic
-        const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
-        meterState.grPeakLevel = reductionLinear;
-        if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
-        else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
     }
 
     // Drawing
@@ -171,214 +45,48 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, grDb = 0, hov
 
     const PADDING = 0; const maxPixelHeight = (height / 2) - PADDING;
 
-    // --- Background bars (semi-transparent light gray behind each meter) ---
-    const bgColor = 'rgba(255, 255, 255, 0.06)';
-    const grMaxPixelHeight = maxPixelHeight * GR_MAX_HEIGHT_RATIO;
-
-    // 2 bars: scale all positions proportionally from 63px reference width (8px gap between bars)
-    const s = width / 52;
+    // Single column output bar — centered
+    const s = width / 22;
     const hideReadings = s < 1;
     const barWidth = METER_BAR_WIDTH * s;
-    const grCenterX = 11 * s;
-    const outCenterX = 41 * s;
-    const grX = grCenterX - (barWidth / 2);
-    const outX = outCenterX - (barWidth / 2);
-
+    const centerX = 11 * s;
+    const x = centerX - (barWidth / 2);
     const bgRadius = METER_BAR_RADIUS * s;
-    // Hover highlight colors
-    const hoverBgMap = {
-        gr: 'rgba(181, 76, 53, 0.25)',   // BRICK_RED
-        dr: 'rgba(150, 207, 173, 0.25)', // CREST_GREEN
-        out: meterState.outClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)', // CLIP_RED or GOLD
-    };
-    const cfTop = height * CF_TOP_RATIO;
-    // GR/DR column: split into two hover zones
-    const grCfHover = hoveredMeter === 'gr' || hoveredMeter === 'dr';
-    if (grCfHover) {
-        ctx.fillStyle = bgColor;
-        ctx.beginPath();
-        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
-        ctx.fill();
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
-        ctx.clip();
-        ctx.fillStyle = hoverBgMap[hoveredMeter];
-        if (hoveredMeter === 'gr') {
-            ctx.fillRect(grX, 0, barWidth, cfTop);
-        } else {
-            ctx.fillRect(grX, cfTop, barWidth, height - cfTop);
-        }
-        ctx.restore();
-    } else {
-        ctx.fillStyle = bgColor;
-        ctx.beginPath();
-        ctx.roundRect(grX, 0, barWidth, height, bgRadius);
-        ctx.fill();
-    }
-    // Out column
-    ctx.fillStyle = hoveredMeter === 'out' ? hoverBgMap['out'] : bgColor;
-    ctx.beginPath();
-    ctx.roundRect(outX, 0, barWidth, height, bgRadius);
-    ctx.fill();
-
-    // --- GR Bar (top-down) ---
-    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) {
-        const barHeight = meterState.grPeakLevel * grMaxPixelHeight;
-        ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, 0, barWidth, barHeight);
-    }
-    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
-        const holdHeight = meterState.grHoldPeakLevel * grMaxPixelHeight;
-        ctx.fillStyle = BRICK_RED; ctx.fillRect(grX, holdHeight, barWidth, 2 * s);
-        let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
-        if (!hideReadings && meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), grCenterX, holdHeight + 12 * s); }
-    }
-    if (hoverGrDbVal !== null && hoverGrDbVal < -0.1 && isHoveringGRArea) {
-        const hoverY = (1.0 - Math.pow(10, hoverGrDbVal / 20)) * grMaxPixelHeight;
-        ctx.fillStyle = BRICK_RED;
-        ctx.fillRect(grX, 0, barWidth, hoverY);
-        if (!hideReadings) {
-            const dbText = hoverGrDbVal.toFixed(1);
-            ctx.fillStyle = BRICK_RED; ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-            ctx.fillText(dbText, grCenterX, hoverY + 12 * s);
-        }
-    }
 
     // Clipping detection: latch on when output peak exceeds 0dB
     if (meterState.peakLevel > 1.0) meterState.outClipping = true;
     const isClipping = meterState.outClipping;
     const outColor = isClipping ? CLIP_RED : GOLD;
 
+    // Background bar
+    const bgColor = hoveredMeter === 'out'
+        ? (isClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)')
+        : 'rgba(255, 255, 255, 0.06)';
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(x, 0, barWidth, height, bgRadius);
+    ctx.fill();
+
     // --- Output Bar (center-outward) ---
     const outBarDist = Math.min(meterState.peakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
     if (outBarDist > 0) {
-        ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outBarDist, barWidth, outBarDist * 2);
+        ctx.fillStyle = outColor; ctx.fillRect(x, centerY - outBarDist, barWidth, outBarDist * 2);
     }
 
     const outHoldDist = Math.min(meterState.holdPeakLevel, METER_OVERFLOW_CLAMP) * maxPixelHeight;
-    if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(outX, centerY - outHoldDist, barWidth, 2 * s); ctx.fillRect(outX, centerY + outHoldDist - 2 * s, barWidth, 2 * s); }
+    if (outHoldDist > 0) { ctx.fillStyle = outColor; ctx.fillRect(x, centerY - outHoldDist, barWidth, 2 * s); ctx.fillRect(x, centerY + outHoldDist - 2 * s, barWidth, 2 * s); }
 
     // Clip Indicator
-    if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(outX, 0, barWidth, 4 * s); ctx.fillRect(outX, height - 4 * s, barWidth, 4 * s); }
-
-    // --- Dynamic Range (below GR, same column) ---
-    const cfBottom = height - CF_BOTTOM_MARGIN;
-    const cfHeight = cfBottom - cfTop;
-    const cfMinDb = CF_DB_MIN; const cfMaxDb = CF_DB_MAX; const cfRange = cfMaxDb - cfMinDb;
-    const cfVal = Math.max(cfMinDb, Math.min(cfMaxDb, dynamicRange));
-    const cfPct = (cfVal - cfMinDb) / cfRange;
-    const cfY = cfBottom - (cfPct * cfHeight);
-
-    // DR Heat Map — lazy init, update, decay, render (skip mutation when frozen)
-    if (!meterState.cfHeatArray) meterState.cfHeatArray = new Float32Array(CF_HEAT_BUCKETS);
-    if (!frozen) {
-        if (dynamicRange > 0.1) updateCfHeatMap(meterState.cfHeatArray, cfVal);
-        applyCfHeatDecay(meterState.cfHeatArray);
-    }
-    renderCfHeatMapVertical(ctx, meterState.cfHeatArray, grX, barWidth, cfTop, cfHeight);
-
-    // DR indicator line (on top of glow)
-    ctx.strokeStyle = CREST_GREEN; ctx.lineWidth = 2 * s;
-    ctx.beginPath(); ctx.moveTo(grX, cfY); ctx.lineTo(grX + barWidth, cfY); ctx.stroke();
-
-    ctx.fillStyle = TEXT_MID; ctx.font = 'bold ' + Math.max(7, Math.round(8 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText("DR", grCenterX, cfTop - 2 * s);
+    if (meterState.peakLevel > 1.0) { ctx.fillStyle = CLIP_RED; ctx.fillRect(x, 0, barWidth, 4 * s); ctx.fillRect(x, height - 4 * s, barWidth, 4 * s); }
 
     // Text Labels
     if (!hideReadings) {
         ctx.font = 'bold ' + Math.max(7, Math.round(9 * s)) + 'px monospace'; ctx.textAlign = 'center';
-        if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), outCenterX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
+        if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), centerX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
     }
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif';
-    ctx.fillText("GR", grCenterX, 12 * s);
-    ctx.fillText("Out", outCenterX, 12 * s);
-
-};
-
-export const drawGRBar = (canvas, grDb, meterState, hoverGrDbVal = null) => {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
-    const physW = Math.round(w * dpr);
-    const physH = Math.round(h * dpr);
-    if (canvas.width !== physW) canvas.width = physW;
-    if (canvas.height !== physH) canvas.height = physH;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const reductionLinear = 1.0 - Math.pow(10, grDb / 20);
-
-    meterState.grPeakLevel = reductionLinear;
-    if (reductionLinear > meterState.grHoldPeakLevel) { meterState.grHoldPeakLevel = reductionLinear; meterState.grHoldTimer = METER_HOLD_FRAMES; }
-    else { if (meterState.grHoldTimer > 0) meterState.grHoldTimer--; else meterState.grHoldPeakLevel *= METER_GR_HOLD_DECAY; }
-
-    ctx.clearRect(0, 0, w, h);
-    const PADDING = 0; const maxPixelHeight = ((h / 2) - PADDING) * GR_MAX_HEIGHT_RATIO;
-
-    if (meterState.grPeakLevel > METER_GR_NEAR_ZERO) { const barHeight = meterState.grPeakLevel * maxPixelHeight; ctx.fillStyle = BRICK_RED; ctx.fillRect(0, 0, w, barHeight); }
-    if (meterState.grHoldPeakLevel > METER_GR_NEAR_ZERO) {
-        const holdHeight = meterState.grHoldPeakLevel * maxPixelHeight;
-        ctx.fillStyle = BRICK_RED; ctx.fillRect(0, holdHeight, w, 2);
-        let dbVal = meterState.grHoldPeakLevel < 0.999 ? 20 * Math.log10(1 - meterState.grHoldPeakLevel) : -100;
-        if (meterState.grHoldPeakLevel > 0.01) { ctx.fillStyle = BRICK_RED; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText(dbVal < -60 ? "-inf" : dbVal.toFixed(1), w / 2, holdHeight + 14); }
-    }
-
-
-};
-
-// --- Dynamic Range Meter ---
-export const drawCrestFactorMeter = (canvas, crestFactor) => {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    const physW = Math.round(width * dpr);
-    const physH = Math.round(height * dpr);
-    if (canvas.width !== physW) canvas.width = physW;
-    if (canvas.height !== physH) canvas.height = physH;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Clear
-    ctx.clearRect(0, 0, width, height);
-
-    // Scale range: 3dB (bottom) to 20dB (top)
-    const minDb = CF_DB_MIN;
-    const maxDb = CF_DB_MAX;
-    const range = maxDb - minDb;
-
-    // Value Indicator
-    // Clamp value
-    const val = Math.max(minDb, Math.min(maxDb, crestFactor));
-    const pct = (val - minDb) / range;
-    const yPos = height - (pct * height);
-
-    // Indicator Line (Green)
-    ctx.strokeStyle = CREST_GREEN;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, yPos);
-    ctx.lineTo(width, yPos);
-    ctx.stroke();
-
-    // Labels
-    ctx.font = 'bold 10px "Microsoft JhengHei", "Heiti TC", sans-serif';
-    ctx.textAlign = 'center';
-
-    // Top Label
-    ctx.fillStyle = TEXT_MID;
-    ctx.fillText("大動態", width / 2, 12);
-
-    // Bottom Label
-    ctx.fillText("小動態", width / 2, height - 6);
-
-    // Dynamic Value
-    if (crestFactor > 0.1) {
-        ctx.fillStyle = CREST_GREEN;
-        ctx.font = 'bold 11px monospace';
-        ctx.fillText(`${crestFactor.toFixed(1)} dB`, width / 2, height / 2 + 4);
-    }
+    ctx.fillText("Out", centerX, 12 * s);
 };
 
 
@@ -466,15 +174,11 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
 };
 
 // --- Gain Button: Non-linear dB ↔ position mapping ---
-// Position 0 (top) = +20dB, 0.25 = +5dB, 0.5 (center) = 0dB, 0.75 = -5dB, 1.0 (bottom) = -20dB
-
 function dbToPosition(db) {
     if (db >= 0) {
-        // Upper half: 0dB→0.5, +5dB→0.25, +20dB→0
         if (db <= 5) return 0.5 - (db / 5) * 0.25;
         return 0.25 - ((db - 5) / 15) * 0.25;
     } else {
-        // Lower half: 0dB→0.5, -5dB→0.75, -20dB→1
         const adb = -db;
         if (adb <= 5) return 0.5 + (adb / 5) * 0.25;
         return 0.75 + ((adb - 5) / 15) * 0.25;
@@ -483,16 +187,12 @@ function dbToPosition(db) {
 
 function positionToDb(pos) {
     if (pos <= 0.25) {
-        // 0→+20, 0.25→+5 (steep)
         return 20 - ((pos / 0.25) * 15);
     } else if (pos <= 0.5) {
-        // 0.25→+5, 0.5→0 (gentle)
         return 5 - ((pos - 0.25) / 0.25) * 5;
     } else if (pos <= 0.75) {
-        // 0.5→0, 0.75→-5 (gentle)
         return -((pos - 0.5) / 0.25) * 5;
     } else {
-        // 0.75→-5, 1→-20 (steep)
         return -5 - ((pos - 0.75) / 0.25) * 15;
     }
 }
@@ -571,7 +271,7 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 width: 34,
             }}
         >
-            {isZero ? <><span>▲</span><span>▼</span></> : label}
+            {isZero ? <><span>&#9650;</span><span>&#9660;</span></> : label}
         </div>
     );
 };
@@ -586,7 +286,6 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
     const containerDivRef = useRef(null);
     const [containerHeight, setContainerHeight] = useState(0);
 
-    // ResizeObserver to track container height for gain button positioning
     useEffect(() => {
         const el = containerDivRef.current;
         if (!el) return;
@@ -599,7 +298,6 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
         return () => ro.disconnect();
     }, []);
 
-    // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
         if (!tooltipPos.visible) return;
         let running = true;
@@ -617,7 +315,6 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
         return () => { running = false; cancelAnimationFrame(rafRef.current); };
     }, [tooltipPos.visible, meterStateRef]);
 
-    // Update tooltip position directly via DOM on mouse move
     useEffect(() => {
         if (!tooltipDivRef.current) return;
         const GAP = 4;
@@ -689,8 +386,7 @@ const InputMeterMemo = React.memo(InputMeter);
 export { InputMeterMemo as InputMeter };
 
 // --- Output Gain Button ---
-// Out bar center ratio within the dual-meter canvas (outCenterX = 41 * s, s = width / 52)
-const OUT_BAR_CENTER_PCT = (41 / 52) * 100;
+const OUT_BAR_CENTER_PCT = 50; // Now single column, centered
 
 const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) => {
     const dragging = useRef(false);
@@ -766,33 +462,23 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 width: 34,
             }}
         >
-            {isZero ? <><span>▲</span><span>▼</span></> : label}
+            {isZero ? <><span>&#9650;</span><span>&#9660;</span></> : label}
         </div>
     );
 };
 
 // --- Component ---
 
-// Meter hit-zone boundary as ratio of 55px reference width (GR+Out only)
-const METER_GR_RIGHT_RATIO = 27.5 / 55;   // midpoint between GR bar end and Out bar start
-
 const getMetersTooltipText = (activeZone, ms) => {
-    if (activeZone === 'gr') {
-        const val = ms.grHoldPeakLevel > 0.01
-            ? (20 * Math.log10(1 - ms.grHoldPeakLevel)).toFixed(1) : "0.0";
-        return `GR (Gain Reduction 壓縮量) : ${val} dB`;
-    } else if (activeZone === 'out') {
+    if (activeZone === 'out') {
         const val = ms.holdPeakLevel > 0.01
             ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
         return `Out (Output Signal 輸出訊號) : ${val} dB`;
-    } else {
-        const dr = (ms.dynamicRange || 0).toFixed(1);
-        const drDesc = (ms.dynamicRange || 0) > 10 ? "大動態" : "小動態";
-        return `DR (Dynamic Range 動態範圍) : ${dr} dB (${drDesc})`;
     }
+    return '';
 };
 
-const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, outputGain, onOutputGainChange }) => {
+const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outputGain, onOutputGainChange }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
     const tooltipTextRef = useRef(null);
     const tooltipDivRef = useRef(null);
@@ -800,7 +486,6 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hover
     const containerDivRef = useRef(null);
     const [containerHeight, setContainerHeight] = useState(0);
 
-    // ResizeObserver to track container height for gain button positioning
     useEffect(() => {
         const el = containerDivRef.current;
         if (!el) return;
@@ -813,7 +498,6 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hover
         return () => ro.disconnect();
     }, []);
 
-    // RAF loop — update tooltip text directly via DOM (no React re-renders)
     useEffect(() => {
         if (!tooltipPos.visible) return;
         let running = true;
@@ -828,7 +512,6 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hover
         return () => { running = false; cancelAnimationFrame(rafRef.current); };
     }, [tooltipPos.visible, hoveredMeterRef, meterStateRef]);
 
-    // Update tooltip position directly via DOM on mouse move
     useEffect(() => {
         if (!tooltipDivRef.current) return;
         const GAP = 4;
@@ -840,31 +523,16 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hover
         s.transform = `translate(${flipX ? '0%' : '-100%'}, ${flipY ? '0%' : '-100%'})`;
     }, [tooltipPos.x, tooltipPos.y]);
 
-    // Frozen redraw — repaint meter canvas with current state (no decay) to update hover border
     const frozenRedraw = useCallback(() => {
         if (!outputCanvasRef?.current || !meterStateRef?.current) return;
         const ms = meterStateRef.current;
-        drawDualMeter(outputCanvasRef.current, 0, 0, ms, 0, hoverGrRef?.current ?? null, ms.dynamicRange || 0, isHoveringGRAreaRef?.current ?? false, hoveredMeterRef?.current, true);
-    }, [outputCanvasRef, meterStateRef, hoverGrRef, isHoveringGRAreaRef, hoveredMeterRef]);
+        drawDualMeter(outputCanvasRef.current, 0, 0, ms, hoveredMeterRef?.current, true);
+    }, [outputCanvasRef, meterStateRef, hoveredMeterRef]);
 
     const handleMouseMove = useCallback((e) => {
         if (!hoveredMeterRef) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const w = rect.width;
-        const h = rect.height;
-        const cfTop = h * CF_TOP_RATIO;
-
-        let zone;
-        if (x < w * METER_GR_RIGHT_RATIO) {
-            zone = y < cfTop ? 'gr' : 'dr';
-        } else {
-            zone = 'out';
-        }
-
-        if (hoveredMeterRef.current !== zone) {
-            hoveredMeterRef.current = zone;
+        if (hoveredMeterRef.current !== 'out') {
+            hoveredMeterRef.current = 'out';
             frozenRedraw();
         }
         setTooltipPos({ x: e.clientX, y: e.clientY, visible: true });
@@ -879,7 +547,7 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, hover
     }, [hoveredMeterRef, frozenRedraw]);
 
     return (
-        <div ref={containerDivRef} className="flex-none h-full relative w-[8.5%] max-w-[52px]"
+        <div ref={containerDivRef} className="flex-none h-full relative w-[4%] max-w-[22px]"
             style={{ overflow: 'visible' }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}

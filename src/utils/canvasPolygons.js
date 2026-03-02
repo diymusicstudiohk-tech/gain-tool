@@ -100,11 +100,3 @@ export const drawHatchedPolygon = (ctx, points, color, width, centerY, spacing =
     ctx.stroke();
     ctx.restore();
 };
-
-export const drawGRLine = (ctx, points, color) => {
-    if (points.length === 0) return;
-    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-    ctx.stroke();
-};

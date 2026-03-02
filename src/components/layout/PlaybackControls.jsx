@@ -1,8 +1,8 @@
 import React from 'react';
-import { Triangle, Power, Play, Pause } from 'lucide-react';
+import { Power, Play, Pause } from 'lucide-react';
 
 const PlaybackControls = ({ playback, onTouchLegend }) => {
-    const { playingType, isDryMode, isDeltaMode, togglePlayback, handleModeChange, toggleDeltaMode } = playback;
+    const { playingType, isDryMode, togglePlayback, handleModeChange } = playback;
 
     return (
         <div className="flex gap-2 flex-none items-stretch relative z-50 self-stretch">
@@ -26,36 +26,16 @@ const PlaybackControls = ({ playback, onTouchLegend }) => {
             {/* Bypass Button */}
             <button
                 onMouseDown={(e) => e.stopPropagation()}
-                onClick={() => !isDeltaMode && handleModeChange(isDryMode ? 'processed' : 'original')}
-                onTouchStart={() => !isDeltaMode && onTouchLegend && onTouchLegend(isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經處理前的聲音")}
-                disabled={isDeltaMode}
-                data-tooltip={isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經處理前的聲音"}
+                onClick={() => handleModeChange(isDryMode ? 'processed' : 'original')}
+                onTouchStart={() => onTouchLegend && onTouchLegend(isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經增益處理前的聲音")}
+                data-tooltip={isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經增益處理前的聲音"}
                 className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
-                    isDeltaMode
-                        ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
-                        : isDryMode
-                            ? 'breathe-brick-red border-brick-red'
-                            : 'bg-panel hover:bg-brick-red border-gold/30'
+                    isDryMode
+                        ? 'breathe-brick-red border-brick-red'
+                        : 'bg-panel hover:bg-brick-red border-gold/30'
                 }`}
             >
                 <Power size={18} className="relative z-10 text-white" strokeWidth={2.5} />
-            </button>
-            {/* Delta Button */}
-            <button
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={toggleDeltaMode}
-                onTouchStart={() => !isDryMode && onTouchLegend && onTouchLegend(isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被Limiter移除的部分")}
-                disabled={isDryMode}
-                data-tooltip={isDeltaMode ? "關閉差異監聽(Delta)" : "差異監聽(Delta)：只聽被Limiter移除的部分"}
-                className={`w-8 rounded-lg flex items-center justify-center transition-transform active:scale-95 border shadow-inner shadow-xl ${
-                    isDryMode
-                        ? 'bg-disabled border-gray-600 cursor-not-allowed opacity-50'
-                        : isDeltaMode
-                            ? 'breathe-delta border-green'
-                            : 'bg-panel hover:bg-green border-gold/30'
-                }`}
-            >
-                <Triangle size={14} fill={isDeltaMode ? "white" : "none"} className="relative z-10 text-white" />
             </button>
         </div>
     );

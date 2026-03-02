@@ -5,13 +5,12 @@ import { buildMipmaps } from '../utils/mipmapCache';
 
 const MAX_SMOOTH_POINTS = 250000;
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, isDeltaMode, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
     const fullResCacheRef = useRef(null);
-    // Pre-allocated buffers to avoid GC pressure on recompute
-    const preallocBufRef = useRef({ output: null, gr: null });
+    const preallocBufRef = useRef({ output: null });
 
     // Defer param updates entirely during drag — only apply on mouse release
     useEffect(() => {
@@ -69,18 +68,16 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         const pa = preallocBufRef.current;
         if (!pa.output || pa.output.length !== len) {
             pa.output = new Float32Array(len);
-            pa.gr = new Float32Array(len);
         }
         return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step, pa);
     }, [visualSourceCache, audioContext, debouncedParams]);
 
-    // Build mipmaps for input, output, and GR curves
+    // Build mipmaps for input and output curves
     const mipmaps = useMemo(() => {
         if (!visualResult) return null;
         return {
             input: buildMipmaps(visualResult.visualInput, 'absMax'),
             output: buildMipmaps(visualResult.outputData, 'absMax'),
-            gr: buildMipmaps(visualResult.grCurve, 'min'),
         };
     }, [visualResult]);
 
@@ -96,7 +93,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         const inputData = originalBuffer.getChannelData(0);
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
-        const params = { ...debouncedParams, dryGain: -200, isDeltaMode: false };
+        const params = { ...debouncedParams };
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
@@ -114,12 +111,8 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
             } else {
                 const outBuf = audioContext.createBuffer(1, length, sampleRate);
                 outBuf.copyToChannel(outData, 0);
-                const deltaData = new Float32Array(length);
-                for (let i = 0; i < length; i++) deltaData[i] = outData[i] - inputData[i];
-                const deltaBuf = audioContext.createBuffer(1, length, sampleRate);
-                deltaBuf.copyToChannel(deltaData, 0);
 
-                fullAudioDataRef.current = { outputBuffer: outBuf, deltaBuffer: deltaBuf };
+                fullAudioDataRef.current = { outputBuffer: outBuf };
                 setIsProcessing(false);
             }
         };
