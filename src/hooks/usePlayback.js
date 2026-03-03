@@ -8,6 +8,7 @@ const usePlayback = ({
     isPlayingRef, rafIdRef, playBufferRef, meterStateRef,
     regionStartRef, regionEndRef,
     workletReady,
+    markersRef, markers,
 }) => {
     const [playingType, setPlayingType] = useState('none');
     const [lastPlayedType, setLastPlayedType] = useState('processed');
@@ -22,6 +23,7 @@ const usePlayback = ({
 
     const workletNodeRef = useRef(null);
     const lastSentParamsRef = useRef(null);
+    const scriptCompressorRef = useRef(null);
 
     // Send parameter updates to AudioWorklet processor via postMessage
     useEffect(() => {
@@ -34,6 +36,18 @@ const usePlayback = ({
             }
         }
     }, [currentParams, paramsRef]);
+
+    // Send marker updates to worklet/scriptCompressor when markers change
+    useEffect(() => {
+        if (!originalBuffer || !markers) return;
+        const totalSamples = originalBuffer.length;
+        if (workletNodeRef.current) {
+            workletNodeRef.current.port.postMessage({ markers, totalSamples });
+        }
+        if (scriptCompressorRef.current) {
+            scriptCompressorRef.current.setMarkers(markers, totalSamples);
+        }
+    }, [markers, originalBuffer]);
 
     const stopCurrentSource = useCallback(() => {
         if (sourceNodeRef.current) {
@@ -74,9 +88,18 @@ const usePlayback = ({
                 source.buffer = targetBuffer;
 
                 if (type === 'processed') {
+                    const currentMarkers = markersRef?.current || [];
+                    const totalSamples = targetBuffer.length;
+                    const samplePosition = Math.round(safeOffset * targetBuffer.sampleRate);
+
                     if (workletReady) {
                         const workletNode = new AudioWorkletNode(audioContext, 'compressor-processor');
-                        workletNode.port.postMessage(paramsRef.current);
+                        workletNode.port.postMessage({
+                            ...paramsRef.current,
+                            markers: currentMarkers,
+                            totalSamples,
+                            samplePosition,
+                        });
                         source.connect(workletNode);
                         workletNode.connect(audioContext.destination);
                         source._workletNode = workletNode;
@@ -84,12 +107,15 @@ const usePlayback = ({
                     } else {
                         const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                         const compressor = createRealTimeCompressor(audioContext.sampleRate);
+                        compressor.setMarkers(currentMarkers, totalSamples);
+                        compressor.setSamplePosition(samplePosition);
                         scriptNode.onaudioprocess = (e) => {
                             compressor.processBlock(e.inputBuffer, e.outputBuffer, paramsRef.current);
                         };
                         source.connect(scriptNode);
                         scriptNode.connect(audioContext.destination);
                         source._scriptNode = scriptNode;
+                        scriptCompressorRef.current = compressor;
                     }
                 } else {
                     source.connect(audioContext.destination);
@@ -105,7 +131,7 @@ const usePlayback = ({
                 isPlayingRef.current = false;
             }
         }
-    }, [audioContext, originalBuffer, paramsRef, workletReady,
+    }, [audioContext, originalBuffer, paramsRef, workletReady, markersRef,
         sourceNodeRef, startTimeRef, startOffsetRef, isPlayingRef, stopCurrentSource]);
 
     useEffect(() => { playBufferRef.current = playBuffer; }, [playBuffer, playBufferRef]);

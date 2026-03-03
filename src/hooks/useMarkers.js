@@ -32,7 +32,7 @@ const useMarkers = () => {
         }
 
         const id = `marker_${++markerIdCounter}`;
-        const next = [...existing, { id, startFrac, endFrac, peakAmp: null }].sort((a, b) => a.startFrac - b.startFrac);
+        const next = [...existing, { id, startFrac, endFrac, peakAmp: null, clipGainDb: 0 }].sort((a, b) => a.startFrac - b.startFrac);
         syncRef(next);
     }, []);
 
@@ -62,12 +62,12 @@ const useMarkers = () => {
             let clamped = Math.max(0, Math.min(newFrac, marker.endFrac - minFrac));
             // Cannot cross into previous marker
             if (idx > 0) clamped = Math.max(clamped, all[idx - 1].endFrac);
-            updated = { ...marker, startFrac: clamped, peakAmp: null };
+            updated = { ...marker, startFrac: clamped, peakAmp: null, clipGainDb: 0 };
         } else {
             let clamped = Math.min(1, Math.max(newFrac, marker.startFrac + minFrac));
             // Cannot cross into next marker
             if (idx < all.length - 1) clamped = Math.min(clamped, all[idx + 1].startFrac);
-            updated = { ...marker, endFrac: clamped, peakAmp: null };
+            updated = { ...marker, endFrac: clamped, peakAmp: null, clipGainDb: 0 };
         }
 
         const next = [...all];
@@ -89,6 +89,18 @@ const useMarkers = () => {
     }, []);
 
     /**
+     * Set the clip gain in dB for a marker.
+     */
+    const updateMarkerClipGain = useCallback((id, clipGainDb) => {
+        const all = markersRef.current;
+        const idx = all.findIndex(m => m.id === id);
+        if (idx === -1) return;
+        const next = [...all];
+        next[idx] = { ...all[idx], clipGainDb };
+        syncRef(next);
+    }, []);
+
+    /**
      * Clear all markers (called on audio file change).
      */
     const clearAll = useCallback(() => {
@@ -102,6 +114,7 @@ const useMarkers = () => {
         removeMarker,
         updateMarkerEdge,
         updateMarkerPeakAmp,
+        updateMarkerClipGain,
         clearAll,
     };
 };

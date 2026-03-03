@@ -5,7 +5,7 @@ import { buildMipmaps } from '../utils/mipmapCache';
 
 const MAX_SMOOTH_POINTS = 250000;
 
-const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging }) => {
+const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playingType, setIsProcessing, fullAudioDataRef, isDraggingKnobRef, isAnyKnobDragging, markers }) => {
     const [visualSourceCache, setVisualSourceCache] = useState({ data: null, step: 1 });
     const processingTaskRef = useRef(null);
     const [debouncedParams, setDebouncedParams] = useState(currentParams);
@@ -61,6 +61,12 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         }
     }, [isAnyKnobDragging]);
 
+    // Stable key that changes only when marker clip gain actually changes
+    const clipGainKey = useMemo(() => {
+        if (!markers || markers.length === 0) return '';
+        return markers.map(m => `${m.startFrac.toFixed(6)}_${m.endFrac.toFixed(6)}_${(m.clipGainDb || 0).toFixed(3)}`).join('|');
+    }, [markers]);
+
     // Visual Result Memo — uses debouncedParams to avoid recomputing during fast knob drags
     const visualResult = useMemo(() => {
         if (!visualSourceCache.data || !audioContext) return null;
@@ -69,8 +75,8 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         if (!pa.output || pa.output.length !== len) {
             pa.output = new Float32Array(len);
         }
-        return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step, pa);
-    }, [visualSourceCache, audioContext, debouncedParams]);
+        return processCompressor(visualSourceCache.data, audioContext.sampleRate, debouncedParams, visualSourceCache.step, pa, markers || []);
+    }, [visualSourceCache, audioContext, debouncedParams, clipGainKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Build mipmaps for input and output curves
     const mipmaps = useMemo(() => {
@@ -94,10 +100,13 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         const sampleRate = originalBuffer.sampleRate;
         const length = inputData.length;
         const params = { ...debouncedParams };
+        const currentMarkers = markers || [];
         const CHUNK_SIZE = 50000;
         let currentIndex = 0;
         const outData = new Float32Array(length);
         const compressor = createRealTimeCompressor(sampleRate);
+        compressor.setMarkers(currentMarkers, length);
+        compressor.setSamplePosition(0);
 
         const processChunk = () => {
             const endIndex = Math.min(currentIndex + CHUNK_SIZE, length);
@@ -119,7 +128,7 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
         processingTaskRef.current = setTimeout(processChunk, 150);
 
         return () => { if (processingTaskRef.current) clearTimeout(processingTaskRef.current); };
-    }, [originalBuffer, audioContext, debouncedParams, setIsProcessing]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [originalBuffer, audioContext, debouncedParams, setIsProcessing, clipGainKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         visualResult,

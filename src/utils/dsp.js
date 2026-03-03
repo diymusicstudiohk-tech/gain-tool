@@ -1,6 +1,39 @@
 import { LN10_OVER_20 } from './dspConstants';
 
-export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null) => {
+// Pre-compute marker regions with sample indices and linear gain
+const buildMarkerRegions = (markers, totalSamples, crossfade) => {
+    if (!markers || markers.length === 0) return [];
+    return markers
+        .filter(m => m.clipGainDb !== 0 && m.clipGainDb != null)
+        .map(m => ({
+            startSample: Math.round(m.startFrac * totalSamples),
+            endSample: Math.round(m.endFrac * totalSamples),
+            gainLinear: Math.exp(m.clipGainDb * LN10_OVER_20),
+            crossfade,
+        }));
+};
+
+// Compute effective clip gain for a given sample index with crossfade
+const clipGainForSample = (i, regions) => {
+    let gain = 1.0;
+    for (let r = 0; r < regions.length; r++) {
+        const region = regions[r];
+        if (i < region.startSample - region.crossfade || i > region.endSample + region.crossfade) continue;
+        let fadeFactor;
+        if (i < region.startSample) {
+            fadeFactor = (i - (region.startSample - region.crossfade)) / region.crossfade;
+        } else if (i > region.endSample) {
+            fadeFactor = ((region.endSample + region.crossfade) - i) / region.crossfade;
+        } else {
+            fadeFactor = 1.0;
+        }
+        fadeFactor = Math.max(0, Math.min(1, fadeFactor));
+        gain *= 1 + fadeFactor * (region.gainLinear - 1);
+    }
+    return gain;
+};
+
+export const processCompressor = (inputData, sampleRate, params, step = 1, preallocated = null, markers = []) => {
     const { inputGain, outputGain } = params;
 
     const length = inputData.length;
@@ -8,10 +41,19 @@ export const processCompressor = (inputData, sampleRate, params, step = 1, preal
     const inputGainLinear = Math.exp((inputGain || 0) * LN10_OVER_20);
     const outputGainLinear = Math.exp((outputGain || 0) * LN10_OVER_20);
 
+    // Pre-compute marker regions (crossfade scaled for downsampled data)
+    const CROSSFADE = Math.max(1, Math.ceil(32 / step));
+    const totalSamples = length;
+    const regions = buildMarkerRegions(markers, totalSamples, CROSSFADE);
+    const hasClipGain = regions.length > 0;
+
     for (let i = 0; i < length; i++) {
-        outputData[i] = inputData[i] * inputGainLinear * outputGainLinear;
+        let sample = inputData[i] * inputGainLinear;
+        if (hasClipGain) sample *= clipGainForSample(i, regions);
+        outputData[i] = sample * outputGainLinear;
     }
 
+    // visualInput: only inputGain, no clip gain (correct for auto-snap)
     let visualInput = inputData;
     if (Math.abs(inputGain || 0) > 0.001) {
         visualInput = preallocated?.visualInput?.length === length
@@ -36,7 +78,20 @@ export const createRealTimeCompressor = (sampleRate) => {
 
     let _cachedParams = null;
 
+    // Clip gain state
+    let _samplePos = 0;
+    let _markerRegions = [];
+    let _hasClipGain = false;
+
     return {
+        setMarkers: (markers, totalSamples) => {
+            const CROSSFADE = Math.max(1, Math.ceil(32 * 1)); // full-res, step=1
+            _markerRegions = buildMarkerRegions(markers, totalSamples, CROSSFADE);
+            _hasClipGain = _markerRegions.length > 0;
+        },
+        setSamplePosition: (pos) => {
+            _samplePos = pos;
+        },
         processBlock: (inputBuffer, outputBuffer, params) => {
             const inputData = inputBuffer.getChannelData ? inputBuffer.getChannelData(0) : inputBuffer;
             const outputData = outputBuffer.getChannelData ? outputBuffer.getChannelData(0) : outputBuffer;
@@ -61,8 +116,12 @@ export const createRealTimeCompressor = (sampleRate) => {
                     _prevOutputGain = smoothed.outputGain;
                 }
 
-                outputData[i] = inputData[i] * _inputGainLinear * _outputGainLinear;
+                let sample = inputData[i] * _inputGainLinear;
+                if (_hasClipGain) sample *= clipGainForSample(_samplePos + i, _markerRegions);
+                outputData[i] = sample * _outputGainLinear;
             }
+
+            _samplePos += length;
         },
         reset: () => {
             smoothed.inputGain = 0;
@@ -74,6 +133,9 @@ export const createRealTimeCompressor = (sampleRate) => {
             _prevOutputGain = 0;
             _outputGainLinear = 1.0;
             _cachedParams = null;
+            _samplePos = 0;
+            _markerRegions = [];
+            _hasClipGain = false;
         }
     };
 };

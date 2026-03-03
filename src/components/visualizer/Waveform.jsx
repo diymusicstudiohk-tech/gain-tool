@@ -180,7 +180,7 @@ export const drawMainWaveform = ({
 
         // Solid white waveform inside marker regions (100% alpha, no gradient)
         if (lastPlayedType === 'processed') {
-            const { outPoints: markerPts } = computeWaveformPoints({
+            const { inPoints, outPoints: markerPts } = computeWaveformPoints({
                 visualResult, width, zoomX, panOffset, centerY, ampScale,
                 lastPlayedType, mipmaps, interactionDPR, step,
             });
@@ -195,12 +195,12 @@ export const drawMainWaveform = ({
                     ctx.clip();
                     drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
                     // Gold horizontal peak lines (draggable)
-                    // 1. Always compute auto-snap from regionPts
+                    // 1. Always compute auto-snap from INPUT waveform (inPoints) to avoid feedback loop
                     let autoDisplayAmp = null;
-                    const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
-                    if (regionPts.length > 0) {
-                        let autoYTop = regionPts[0].yTop;
-                        for (const p of regionPts) {
+                    const regionInPts = inPoints.filter(p => p.x >= px1 && p.x <= px2);
+                    if (regionInPts.length > 0) {
+                        let autoYTop = regionInPts[0].yTop;
+                        for (const p of regionInPts) {
                             if (p.yTop < autoYTop) autoYTop = p.yTop;
                         }
                         autoDisplayAmp = (centerY - autoYTop) / ampScale;
@@ -221,7 +221,7 @@ export const drawMainWaveform = ({
                     // 3. Draw peak lines
                     if (peakYTop != null) {
                         if (peakLinesRef) {
-                            peakLinesRef.current[marker.id] = { yTop: peakYTop, yBot: peakYBot, px1, px2 };
+                            peakLinesRef.current[marker.id] = { yTop: peakYTop, yBot: peakYBot, px1, px2, autoDisplayAmp };
                         }
                         const isMarkerHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
                         const isPeakLineHovered = isMarkerHovered && hoveredMarkerInfo.zone === 'peakLine';

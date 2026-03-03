@@ -147,6 +147,8 @@ const App = () => {
         meterStateRef,
         regionStartRef, regionEndRef,
         workletReady,
+        markersRef: markerHook.markersRef,
+        markers: markerHook.markers,
     });
 
     // Wire ref-based callbacks
@@ -185,6 +187,7 @@ const App = () => {
         removeMarker: markerHook.removeMarker,
         updateMarkerEdge: markerHook.updateMarkerEdge,
         updateMarkerPeakAmp: markerHook.updateMarkerPeakAmp,
+        updateMarkerClipGain: markerHook.updateMarkerClipGain,
         peakLinesRef,
     });
 
@@ -198,6 +201,7 @@ const App = () => {
         fullAudioDataRef,
         isDraggingKnobRef,
         isAnyKnobDragging,
+        markers: markerHook.markers,
     });
 
     // --- 8. Visualizer Loop ---

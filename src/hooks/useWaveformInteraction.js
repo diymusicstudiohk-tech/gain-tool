@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getMarkerHitZone } from '../utils/canvasMarkers';
-import { computeWaveformGeometry } from '../utils/displayMath';
+import { computeWaveformGeometry, linearFromDisplay } from '../utils/displayMath';
 
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
@@ -11,7 +11,7 @@ const useWaveformInteraction = ({
     zoomY, panOffsetY, canvasDims,
     isPlayingRef,
     markersRef, addMarker, removeMarker, updateMarkerEdge,
-    updateMarkerPeakAmp, peakLinesRef,
+    updateMarkerPeakAmp, updateMarkerClipGain, peakLinesRef,
 }) => {
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const mousePosRef = useRef({ x: -1, y: -1 });
@@ -227,6 +227,17 @@ const useWaveformInteraction = ({
                 let amp = distFromCenter / ampScale;
                 amp = Math.max(0, Math.min(1, amp));
                 updateMarkerPeakAmp?.(drag.id, amp);
+
+                // Compute clip gain dB from auto-snap reference
+                const peakLine = peakLinesRef?.current?.[drag.id];
+                if (peakLine && peakLine.autoDisplayAmp != null && peakLine.autoDisplayAmp > 0) {
+                    const currentLinear = linearFromDisplay(amp);
+                    const autoLinear = linearFromDisplay(peakLine.autoDisplayAmp);
+                    if (autoLinear > 0) {
+                        const dB = 20 * Math.log10(currentLinear / autoLinear);
+                        updateMarkerClipGain?.(drag.id, dB);
+                    }
+                }
                 return;
             }
 
@@ -250,7 +261,7 @@ const useWaveformInteraction = ({
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
         };
-    }, [waveformCanvasRef, zoomX, zoomY, panOffsetY, updateMarkerEdge, updateMarkerPeakAmp, isPlayingRef]);
+    }, [waveformCanvasRef, zoomX, zoomY, panOffsetY, updateMarkerEdge, updateMarkerPeakAmp, updateMarkerClipGain, isPlayingRef, peakLinesRef]);
 
     return {
         mousePos, mousePosRef,

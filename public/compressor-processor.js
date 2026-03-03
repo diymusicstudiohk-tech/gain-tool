@@ -1,7 +1,44 @@
 // AudioWorklet Gain Processor
-// Simple input gain + output gain with per-sample parameter smoothing
+// Simple input gain + output gain with per-sample parameter smoothing + clip gain per marker
 
 const LN10_OVER_20 = Math.LN10 / 20;
+
+// Pre-compute marker regions with sample indices and linear gain
+function buildMarkerRegions(markers, totalSamples, crossfade) {
+    if (!markers || markers.length === 0) return [];
+    const regions = [];
+    for (let i = 0; i < markers.length; i++) {
+        const m = markers[i];
+        if (m.clipGainDb === 0 || m.clipGainDb == null) continue;
+        regions.push({
+            startSample: Math.round(m.startFrac * totalSamples),
+            endSample: Math.round(m.endFrac * totalSamples),
+            gainLinear: Math.exp(m.clipGainDb * LN10_OVER_20),
+            crossfade: crossfade,
+        });
+    }
+    return regions;
+}
+
+// Compute effective clip gain for a given sample index with crossfade
+function clipGainForSample(i, regions) {
+    let gain = 1.0;
+    for (let r = 0; r < regions.length; r++) {
+        const region = regions[r];
+        if (i < region.startSample - region.crossfade || i > region.endSample + region.crossfade) continue;
+        let fadeFactor;
+        if (i < region.startSample) {
+            fadeFactor = (i - (region.startSample - region.crossfade)) / region.crossfade;
+        } else if (i > region.endSample) {
+            fadeFactor = ((region.endSample + region.crossfade) - i) / region.crossfade;
+        } else {
+            fadeFactor = 1.0;
+        }
+        fadeFactor = Math.max(0, Math.min(1, fadeFactor));
+        gain *= 1 + fadeFactor * (region.gainLinear - 1);
+    }
+    return gain;
+}
 
 class CompressorProcessor extends AudioWorkletProcessor {
     constructor() {
@@ -23,11 +60,32 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         this.params = null;
 
+        // Clip gain state
+        this._samplePos = 0;
+        this._markerRegions = [];
+        this._hasClipGain = false;
+
         this.port.onmessage = (e) => {
             const p = e.data;
-            this.params = p;
-            this.targets.inputGain = p.inputGain ?? 0;
-            this.targets.outputGain = p.outputGain ?? 0;
+
+            // Handle sample position reset (seek)
+            if (p.samplePosition !== undefined) {
+                this._samplePos = p.samplePosition;
+            }
+
+            // Handle marker updates
+            if (p.markers !== undefined && p.totalSamples !== undefined) {
+                const CROSSFADE = 32;
+                this._markerRegions = buildMarkerRegions(p.markers, p.totalSamples, CROSSFADE);
+                this._hasClipGain = this._markerRegions.length > 0;
+            }
+
+            // Handle gain params
+            if (p.inputGain !== undefined || p.outputGain !== undefined) {
+                this.params = p;
+                this.targets.inputGain = p.inputGain ?? 0;
+                this.targets.outputGain = p.outputGain ?? 0;
+            }
         };
     }
 
@@ -55,6 +113,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
         let prevOutputGain = this._prevOutputGain;
         let outputGainLinear = this._cachedOutputGainLinear;
 
+        const hasClipGain = this._hasClipGain;
+        const markerRegions = this._markerRegions;
+        const samplePos = this._samplePos;
+
         for (let i = 0; i < length; i++) {
             sInputGain += smoothCoeff * (tInputGain - sInputGain);
             sOutputGain += smoothCoeff * (tOutputGain - sOutputGain);
@@ -68,8 +130,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 prevOutputGain = sOutputGain;
             }
 
-            outputData[i] = inputData[i] * inputGainLinear * outputGainLinear;
+            let sample = inputData[i] * inputGainLinear;
+            if (hasClipGain) sample *= clipGainForSample(samplePos + i, markerRegions);
+            outputData[i] = sample * outputGainLinear;
         }
+
+        this._samplePos += length;
 
         // Write back state
         this.smoothed.inputGain = sInputGain;
