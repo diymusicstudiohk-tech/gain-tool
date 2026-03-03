@@ -112,6 +112,34 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
             ctx.moveTo(cx + xOff, cy - xOff); ctx.lineTo(cx - xOff, cy + xOff);
             ctx.stroke();
         }
+
+        // Undo (reset gain) button: bottom-right, only when gain !== 0
+        if (marker.clipGainDb !== 0) {
+            const undoX = Math.min(x2, width) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
+            const undoY = height - DELETE_BTN_MARGIN - DELETE_BTN_SIZE;
+            const isUndoHovered = hoveredZone === 'undo';
+
+            if (undoX > -DELETE_BTN_SIZE && undoX < width + DELETE_BTN_SIZE) {
+                drawRoundedBtn(ctx, undoX, undoY, isUndoHovered ? GOLD_LIGHT : GOLD);
+
+                // White curved undo arrow (↺)
+                const ucx = undoX + DELETE_BTN_SIZE / 2;
+                const ucy = undoY + DELETE_BTN_SIZE / 2;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(ucx, ucy, 4, -Math.PI * 0.8, Math.PI * 0.5);
+                ctx.stroke();
+                // Arrowhead
+                const tipX = ucx + 4 * Math.cos(Math.PI * 0.5);
+                const tipY = ucy + 4 * Math.sin(Math.PI * 0.5);
+                ctx.beginPath();
+                ctx.moveTo(tipX - 3, tipY - 1);
+                ctx.lineTo(tipX, tipY);
+                ctx.lineTo(tipX + 3, tipY - 1);
+                ctx.stroke();
+            }
+        }
     }
 
     // Reset
@@ -120,10 +148,10 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
 
 /**
  * Hit-test markers at a given mouse position.
- * Returns { markerId, zone: 'delete' | 'left' | 'right' | 'body' } or null.
- * Priority: delete > edge > body.
+ * Returns { markerId, zone: 'delete' | 'undo' | 'left' | 'right' | 'body' } or null.
+ * Priority: delete > undo > edge > body.
  */
-export const getMarkerHitZone = (mouseX, mouseY, markers, zoomX, panOffset, canvasWidth) => {
+export const getMarkerHitZone = (mouseX, mouseY, markers, zoomX, panOffset, canvasWidth, canvasHeight) => {
     // Iterate in reverse so topmost (last-drawn) markers get priority
     for (let i = markers.length - 1; i >= 0; i--) {
         const marker = markers[i];
@@ -138,6 +166,18 @@ export const getMarkerHitZone = (mouseX, mouseY, markers, zoomX, panOffset, canv
             mouseY >= btnY && mouseY <= btnY + DELETE_BTN_SIZE
         ) {
             return { markerId: marker.id, zone: 'delete' };
+        }
+
+        // Undo button check (only when gain !== 0)
+        if (marker.clipGainDb !== 0 && canvasHeight) {
+            const undoX = Math.min(x2, canvasWidth) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
+            const undoY = canvasHeight - DELETE_BTN_MARGIN - DELETE_BTN_SIZE;
+            if (
+                mouseX >= undoX && mouseX <= undoX + DELETE_BTN_SIZE &&
+                mouseY >= undoY && mouseY <= undoY + DELETE_BTN_SIZE
+            ) {
+                return { markerId: marker.id, zone: 'undo' };
+            }
         }
 
         // Left edge

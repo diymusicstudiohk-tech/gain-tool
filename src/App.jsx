@@ -188,6 +188,7 @@ const App = () => {
         updateMarkerEdge: markerHook.updateMarkerEdge,
         updateMarkerPeakAmp: markerHook.updateMarkerPeakAmp,
         updateMarkerClipGain: markerHook.updateMarkerClipGain,
+        resetMarkerGain: markerHook.resetMarkerGain,
         peakLinesRef,
     });
 

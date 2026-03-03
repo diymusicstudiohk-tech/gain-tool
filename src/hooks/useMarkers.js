@@ -101,6 +101,18 @@ const useMarkers = () => {
     }, []);
 
     /**
+     * Reset a marker's gain back to 0 dB (undo clip gain adjustment).
+     */
+    const resetMarkerGain = useCallback((id) => {
+        const all = markersRef.current;
+        const idx = all.findIndex(m => m.id === id);
+        if (idx === -1) return;
+        const next = [...all];
+        next[idx] = { ...all[idx], peakAmp: null, clipGainDb: 0 };
+        syncRef(next);
+    }, []);
+
+    /**
      * Clear all markers (called on audio file change).
      */
     const clearAll = useCallback(() => {
@@ -115,6 +127,7 @@ const useMarkers = () => {
         updateMarkerEdge,
         updateMarkerPeakAmp,
         updateMarkerClipGain,
+        resetMarkerGain,
         clearAll,
     };
 };

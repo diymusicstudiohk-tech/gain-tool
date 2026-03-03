@@ -11,7 +11,7 @@ const useWaveformInteraction = ({
     zoomY, panOffsetY, canvasDims,
     isPlayingRef,
     markersRef, addMarker, removeMarker, updateMarkerEdge,
-    updateMarkerPeakAmp, updateMarkerClipGain, peakLinesRef,
+    updateMarkerPeakAmp, updateMarkerClipGain, resetMarkerGain, peakLinesRef,
 }) => {
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const mousePosRef = useRef({ x: -1, y: -1 });
@@ -73,10 +73,15 @@ const useWaveformInteraction = ({
         // Check marker hit zones
         const markers = markersRef?.current;
         if (markers && markers.length > 0) {
-            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            const height = rect.height;
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width, height);
             if (hit) {
                 if (hit.zone === 'delete') {
                     removeMarker?.(hit.markerId);
+                    return;
+                }
+                if (hit.zone === 'undo') {
+                    resetMarkerGain?.(hit.markerId);
                     return;
                 }
                 if (hit.zone === 'left' || hit.zone === 'right') {
@@ -109,7 +114,7 @@ const useWaveformInteraction = ({
         }
         handleSeekOnWaveform(e.clientX);
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
-        markersRef, addMarker, removeMarker, handleSeekOnWaveform]);
+        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform]);
 
     const handleWaveformTouchStart = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -145,10 +150,15 @@ const useWaveformInteraction = ({
         // Check marker hit zones
         const markers = markersRef?.current;
         if (markers && markers.length > 0) {
-            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            const height = rect.height;
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width, height);
             if (hit) {
                 if (hit.zone === 'delete') {
                     removeMarker?.(hit.markerId);
+                    return;
+                }
+                if (hit.zone === 'undo') {
+                    resetMarkerGain?.(hit.markerId);
                     return;
                 }
                 if (hit.zone === 'left' || hit.zone === 'right') {
@@ -177,7 +187,7 @@ const useWaveformInteraction = ({
         }
         handleSeekOnWaveform(clientX);
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
-        markersRef, addMarker, removeMarker, handleSeekOnWaveform, peakLinesRef]);
+        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
 
     touchStartHandlerRef.current = handleWaveformTouchStart;
 
@@ -224,13 +234,14 @@ const useWaveformInteraction = ({
         const markers = markersRef?.current;
         if (markers && markers.length > 0) {
             const width = rect.width;
-            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            const height = rect.height;
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width, height);
             hoveredMarkerInfoRef.current = hit;
             if (hit) {
                 if (containerRef.current) {
                     if (hit.zone === 'left' || hit.zone === 'right') {
                         containerRef.current.style.cursor = 'ew-resize';
-                    } else if (hit.zone === 'delete') {
+                    } else if (hit.zone === 'delete' || hit.zone === 'undo') {
                         containerRef.current.style.cursor = 'pointer';
                     } else {
                         containerRef.current.style.cursor = 'default';
