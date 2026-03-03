@@ -57,6 +57,10 @@ export const getSnapBetweenMarkers = (mouseX, markers, zoomX, panOffset, canvasW
     const rightFrac = rightNeighbor.startFrac;
     if (leftFrac >= rightFrac) return null;
 
+    // Only snap when the gap is narrower than the default marker width (80px)
+    const gapPx = (rightFrac - leftFrac) * totalPx;
+    if (gapPx > DEFAULT_HALF_WIDTH_PX * 2) return null;
+
     return {
         leftFrac,
         rightFrac,
