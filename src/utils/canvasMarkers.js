@@ -72,12 +72,17 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
         const isHovered = hoveredInfo && hoveredInfo.markerId === marker.id;
         const hoveredZone = isHovered ? hoveredInfo.zone : null;
 
-        // Gold fill between lines
-        ctx.fillStyle = GOLD;
+        // Subtle gold fill between lines (original setting)
+        ctx.fillStyle = 'rgba(194, 164, 117, 0.08)';
         ctx.fillRect(Math.max(0, x1), 0, Math.min(width, x2) - Math.max(0, x1), height);
 
-        // Vertical gold edge lines
-        ctx.strokeStyle = GOLD;
+        // Vertical gradient for edge lines: 80% at top/bottom edges, 100% at centerY
+        const grad = ctx.createLinearGradient(0, 0, 0, height);
+        const centerStop = Math.max(0, Math.min(1, centerY / height));
+        grad.addColorStop(0, 'rgba(194, 164, 117, 0.80)');
+        grad.addColorStop(centerStop, 'rgba(194, 164, 117, 1.0)');
+        grad.addColorStop(1, 'rgba(194, 164, 117, 0.80)');
+        ctx.strokeStyle = grad;
 
         // Left edge line
         ctx.lineWidth = hoveredZone === 'left' ? 2.5 : 1.5;
