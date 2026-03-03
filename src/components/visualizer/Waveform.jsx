@@ -61,7 +61,7 @@ export const drawMainWaveform = ({
 
         // Gold fill between marker pairs (behind waveform)
         if (markers && markers.length > 0) {
-            ctx.fillStyle = 'rgba(194, 164, 117, 0.07)';
+            ctx.fillStyle = 'rgba(194, 164, 117, 0.04)';
             for (const marker of markers) {
                 const mx1 = marker.startFrac * width * zoomX + panOffset;
                 const mx2 = marker.endFrac * width * zoomX + panOffset;
