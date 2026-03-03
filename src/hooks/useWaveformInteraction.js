@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getMarkerHitZone } from '../utils/canvasMarkers';
+import { computeWaveformGeometry } from '../utils/displayMath';
 
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
@@ -7,8 +8,10 @@ const useWaveformInteraction = ({
     startOffsetRef, playingTypeRef, playBufferRef,
     playheadRef, outputPlayheadRef,
     zoomX, panOffset,
+    zoomY, panOffsetY, canvasDims,
     isPlayingRef,
     markersRef, addMarker, removeMarker, updateMarkerEdge,
+    updateMarkerPeakAmp, peakLinesRef,
 }) => {
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const mousePosRef = useRef({ x: -1, y: -1 });
@@ -59,6 +62,13 @@ const useWaveformInteraction = ({
         const relX = e.clientX - rect.left;
         const relY = e.clientY - rect.top;
         const width = rect.width;
+
+        // Check peak line hit first
+        const hovered = hoveredMarkerInfoRef.current;
+        if (hovered && hovered.zone === 'peakLine') {
+            draggingMarkerRef.current = { id: hovered.markerId, type: 'peakLine' };
+            return;
+        }
 
         // Check marker hit zones
         const markers = markersRef?.current;
@@ -140,8 +150,23 @@ const useWaveformInteraction = ({
             setMousePos({ x: relX, y: relY });
         }
 
-        // During marker edge drag, just keep mousePos updated (redraw handled by window listener)
+        // During marker edge or peak line drag, just keep mousePos updated
         if (draggingMarkerRef.current) return;
+
+        // Peak line hit detection (before marker edge detection)
+        const peakLines = peakLinesRef?.current;
+        if (peakLines) {
+            for (const markerId of Object.keys(peakLines)) {
+                const pl = peakLines[markerId];
+                if (relX >= pl.px1 && relX <= pl.px2) {
+                    if (Math.abs(relY - pl.yTop) <= 5 || Math.abs(relY - pl.yBot) <= 5) {
+                        hoveredMarkerInfoRef.current = { markerId, zone: 'peakLine' };
+                        if (containerRef.current) containerRef.current.style.cursor = 'ns-resize';
+                        return;
+                    }
+                }
+            }
+        }
 
         // Marker hit detection for cursor
         const markers = markersRef?.current;
@@ -166,7 +191,7 @@ const useWaveformInteraction = ({
         }
 
         if (containerRef.current) containerRef.current.style.cursor = 'crosshair';
-    }, [isDraggingKnobRef, waveformCanvasRef, containerRef, isPlayingRef, markersRef, zoomX, panOffset]);
+    }, [isDraggingKnobRef, waveformCanvasRef, containerRef, isPlayingRef, markersRef, zoomX, panOffset, peakLinesRef]);
 
     const handleMouseLeave = useCallback(() => {
         mousePosRef.current = { x: -1, y: -1 };
@@ -184,8 +209,7 @@ const useWaveformInteraction = ({
 
             const rect = waveformCanvasRef.current.getBoundingClientRect();
             const width = rect.width;
-            const totalPx = width * zoomX;
-            if (totalPx <= 0) return;
+            const height = rect.height;
 
             // Keep mouse position updated so visualizer redraws during drag
             const relX = e.clientX - rect.left;
@@ -194,6 +218,20 @@ const useWaveformInteraction = ({
             if (!isPlayingRef.current) {
                 setMousePos({ x: relX, y: relY });
             }
+
+            if (drag.type === 'peakLine') {
+                // Compute amplitude from mouse Y position
+                const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
+                if (ampScale <= 0) return;
+                const distFromCenter = Math.abs(relY - centerY);
+                let amp = distFromCenter / ampScale;
+                amp = Math.max(0, Math.min(1, amp));
+                updateMarkerPeakAmp?.(drag.id, amp);
+                return;
+            }
+
+            const totalPx = width * zoomX;
+            if (totalPx <= 0) return;
 
             const dx = e.clientX - drag.startClientX;
             const fracDelta = dx / totalPx;
@@ -212,7 +250,7 @@ const useWaveformInteraction = ({
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
         };
-    }, [waveformCanvasRef, zoomX, updateMarkerEdge, isPlayingRef]);
+    }, [waveformCanvasRef, zoomX, zoomY, panOffsetY, updateMarkerEdge, updateMarkerPeakAmp, isPlayingRef]);
 
     return {
         mousePos, mousePosRef,

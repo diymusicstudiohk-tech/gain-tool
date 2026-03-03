@@ -170,6 +170,7 @@ const App = () => {
 
     // --- 6a. Markers ---
     const markerHook = useMarkers();
+    const peakLinesRef = useRef({});
 
     // --- 6b. Waveform Interaction ---
     const waveform = useWaveformInteraction({
@@ -178,11 +179,14 @@ const App = () => {
         startOffsetRef, playingTypeRef: playback.playingTypeRef, playBufferRef,
         playheadRef, outputPlayheadRef,
         zoomX: view.zoomX, panOffset: view.panOffset,
+        zoomY: view.zoomY, panOffsetY: view.panOffsetY, canvasDims: view.canvasDims,
         isPlayingRef,
         markersRef: markerHook.markersRef,
         addMarker: markerHook.addMarker,
         removeMarker: markerHook.removeMarker,
         updateMarkerEdge: markerHook.updateMarkerEdge,
+        updateMarkerPeakAmp: markerHook.updateMarkerPeakAmp,
+        peakLinesRef,
     });
 
     // --- 7. DSP Processing ---
@@ -222,6 +226,7 @@ const App = () => {
         markersRef: markerHook.markersRef,
         hoveredMarkerInfoRef: waveform.hoveredMarkerInfoRef,
         draggingMarkerRef: waveform.draggingMarkerRef,
+        peakLinesRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)

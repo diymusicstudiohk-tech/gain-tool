@@ -32,7 +32,7 @@ const useMarkers = () => {
         }
 
         const id = `marker_${++markerIdCounter}`;
-        const next = [...existing, { id, startFrac, endFrac }].sort((a, b) => a.startFrac - b.startFrac);
+        const next = [...existing, { id, startFrac, endFrac, peakAmp: null }].sort((a, b) => a.startFrac - b.startFrac);
         syncRef(next);
     }, []);
 
@@ -62,16 +62,29 @@ const useMarkers = () => {
             let clamped = Math.max(0, Math.min(newFrac, marker.endFrac - minFrac));
             // Cannot cross into previous marker
             if (idx > 0) clamped = Math.max(clamped, all[idx - 1].endFrac);
-            updated = { ...marker, startFrac: clamped };
+            updated = { ...marker, startFrac: clamped, peakAmp: null };
         } else {
             let clamped = Math.min(1, Math.max(newFrac, marker.startFrac + minFrac));
             // Cannot cross into next marker
             if (idx < all.length - 1) clamped = Math.min(clamped, all[idx + 1].startFrac);
-            updated = { ...marker, endFrac: clamped };
+            updated = { ...marker, endFrac: clamped, peakAmp: null };
         }
 
         const next = [...all];
         next[idx] = updated;
+        syncRef(next);
+    }, []);
+
+    /**
+     * Set the custom peak amplitude for a marker (0–1). Both lines move symmetrically.
+     * Pass null to reset to auto-snap.
+     */
+    const updateMarkerPeakAmp = useCallback((id, amp) => {
+        const all = markersRef.current;
+        const idx = all.findIndex(m => m.id === id);
+        if (idx === -1) return;
+        const next = [...all];
+        next[idx] = { ...all[idx], peakAmp: amp };
         syncRef(next);
     }, []);
 
@@ -88,6 +101,7 @@ const useMarkers = () => {
         addMarker,
         removeMarker,
         updateMarkerEdge,
+        updateMarkerPeakAmp,
         clearAll,
     };
 };

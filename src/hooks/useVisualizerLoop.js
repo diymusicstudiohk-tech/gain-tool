@@ -37,6 +37,7 @@ const useVisualizerLoop = ({
     markersRef,
     hoveredMarkerInfoRef,
     draggingMarkerRef,
+    peakLinesRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
@@ -182,6 +183,7 @@ const useVisualizerLoop = ({
                         markers: markersRef?.current,
                         hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
                         isMarkerDragging: !!draggingMarkerRef?.current,
+                        peakLinesRef,
                     });
                 }
             }
@@ -225,6 +227,7 @@ const useVisualizerLoop = ({
                 markers: markersRef?.current,
                 hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
                 isMarkerDragging: !!draggingMarkerRef?.current,
+                peakLinesRef,
             });
         }
 

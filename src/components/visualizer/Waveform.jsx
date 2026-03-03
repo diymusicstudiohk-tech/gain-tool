@@ -27,6 +27,7 @@ export const drawMainWaveform = ({
     markers,
     hoveredMarkerInfo,
     isMarkerDragging,
+    peakLinesRef,
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -193,16 +194,32 @@ export const drawMainWaveform = ({
                     ctx.rect(px1, 0, px2 - px1, height);
                     ctx.clip();
                     drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
-                    // Gold horizontal peak lines
-                    const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
-                    if (regionPts.length > 0) {
-                        let peakYTop = regionPts[0].yTop, peakYBot = regionPts[0].yBot;
-                        for (const p of regionPts) {
-                            if (p.yTop < peakYTop) peakYTop = p.yTop;
-                            if (p.yBot > peakYBot) peakYBot = p.yBot;
+                    // Gold horizontal peak lines (draggable)
+                    let peakYTop, peakYBot;
+                    if (marker.peakAmp != null) {
+                        // User-dragged position: symmetric around centerY
+                        peakYTop = centerY - marker.peakAmp * ampScale;
+                        peakYBot = centerY + marker.peakAmp * ampScale;
+                    } else {
+                        // Auto-snap to waveform peak
+                        const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
+                        if (regionPts.length > 0) {
+                            peakYTop = regionPts[0].yTop;
+                            peakYBot = regionPts[0].yBot;
+                            for (const p of regionPts) {
+                                if (p.yTop < peakYTop) peakYTop = p.yTop;
+                                if (p.yBot > peakYBot) peakYBot = p.yBot;
+                            }
+                        }
+                    }
+                    if (peakYTop != null) {
+                        // Store pixel positions for interaction hit detection
+                        if (peakLinesRef) {
+                            peakLinesRef.current[marker.id] = { yTop: peakYTop, yBot: peakYBot, px1, px2 };
                         }
                         const isHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
-                        if (isHovered) {
+                        const isPeakLineHovered = isHovered && hoveredMarkerInfo.zone === 'peakLine';
+                        if (isHovered || isPeakLineHovered) {
                             ctx.shadowColor = GOLD;
                             ctx.shadowBlur = 25;
                         }
@@ -213,7 +230,7 @@ export const drawMainWaveform = ({
                         ctx.moveTo(px1, peakYTop); ctx.lineTo(px2, peakYTop);
                         ctx.moveTo(px1, peakYBot); ctx.lineTo(px2, peakYBot);
                         ctx.stroke();
-                        if (isHovered) {
+                        if (isHovered || isPeakLineHovered) {
                             ctx.shadowColor = 'transparent';
                             ctx.shadowBlur = 0;
                         }
