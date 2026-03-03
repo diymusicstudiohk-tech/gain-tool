@@ -179,6 +179,27 @@ export const drawMainWaveform = ({
     // ── Placed Markers ──
     if (markers && markers.length > 0) {
         drawPlacedMarkers(ctx, markers, width, height, centerY, zoomX, panOffset, hoveredMarkerInfo);
+
+        // Boost white waveform alpha +50% inside marker regions
+        if (lastPlayedType === 'processed') {
+            const { outPoints: boostPts } = computeWaveformPoints({
+                visualResult, width, zoomX, panOffset, centerY, ampScale,
+                lastPlayedType, mipmaps, interactionDPR, step,
+            });
+            if (boostPts.length > 0) {
+                for (const marker of markers) {
+                    const px1 = marker.startFrac * width * zoomX + panOffset;
+                    const px2 = marker.endFrac * width * zoomX + panOffset;
+                    if (px2 < 0 || px1 > width) continue;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(px1, 0, px2 - px1, height);
+                    ctx.clip();
+                    drawPolygonWithPeakFade(ctx, boostPts, '#ffffff', width, centerY, 0.275, 0.2);
+                    ctx.restore();
+                }
+            }
+        }
     }
 
     // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
