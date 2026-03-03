@@ -151,10 +151,7 @@ const useWaveformInteraction = ({
         const relY = clientY - rect.top;
         const width = rect.width;
 
-        mousePosRef.current = { x: relX, y: relY };
-        setMousePos({ x: relX, y: relY });
-
-        // Check peak line hit first
+        // Check peak line hit first (before updating mousePos to avoid flash of hover preview)
         const peakLines = peakLinesRef?.current;
         if (peakLines) {
             for (const markerId of Object.keys(peakLines)) {
@@ -197,6 +194,10 @@ const useWaveformInteraction = ({
                 if (hit.zone === 'body') return;
             }
         }
+
+        // Only update mousePos for empty space touches (no marker hit)
+        mousePosRef.current = { x: relX, y: relY };
+        setMousePos({ x: relX, y: relY });
 
         // Empty space — add marker (snap to gap if between two markers), then seek
         if (addMarker) {
