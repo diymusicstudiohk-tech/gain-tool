@@ -270,9 +270,13 @@ export const drawMainWaveform = ({
                         const btnX = Math.min(px2, width) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
                         const btnY = DELETE_BTN_MARGIN;
                         ctx.font = 'bold 11px sans-serif';
-                        ctx.fillStyle = GOLD;
-                        ctx.textAlign = 'right';
-                        ctx.fillText(label, btnX - 4, btnY + 12);
+                        const labelWidth = ctx.measureText(label).width;
+                        const labelLeftEdge = btnX - 4 - labelWidth;
+                        if (labelLeftEdge >= px1) {
+                            ctx.fillStyle = GOLD;
+                            ctx.textAlign = 'right';
+                            ctx.fillText(label, btnX - 4, btnY + 12);
+                        }
                     }
                 }
             }
