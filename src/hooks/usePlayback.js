@@ -125,13 +125,8 @@ const usePlayback = ({
             if (originalBuffer) {
                 const duration = originalBuffer.duration;
                 const rStart = (regionStartRef?.current ?? 0) * duration;
-                const rEnd = (regionEndRef?.current ?? 1) * duration;
-                let offset = startOffsetRef.current;
-
-                if (offset < rStart || offset >= rEnd) {
-                    offset = rStart;
-                    startOffsetRef.current = offset;
-                }
+                const offset = rStart;
+                startOffsetRef.current = offset;
 
                 isPlayingRef.current = true;
                 playBuffer(originalBuffer, lastPlayedType, offset);
