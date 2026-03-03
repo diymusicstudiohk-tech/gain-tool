@@ -26,7 +26,7 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
 
         const GOLD = '#9C845E';
         const WHITE = '#ffffff';
-        const GRAY_WHITE = 'rgba(255, 255, 255, 0.45)';
+        const GRAY_WHITE = 'rgba(255, 255, 255, 0.55)';
 
         // Precompute region pixel boundaries
         const regionLeftPx = (rStart != null ? rStart : 0) * width;
