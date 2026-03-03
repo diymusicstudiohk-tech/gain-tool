@@ -405,6 +405,11 @@ const useWaveformInteraction = ({
         };
 
         const handleWindowTouchEnd = () => {
+            if (draggingMarkerRef.current) {
+                // Clear mousePos so hover preview doesn't linger after drag
+                mousePosRef.current = { x: -1, y: -1 };
+                setMousePos({ x: -1, y: -1 });
+            }
             draggingMarkerRef.current = null;
         };
 
