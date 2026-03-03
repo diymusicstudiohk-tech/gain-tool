@@ -3,7 +3,7 @@ import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
 import {
     HOVER_RED, ORIGINAL_RED,
-    BG_PANEL, TEXT_DIM,
+    BG_PANEL, TEXT_DIM, GOLD,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
@@ -193,6 +193,21 @@ export const drawMainWaveform = ({
                     ctx.rect(px1, 0, px2 - px1, height);
                     ctx.clip();
                     drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
+                    // Gold horizontal peak lines
+                    const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
+                    if (regionPts.length > 0) {
+                        let peakYTop = regionPts[0].yTop, peakYBot = regionPts[0].yBot;
+                        for (const p of regionPts) {
+                            if (p.yTop < peakYTop) peakYTop = p.yTop;
+                            if (p.yBot > peakYBot) peakYBot = p.yBot;
+                        }
+                        ctx.strokeStyle = GOLD;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(px1, peakYTop); ctx.lineTo(px2, peakYTop);
+                        ctx.moveTo(px1, peakYBot); ctx.lineTo(px2, peakYBot);
+                        ctx.stroke();
+                    }
                     ctx.restore();
                 }
             }
