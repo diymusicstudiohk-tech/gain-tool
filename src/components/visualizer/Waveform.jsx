@@ -285,7 +285,7 @@ export const drawMainWaveform = ({
 
     // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
     if (mousePos.x >= 0 && !hoveredMarkerInfo && !draggingMarker) {
-        const snapInfo = markers && markers.length >= 2
+        const snapInfo = markers && markers.length >= 1
             ? getSnapBetweenMarkers(mousePos.x, markers, zoomX, panOffset, width)
             : null;
         drawMarkerHoverPreview(ctx, mousePos.x, width, height, centerY, snapInfo);

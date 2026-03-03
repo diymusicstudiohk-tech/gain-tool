@@ -123,7 +123,7 @@ const useWaveformInteraction = ({
             const clickFrac = vX / (width * zoomX);
             if (clickFrac >= 0 && clickFrac <= 1) {
                 const markers = markersRef?.current;
-                const snap = markers && markers.length >= 2
+                const snap = markers && markers.length >= 1
                     ? getSnapBetweenMarkers(relX, markers, zoomX, panOffset, width)
                     : null;
                 if (snap && addMarkerWithBounds) {
@@ -204,7 +204,7 @@ const useWaveformInteraction = ({
             const clickFrac = vX / (width * zoomX);
             if (clickFrac >= 0 && clickFrac <= 1) {
                 const markers = markersRef?.current;
-                const snap = markers && markers.length >= 2
+                const snap = markers && markers.length >= 1
                     ? getSnapBetweenMarkers(relX, markers, zoomX, panOffset, width)
                     : null;
                 if (snap && addMarkerWithBounds) {

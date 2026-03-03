@@ -25,15 +25,17 @@ const drawRoundedBtn = (ctx, bx, by, fillColor) => {
 };
 
 /**
- * Given a mouse X position, find the gap between the two nearest markers
- * (left neighbor whose endFrac ≤ mouseFrac, right neighbor whose startFrac ≥ mouseFrac).
- * Returns { leftFrac, rightFrac, leftPx, rightPx } if both neighbors exist, null otherwise.
+ * Given a mouse X position, compute snapped preview bounds near existing markers.
+ * - Both neighbors within ≤ 80px gap: snap both edges to fill the gap.
+ * - Single neighbor within < 40px: snap the near edge to that neighbor.
+ * Returns { leftFrac, rightFrac, leftPx, rightPx } or null if no snapping needed.
  */
 export const getSnapBetweenMarkers = (mouseX, markers, zoomX, panOffset, canvasWidth) => {
-    if (!markers || markers.length < 2) return null;
+    if (!markers || markers.length === 0) return null;
     const totalPx = canvasWidth * zoomX;
     if (totalPx <= 0) return null;
     const mouseFrac = (mouseX - panOffset) / totalPx;
+    const halfFrac = DEFAULT_HALF_WIDTH_PX / totalPx;
 
     let leftNeighbor = null;
     let rightNeighbor = null;
@@ -51,15 +53,41 @@ export const getSnapBetweenMarkers = (mouseX, markers, zoomX, panOffset, canvasW
         }
     }
 
-    if (!leftNeighbor || !rightNeighbor) return null;
+    // Both neighbors and gap ≤ 80px → snap both edges to fill gap
+    if (leftNeighbor && rightNeighbor) {
+        const gapPx = (rightNeighbor.startFrac - leftNeighbor.endFrac) * totalPx;
+        if (gapPx <= DEFAULT_HALF_WIDTH_PX * 2) {
+            return {
+                leftFrac: leftNeighbor.endFrac,
+                rightFrac: rightNeighbor.startFrac,
+                leftPx: leftNeighbor.endFrac * totalPx + panOffset,
+                rightPx: rightNeighbor.startFrac * totalPx + panOffset,
+            };
+        }
+    }
 
-    const leftFrac = leftNeighbor.endFrac;
-    const rightFrac = rightNeighbor.startFrac;
-    if (leftFrac >= rightFrac) return null;
+    // Single-side snap: check each neighbor independently
+    let leftFrac = mouseFrac - halfFrac;
+    let rightFrac = mouseFrac + halfFrac;
+    let snapped = false;
 
-    // Only snap when the gap is narrower than the default marker width (80px)
-    const gapPx = (rightFrac - leftFrac) * totalPx;
-    if (gapPx > DEFAULT_HALF_WIDTH_PX * 2) return null;
+    if (leftNeighbor) {
+        const neighborRightPx = leftNeighbor.endFrac * totalPx + panOffset;
+        if (mouseX - neighborRightPx < DEFAULT_HALF_WIDTH_PX) {
+            leftFrac = leftNeighbor.endFrac;
+            snapped = true;
+        }
+    }
+
+    if (rightNeighbor) {
+        const neighborLeftPx = rightNeighbor.startFrac * totalPx + panOffset;
+        if (neighborLeftPx - mouseX < DEFAULT_HALF_WIDTH_PX) {
+            rightFrac = rightNeighbor.startFrac;
+            snapped = true;
+        }
+    }
+
+    if (!snapped) return null;
 
     return {
         leftFrac,
