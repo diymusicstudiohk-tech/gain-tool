@@ -93,9 +93,9 @@ export const createRealTimeCompressor = (sampleRate) => {
             _samplePos = pos;
         },
         processBlock: (inputBuffer, outputBuffer, params) => {
-            const inputData = inputBuffer.getChannelData ? inputBuffer.getChannelData(0) : inputBuffer;
-            const outputData = outputBuffer.getChannelData ? outputBuffer.getChannelData(0) : outputBuffer;
-            const length = inputBuffer.length !== undefined ? inputBuffer.length : inputData.length;
+            const isAudioBuffer = !!inputBuffer.getChannelData;
+            const numCh = isAudioBuffer ? inputBuffer.numberOfChannels : 1;
+            const length = isAudioBuffer ? inputBuffer.length : inputBuffer.length;
 
             if (params !== _cachedParams) {
                 _cachedParams = params;
@@ -103,22 +103,43 @@ export const createRealTimeCompressor = (sampleRate) => {
                 targets.outputGain = params.outputGain ?? 0;
             }
 
-            for (let i = 0; i < length; i++) {
-                smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
-                smoothed.outputGain += smoothCoeff * (targets.outputGain - smoothed.outputGain);
+            // Compute gain smoothing once (channel-independent)
+            // Save state before to restore for subsequent channels
+            const savedSmoothed = { inputGain: smoothed.inputGain, outputGain: smoothed.outputGain };
+            const savedPrev = { input: _prevInputGain, output: _prevOutputGain };
+            const savedLinear = { input: _inputGainLinear, output: _outputGainLinear };
 
-                if (smoothed.inputGain !== _prevInputGain) {
-                    _inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
-                    _prevInputGain = smoothed.inputGain;
-                }
-                if (smoothed.outputGain !== _prevOutputGain) {
-                    _outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
-                    _prevOutputGain = smoothed.outputGain;
+            for (let ch = 0; ch < numCh; ch++) {
+                const inputData = isAudioBuffer ? inputBuffer.getChannelData(ch) : inputBuffer;
+                const outputData = isAudioBuffer ? outputBuffer.getChannelData(ch) : outputBuffer;
+
+                // Reset smoothing state for each channel to match ch0's path
+                if (ch > 0) {
+                    smoothed.inputGain = savedSmoothed.inputGain;
+                    smoothed.outputGain = savedSmoothed.outputGain;
+                    _prevInputGain = savedPrev.input;
+                    _prevOutputGain = savedPrev.output;
+                    _inputGainLinear = savedLinear.input;
+                    _outputGainLinear = savedLinear.output;
                 }
 
-                let sample = inputData[i] * _inputGainLinear;
-                if (_hasClipGain) sample *= clipGainForSample(_samplePos + i, _markerRegions);
-                outputData[i] = sample * _outputGainLinear;
+                for (let i = 0; i < length; i++) {
+                    smoothed.inputGain += smoothCoeff * (targets.inputGain - smoothed.inputGain);
+                    smoothed.outputGain += smoothCoeff * (targets.outputGain - smoothed.outputGain);
+
+                    if (smoothed.inputGain !== _prevInputGain) {
+                        _inputGainLinear = Math.exp(smoothed.inputGain * LN10_OVER_20);
+                        _prevInputGain = smoothed.inputGain;
+                    }
+                    if (smoothed.outputGain !== _prevOutputGain) {
+                        _outputGainLinear = Math.exp(smoothed.outputGain * LN10_OVER_20);
+                        _prevOutputGain = smoothed.outputGain;
+                    }
+
+                    let sample = inputData[i] * _inputGainLinear;
+                    if (_hasClipGain) sample *= clipGainForSample(_samplePos + i, _markerRegions);
+                    outputData[i] = sample * _outputGainLinear;
+                }
             }
 
             _samplePos += length;

@@ -60,6 +60,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
         this.params = null;
 
+        // Pre-allocated gain array (avoid GC in process())
+        this._gainArr = new Float64Array(128);
+
         // Clip gain state
         this._samplePos = 0;
         this._markerRegions = [];
@@ -97,9 +100,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
             return true;
         }
 
-        const inputData = input[0];
-        const outputData = output[0];
-        const length = inputData.length;
+        const numChannels = input.length;
+        const length = input[0].length;
 
         const smoothCoeff = this.smoothCoeff;
         const tInputGain = this.targets.inputGain;
@@ -117,6 +119,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
         const markerRegions = this._markerRegions;
         const samplePos = this._samplePos;
 
+        // Pre-compute per-sample gain values (shared across channels)
+        // Smoothing pass
+        const gainArr = this._gainArr;
+        const len = gainArr ? gainArr.length : 0;
+        // Use pre-allocated array or create one
+        let combinedGain;
+        if (len >= length) {
+            combinedGain = gainArr;
+        } else {
+            combinedGain = new Float64Array(length);
+            this._gainArr = combinedGain;
+        }
+
         for (let i = 0; i < length; i++) {
             sInputGain += smoothCoeff * (tInputGain - sInputGain);
             sOutputGain += smoothCoeff * (tOutputGain - sOutputGain);
@@ -130,9 +145,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
                 prevOutputGain = sOutputGain;
             }
 
-            let sample = inputData[i] * inputGainLinear;
-            if (hasClipGain) sample *= clipGainForSample(samplePos + i, markerRegions);
-            outputData[i] = sample * outputGainLinear;
+            let g = inputGainLinear * outputGainLinear;
+            if (hasClipGain) g *= clipGainForSample(samplePos + i, markerRegions);
+            combinedGain[i] = g;
+        }
+
+        // Apply gain to all channels
+        for (let ch = 0; ch < numChannels; ch++) {
+            const inCh = input[ch];
+            const outCh = output[ch];
+            if (!inCh || !outCh) continue;
+            for (let i = 0; i < length; i++) {
+                outCh[i] = inCh[i] * combinedGain[i];
+            }
         }
 
         this._samplePos += length;

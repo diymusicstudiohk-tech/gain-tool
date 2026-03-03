@@ -4,6 +4,8 @@ import { loadParamsFromStorage } from '../utils/storage';
 const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [inputGain, setInputGain] = useState(0);
     const [outputGain, setOutputGain] = useState(0);
+    const [exportBitDepth, setExportBitDepth] = useState(32);
+    const [normalizeOnLoad, setNormalizeOnLoad] = useState(true);
 
     const [isCustomSettings, setIsCustomSettings] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -54,13 +56,16 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const getCurrentStateSnapshot = useCallback(() => ({
         inputGain, outputGain,
+        exportBitDepth, normalizeOnLoad,
         isCustomSettings,
-    }), [inputGain, outputGain, isCustomSettings]);
+    }), [inputGain, outputGain, exportBitDepth, normalizeOnLoad, isCustomSettings]);
 
     const applyStateSnapshot = useCallback((snap) => {
         if (!snap) return;
         setInputGain(snap.inputGain ?? 0);
         setOutputGain(snap.outputGain ?? 0);
+        if (snap.exportBitDepth != null) setExportBitDepth(snap.exportBitDepth);
+        if (snap.normalizeOnLoad != null) setNormalizeOnLoad(snap.normalizeOnLoad);
         setIsCustomSettings(snap.isCustomSettings);
         setIsProcessing(true);
         ensureProcessedMode();
@@ -68,11 +73,14 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
 
     const getDefaultSnapshot = useCallback(() => ({
         inputGain: 0, outputGain: 0,
+        exportBitDepth: 32, normalizeOnLoad: true,
         isCustomSettings: false,
     }), []);
 
     return {
         inputGain, outputGain,
+        exportBitDepth, setExportBitDepth,
+        normalizeOnLoad, setNormalizeOnLoad,
         isCustomSettings, setIsCustomSettings,
         isProcessing, setIsProcessing,
         currentParams, paramsRef,

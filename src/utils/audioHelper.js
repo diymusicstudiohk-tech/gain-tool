@@ -33,30 +33,62 @@ export const toMono = (audioBuffer) => {
     return monoData;
 };
 
-export const writeWavFile = (audioBuffer) => {
+export const writeWavFile = (audioBuffer, { bitDepth = 32 } = {}) => {
     const numOfChan = audioBuffer.numberOfChannels;
-    const length = audioBuffer.length * numOfChan * 2 + 44;
+    const bytesPerSample = bitDepth / 8;
+    const isFloat = bitDepth === 32;
+    const formatTag = isFloat ? 3 : 1; // 3 = IEEE_FLOAT, 1 = PCM
+    const dataLength = audioBuffer.length * numOfChan * bytesPerSample;
+    const length = 44 + dataLength;
     const buffer = new ArrayBuffer(length);
     const view = new DataView(buffer);
     const channels = [];
-    let i, sample, offset = 0, pos = 0;
+    let pos = 0;
 
-    setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
-    setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
-    setUint32(audioBuffer.sampleRate); setUint32(audioBuffer.sampleRate * 2 * numOfChan);
-    setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
-
-    for(i = 0; i < audioBuffer.numberOfChannels; i++) channels.push(audioBuffer.getChannelData(i));
-    while(pos < audioBuffer.length) {
-        for(i = 0; i < numOfChan; i++) {
-            sample = Math.max(-1, Math.min(1, channels[i][pos]));
-            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
-            view.setInt16(44 + offset, sample, true);
-            offset += 2;
-        }
-        pos++;
-    }
     function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
     function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+    // RIFF header
+    setUint32(0x46464952); // "RIFF"
+    setUint32(length - 8);
+    setUint32(0x45564157); // "WAVE"
+    // fmt chunk
+    setUint32(0x20746d66); // "fmt "
+    setUint32(16);
+    setUint16(formatTag);
+    setUint16(numOfChan);
+    setUint32(audioBuffer.sampleRate);
+    setUint32(audioBuffer.sampleRate * bytesPerSample * numOfChan);
+    setUint16(numOfChan * bytesPerSample);
+    setUint16(bitDepth);
+    // data chunk
+    setUint32(0x61746164); // "data"
+    setUint32(dataLength);
+
+    for (let i = 0; i < numOfChan; i++) channels.push(audioBuffer.getChannelData(i));
+
+    let offset = 44;
+    for (let s = 0; s < audioBuffer.length; s++) {
+        for (let ch = 0; ch < numOfChan; ch++) {
+            const val = channels[ch][s];
+            if (bitDepth === 32) {
+                view.setFloat32(offset, val, true);
+                offset += 4;
+            } else if (bitDepth === 24) {
+                const clamped = Math.max(-1, Math.min(1, val));
+                const intVal = (clamped < 0 ? clamped * 8388608 : clamped * 8388607) | 0;
+                view.setUint8(offset, intVal & 0xFF);
+                view.setUint8(offset + 1, (intVal >> 8) & 0xFF);
+                view.setUint8(offset + 2, (intVal >> 16) & 0xFF);
+                offset += 3;
+            } else {
+                // 16-bit
+                const clamped = Math.max(-1, Math.min(1, val));
+                const intVal = (0.5 + (clamped < 0 ? clamped * 32768 : clamped * 32767)) | 0;
+                view.setInt16(offset, intVal, true);
+                offset += 2;
+            }
+        }
+    }
     return new Blob([buffer], { type: "audio/wav" });
 };

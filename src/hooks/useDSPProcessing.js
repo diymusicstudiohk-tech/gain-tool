@@ -90,37 +90,50 @@ const useDSPProcessing = ({ audioContext, originalBuffer, currentParams, playing
     // visualStep = original samples per visual cache sample
     const visualStep = visualSourceCache.step;
 
-    // Full Audio Processing (Async Chunking)
+    // Full Audio Processing (Async Chunking) — multi-channel
     useEffect(() => {
         if (!originalBuffer || !audioContext) return;
         fullAudioDataRef.current = null;
         if (processingTaskRef.current) clearTimeout(processingTaskRef.current);
 
-        const inputData = originalBuffer.getChannelData(0);
+        const numCh = originalBuffer.numberOfChannels;
         const sampleRate = originalBuffer.sampleRate;
-        const length = inputData.length;
+        const length = originalBuffer.length;
         const params = { ...debouncedParams };
         const currentMarkers = markers || [];
         const CHUNK_SIZE = 50000;
-        let currentIndex = 0;
-        const outData = new Float32Array(length);
-        const compressor = createRealTimeCompressor(sampleRate);
-        compressor.setMarkers(currentMarkers, length);
-        compressor.setSamplePosition(0);
 
+        // Per-channel compressors and output arrays
+        const channels = [];
+        for (let ch = 0; ch < numCh; ch++) {
+            const compressor = createRealTimeCompressor(sampleRate);
+            compressor.setMarkers(currentMarkers, length);
+            compressor.setSamplePosition(0);
+            channels.push({
+                inputData: originalBuffer.getChannelData(ch),
+                outData: new Float32Array(length),
+                compressor,
+            });
+        }
+
+        let currentIndex = 0;
         const processChunk = () => {
             const endIndex = Math.min(currentIndex + CHUNK_SIZE, length);
-            const inputChunk = inputData.subarray(currentIndex, endIndex);
-            const outputChunk = outData.subarray(currentIndex, endIndex);
-            compressor.processBlock(inputChunk, outputChunk, params);
+            for (let ch = 0; ch < numCh; ch++) {
+                const c = channels[ch];
+                const inputChunk = c.inputData.subarray(currentIndex, endIndex);
+                const outputChunk = c.outData.subarray(currentIndex, endIndex);
+                c.compressor.processBlock(inputChunk, outputChunk, params);
+            }
 
             currentIndex = endIndex;
             if (currentIndex < length) {
                 processingTaskRef.current = setTimeout(processChunk, 4);
             } else {
-                const outBuf = audioContext.createBuffer(1, length, sampleRate);
-                outBuf.copyToChannel(outData, 0);
-
+                const outBuf = audioContext.createBuffer(numCh, length, sampleRate);
+                for (let ch = 0; ch < numCh; ch++) {
+                    outBuf.copyToChannel(channels[ch].outData, ch);
+                }
                 fullAudioDataRef.current = { outputBuffer: outBuf };
                 setIsProcessing(false);
             }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AUDIO_SOURCES } from '../utils/constants';
 import { processCompressor } from '../utils/dsp';
-import { writeWavFile, toMono, stopCurrentSource } from '../utils/audioHelper';
+import { writeWavFile, stopCurrentSource } from '../utils/audioHelper';
 import { fetchAudioBuffer } from '../utils/audioLoader';
 import {
     loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB,
@@ -29,6 +29,8 @@ const useAudioEngine = ({
     // Playback setters (from usePlayback, wired via App)
     setPlayingType, setLastPlayedType,
     currentParams, logAction,
+    exportBitDepth, markersRef,
+    normalizeOnLoad,
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
@@ -56,31 +58,59 @@ const useAudioEngine = ({
     const fileInputRef = useRef(null);
     const currentSourceIdRef = useRef(null);
     const getSnapshotRef = useRef(getCurrentStateSnapshot);
+    const rawDecodedRef = useRef(null);
+    const normalizeOnLoadRef = useRef(normalizeOnLoad);
 
     // Keep refs in sync
     useEffect(() => { currentSourceIdRef.current = currentSourceId; }, [currentSourceId]);
     useEffect(() => { getSnapshotRef.current = getCurrentStateSnapshot; }, [getCurrentStateSnapshot]);
+    useEffect(() => { normalizeOnLoadRef.current = normalizeOnLoad; }, [normalizeOnLoad]);
 
-    const handleDecodedBuffer = useCallback((decodedBuffer) => {
+    const handleDecodedBuffer = useCallback((decodedBuffer, { normalize } = {}) => {
         if (!audioContext) return;
+        const shouldNormalize = normalize !== undefined ? normalize : normalizeOnLoadRef.current;
+        rawDecodedRef.current = decodedBuffer;
+
+        const numCh = decodedBuffer.numberOfChannels;
         const length = decodedBuffer.length;
         const sampleRate = decodedBuffer.sampleRate;
-        const monoData = toMono(decodedBuffer);
 
-        let maxPeak = 0;
-        for (let i = 0; i < length; i++) {
-            const abs = Math.abs(monoData[i]);
-            if (abs > maxPeak) maxPeak = abs;
+        if (!shouldNormalize) {
+            // Pass through directly — no normalization
+            setOriginalBuffer(decodedBuffer);
+            return;
         }
+
+        // Linked peak detection across all channels
+        let maxPeak = 0;
+        for (let ch = 0; ch < numCh; ch++) {
+            const data = decodedBuffer.getChannelData(ch);
+            for (let i = 0; i < length; i++) {
+                const abs = Math.abs(data[i]);
+                if (abs > maxPeak) maxPeak = abs;
+            }
+        }
+
         const targetPeak = Math.pow(10, -0.1 / 20);
         if (maxPeak > 0.0001) {
             const norm = targetPeak / maxPeak;
-            for (let i = 0; i < length; i++) monoData[i] *= norm;
+            const normBuffer = audioContext.createBuffer(numCh, length, sampleRate);
+            for (let ch = 0; ch < numCh; ch++) {
+                const src = decodedBuffer.getChannelData(ch);
+                const dst = normBuffer.getChannelData(ch);
+                for (let i = 0; i < length; i++) dst[i] = src[i] * norm;
+            }
+            setOriginalBuffer(normBuffer);
+        } else {
+            setOriginalBuffer(decodedBuffer);
         }
-        const monoBuffer = audioContext.createBuffer(1, length, sampleRate);
-        monoBuffer.copyToChannel(monoData, 0);
-        setOriginalBuffer(monoBuffer);
     }, [audioContext, setOriginalBuffer]);
+
+    // Re-process when normalizeOnLoad toggles
+    useEffect(() => {
+        if (!rawDecodedRef.current || !audioContext) return;
+        handleDecodedBuffer(rawDecodedRef.current, { normalize: normalizeOnLoad });
+    }, [normalizeOnLoad]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAudio = useCallback(async (preset, options) => {
         if (!audioContext) return;
@@ -252,22 +282,27 @@ const useAudioEngine = ({
         setIsLoading(true);
         setTimeout(() => {
             try {
-                const inputData = originalBuffer.getChannelData(0);
-                const res = processCompressor(inputData, audioContext.sampleRate, currentParams, 1);
-                const exportBuffer = audioContext.createBuffer(1, inputData.length, originalBuffer.sampleRate);
-                exportBuffer.copyToChannel(res.outputData, 0);
-                const url = URL.createObjectURL(writeWavFile(exportBuffer));
+                const numCh = originalBuffer.numberOfChannels;
+                const length = originalBuffer.length;
+                const currentMarkers = markersRef?.current || [];
+                const exportBuffer = audioContext.createBuffer(numCh, length, originalBuffer.sampleRate);
+                for (let ch = 0; ch < numCh; ch++) {
+                    const inputData = originalBuffer.getChannelData(ch);
+                    const res = processCompressor(inputData, audioContext.sampleRate, currentParams, 1, null, currentMarkers);
+                    exportBuffer.copyToChannel(res.outputData, ch);
+                }
+                const bitDepth = exportBitDepth || 32;
+                const url = URL.createObjectURL(writeWavFile(exportBuffer, { bitDepth }));
                 const dotIdx = fileName.lastIndexOf('.');
                 const baseName = dotIdx > 0 ? fileName.substring(0, dotIdx) : fileName;
-                const ext = dotIdx > 0 ? fileName.substring(dotIdx) : '.wav';
-                const dlName = `After Gain - ${baseName}${ext}`;
+                const dlName = `After Gain - ${baseName}.wav`;
                 const a = document.createElement('a');
                 a.style.display = 'none'; a.href = url; a.download = dlName;
                 document.body.appendChild(a); a.click();
                 setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
             } catch (e) { console.error(e); setErrorMsg("匯出失敗"); } finally { setIsLoading(false); }
         }, 50);
-    }, [originalBuffer, audioContext, currentParams, fileName]);
+    }, [originalBuffer, audioContext, currentParams, fileName, exportBitDepth, markersRef]);
 
     // Load initial state from storage
     useEffect(() => {

@@ -105,7 +105,8 @@ const usePlayback = ({
                         source._workletNode = workletNode;
                         workletNodeRef.current = workletNode;
                     } else {
-                        const scriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                        const numCh = targetBuffer.numberOfChannels;
+                        const scriptNode = audioContext.createScriptProcessor(2048, numCh, numCh);
                         const compressor = createRealTimeCompressor(audioContext.sampleRate);
                         compressor.setMarkers(currentMarkers, totalSamples);
                         compressor.setSamplePosition(samplePosition);
