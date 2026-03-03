@@ -266,7 +266,7 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                     <span>Gain 增益</span>
                 </h1>
             </div>
-            <div className="ml-auto flex flex-wrap items-center gap-3 min-[740px]:gap-2 relative scale-[0.7] min-[740px]:scale-100 origin-right">
+            <div className="ml-auto flex flex-wrap items-center gap-3 min-[740px]:gap-2 relative [zoom:0.7] min-[740px]:[zoom:1]">
                 {/* Play Button */}
                 <button
                     onClick={(e) => { e.stopPropagation(); playback.togglePlayback(); }}
