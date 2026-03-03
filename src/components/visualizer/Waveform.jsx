@@ -9,7 +9,7 @@ import {
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
-import { drawPlacedMarkers, drawMarkerHoverPreview, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../../utils/canvasMarkers';
+import { drawPlacedMarkers, drawMarkerHoverPreview, getSnapBetweenMarkers, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../../utils/canvasMarkers';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
     LEGEND_HEIGHT, LEGEND_PAD_X, LEGEND_TEXT_BASELINE, LEGEND_BG,
@@ -61,7 +61,7 @@ export const drawMainWaveform = ({
 
         // Gold fill between marker pairs (behind waveform)
         if (markers && markers.length > 0) {
-            ctx.fillStyle = 'rgba(194, 164, 117, 0.04)';
+            ctx.fillStyle = 'rgba(194, 164, 117, 0.07)';
             for (const marker of markers) {
                 const mx1 = marker.startFrac * width * zoomX + panOffset;
                 const mx2 = marker.endFrac * width * zoomX + panOffset;
@@ -281,7 +281,10 @@ export const drawMainWaveform = ({
 
     // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
     if (mousePos.x >= 0 && !hoveredMarkerInfo && !isMarkerDragging) {
-        drawMarkerHoverPreview(ctx, mousePos.x, width, height, centerY);
+        const snapInfo = markers && markers.length >= 2
+            ? getSnapBetweenMarkers(mousePos.x, markers, zoomX, panOffset, width)
+            : null;
+        drawMarkerHoverPreview(ctx, mousePos.x, width, height, centerY, snapInfo);
     }
 
     // ── Crosshair + Gain Tooltip ──

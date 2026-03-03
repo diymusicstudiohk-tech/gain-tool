@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { getMarkerHitZone, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../utils/canvasMarkers';
+import { getMarkerHitZone, getSnapBetweenMarkers, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../utils/canvasMarkers';
 import { computeWaveformGeometry, linearFromDisplay } from '../utils/displayMath';
 
 const useWaveformInteraction = ({
@@ -10,7 +10,7 @@ const useWaveformInteraction = ({
     zoomX, panOffset,
     zoomY, panOffsetY, canvasDims,
     isPlayingRef,
-    markersRef, addMarker, removeMarker, updateMarkerEdge,
+    markersRef, addMarker, addMarkerWithBounds, removeMarker, updateMarkerEdge,
     updateMarkerPeakAmp, updateMarkerClipGain, resetMarkerGain, peakLinesRef,
 }) => {
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
@@ -117,17 +117,25 @@ const useWaveformInteraction = ({
             }
         }
 
-        // Empty space — try to add marker, then seek
+        // Empty space — try to add marker (snap to gap if between two markers), then seek
         if (addMarker) {
             const vX = relX - panOffset;
             const clickFrac = vX / (width * zoomX);
             if (clickFrac >= 0 && clickFrac <= 1) {
-                addMarker(clickFrac, zoomX, width);
+                const markers = markersRef?.current;
+                const snap = markers && markers.length >= 2
+                    ? getSnapBetweenMarkers(relX, markers, zoomX, panOffset, width)
+                    : null;
+                if (snap && addMarkerWithBounds) {
+                    addMarkerWithBounds(snap.leftFrac, snap.rightFrac);
+                } else {
+                    addMarker(clickFrac, zoomX, width);
+                }
             }
         }
         handleSeekOnWaveform(e.clientX);
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
-        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
+        markersRef, addMarker, addMarkerWithBounds, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
 
     const handleWaveformTouchStart = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -190,17 +198,25 @@ const useWaveformInteraction = ({
             }
         }
 
-        // Empty space — add marker, then seek
+        // Empty space — add marker (snap to gap if between two markers), then seek
         if (addMarker) {
             const vX = relX - panOffset;
             const clickFrac = vX / (width * zoomX);
             if (clickFrac >= 0 && clickFrac <= 1) {
-                addMarker(clickFrac, zoomX, width);
+                const markers = markersRef?.current;
+                const snap = markers && markers.length >= 2
+                    ? getSnapBetweenMarkers(relX, markers, zoomX, panOffset, width)
+                    : null;
+                if (snap && addMarkerWithBounds) {
+                    addMarkerWithBounds(snap.leftFrac, snap.rightFrac);
+                } else {
+                    addMarker(clickFrac, zoomX, width);
+                }
             }
         }
         handleSeekOnWaveform(clientX);
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
-        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
+        markersRef, addMarker, addMarkerWithBounds, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
 
     touchStartHandlerRef.current = handleWaveformTouchStart;
 

@@ -25,13 +25,55 @@ const drawRoundedBtn = (ctx, bx, by, fillColor) => {
 };
 
 /**
+ * Given a mouse X position, find the gap between the two nearest markers
+ * (left neighbor whose endFrac ≤ mouseFrac, right neighbor whose startFrac ≥ mouseFrac).
+ * Returns { leftFrac, rightFrac, leftPx, rightPx } if both neighbors exist, null otherwise.
+ */
+export const getSnapBetweenMarkers = (mouseX, markers, zoomX, panOffset, canvasWidth) => {
+    if (!markers || markers.length < 2) return null;
+    const totalPx = canvasWidth * zoomX;
+    if (totalPx <= 0) return null;
+    const mouseFrac = (mouseX - panOffset) / totalPx;
+
+    let leftNeighbor = null;
+    let rightNeighbor = null;
+
+    for (const m of markers) {
+        if (m.endFrac <= mouseFrac) {
+            if (!leftNeighbor || m.endFrac > leftNeighbor.endFrac) {
+                leftNeighbor = m;
+            }
+        }
+        if (m.startFrac >= mouseFrac) {
+            if (!rightNeighbor || m.startFrac < rightNeighbor.startFrac) {
+                rightNeighbor = m;
+            }
+        }
+    }
+
+    if (!leftNeighbor || !rightNeighbor) return null;
+
+    const leftFrac = leftNeighbor.endFrac;
+    const rightFrac = rightNeighbor.startFrac;
+    if (leftFrac >= rightFrac) return null;
+
+    return {
+        leftFrac,
+        rightFrac,
+        leftPx: leftFrac * totalPx + panOffset,
+        rightPx: rightFrac * totalPx + panOffset,
+    };
+};
+
+/**
  * Draw hover preview: two gold vertical gradient lines ±40px from cursor,
  * plus a small gold square block on the baseline.
+ * When snapInfo is provided, uses snap bounds instead of ±40px.
  */
-export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY) => {
+export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snapInfo) => {
     const halfW = DEFAULT_HALF_WIDTH_PX;
-    const x1 = mouseX - halfW;
-    const x2 = mouseX + halfW;
+    const x1 = snapInfo ? snapInfo.leftPx : mouseX - halfW;
+    const x2 = snapInfo ? snapInfo.rightPx : mouseX + halfW;
 
     ctx.strokeStyle = GOLD;
     ctx.lineWidth = 1.5;

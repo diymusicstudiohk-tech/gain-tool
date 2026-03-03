@@ -185,6 +185,7 @@ const App = () => {
         isPlayingRef,
         markersRef: markerHook.markersRef,
         addMarker: markerHook.addMarker,
+        addMarkerWithBounds: markerHook.addMarkerWithBounds,
         removeMarker: markerHook.removeMarker,
         updateMarkerEdge: markerHook.updateMarkerEdge,
         updateMarkerPeakAmp: markerHook.updateMarkerPeakAmp,

@@ -37,6 +37,25 @@ const useMarkers = () => {
     }, []);
 
     /**
+     * Add a marker with explicit start/end fractions (used by snap-between-markers).
+     * Rejects if startFrac >= endFrac or overlaps an existing marker.
+     */
+    const addMarkerWithBounds = useCallback((startFrac, endFrac) => {
+        if (startFrac >= endFrac) return;
+        startFrac = Math.max(0, startFrac);
+        endFrac = Math.min(1, endFrac);
+
+        const existing = markersRef.current;
+        for (const m of existing) {
+            if (startFrac < m.endFrac && endFrac > m.startFrac) return;
+        }
+
+        const id = `marker_${++markerIdCounter}`;
+        const next = [...existing, { id, startFrac, endFrac, peakAmp: null, clipGainDb: 0 }].sort((a, b) => a.startFrac - b.startFrac);
+        syncRef(next);
+    }, []);
+
+    /**
      * Remove a marker by ID.
      */
     const removeMarker = useCallback((id) => {
@@ -123,6 +142,7 @@ const useMarkers = () => {
         markers,
         markersRef,
         addMarker,
+        addMarkerWithBounds,
         removeMarker,
         updateMarkerEdge,
         updateMarkerPeakAmp,
