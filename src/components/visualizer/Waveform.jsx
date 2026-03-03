@@ -5,7 +5,7 @@ import {
     HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM,
 } from '../../utils/colors';
-import { drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
+import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
 import { drawPlacedMarkers, drawMarkerHoverPreview } from '../../utils/canvasMarkers';
@@ -177,13 +177,13 @@ export const drawMainWaveform = ({
     if (markers && markers.length > 0) {
         drawPlacedMarkers(ctx, markers, width, height, centerY, zoomX, panOffset, hoveredMarkerInfo);
 
-        // Boost white waveform alpha +50% inside marker regions
+        // Solid white waveform inside marker regions (100% alpha, no gradient)
         if (lastPlayedType === 'processed') {
-            const { outPoints: boostPts } = computeWaveformPoints({
+            const { outPoints: markerPts } = computeWaveformPoints({
                 visualResult, width, zoomX, panOffset, centerY, ampScale,
                 lastPlayedType, mipmaps, interactionDPR, step,
             });
-            if (boostPts.length > 0) {
+            if (markerPts.length > 0) {
                 for (const marker of markers) {
                     const px1 = marker.startFrac * width * zoomX + panOffset;
                     const px2 = marker.endFrac * width * zoomX + panOffset;
@@ -192,7 +192,7 @@ export const drawMainWaveform = ({
                     ctx.beginPath();
                     ctx.rect(px1, 0, px2 - px1, height);
                     ctx.clip();
-                    drawPolygonWithPeakFade(ctx, boostPts, '#ffffff', width, centerY, 0.275, 0.2);
+                    drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
                     ctx.restore();
                 }
             }
