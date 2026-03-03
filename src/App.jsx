@@ -134,7 +134,11 @@ const App = () => {
         meterStateRef,
     });
 
-    // --- 4. Playback (uses animateRef to break cycle) ---
+    // --- 4a. Markers (before playback, which needs markersRef) ---
+    const markerHook = useMarkers();
+    const peakLinesRef = useRef({});
+
+    // --- 4b. Playback (uses animateRef to break cycle) ---
     const playback = usePlayback({
         audioContext, originalBuffer,
         currentParams: comp.currentParams,
@@ -169,11 +173,7 @@ const App = () => {
         logAction,
     });
 
-    // --- 6a. Markers ---
-    const markerHook = useMarkers();
-    const peakLinesRef = useRef({});
-
-    // --- 6b. Waveform Interaction ---
+    // --- 6. Waveform Interaction ---
     const waveform = useWaveformInteraction({
         waveformCanvasRef, containerRef, originalBuffer,
         isDraggingKnobRef,
