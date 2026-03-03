@@ -244,7 +244,7 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                 document.body
             )}
 
-            <div>
+            <div className="[zoom:0.7] min-[550px]:[zoom:1]">
                 <h1
                     className="tooltip-below tooltip-always text-xl font-bold flex items-center gap-2 text-white tracking-tight cursor-pointer hover:opacity-75 transition-opacity select-none"
                     onClick={() => setShowAbout(true)}
@@ -266,7 +266,7 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                     <span>Gain 增益</span>
                 </h1>
             </div>
-            <div className="ml-auto flex flex-wrap items-center gap-3 min-[740px]:gap-2 relative [zoom:0.7] min-[740px]:[zoom:1]">
+            <div className="ml-auto flex flex-wrap items-center gap-3 min-[550px]:gap-2 relative [zoom:0.7] min-[550px]:[zoom:1]">
                 {/* Play Button */}
                 <button
                     onClick={(e) => { e.stopPropagation(); playback.togglePlayback(); }}
@@ -302,25 +302,22 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                     <Power size={16} className="relative z-10 text-white" strokeWidth={2.5} />
                 </button>
 
-                {/* Divider */}
-                <div className="w-px self-stretch bg-white/20" />
-
                 {/* Custom practice audio dropdown — EqPresetDropdown style */}
                 <div className="relative" ref={customDropdownRef}>
                     {/* Trigger button */}
                     <button
                         onClick={() => !currentSourceId || currentSourceId === 'upload' ? null : setIsCustomDropdownOpen(o => !o)}
                         data-tooltip={!isCustomDropdownOpen ? "選擇練習音檔" : undefined}
-                        className={`tooltip-below flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-300 border-2 max-w-[180px]
+                        className={`tooltip-below flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-bold transition-all duration-300 border-2 max-w-[126px] min-[550px]:max-w-[180px]
                             ${currentSourceId === 'upload' || !currentSourceId
                                 ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
                                 : isCustomDropdownOpen
                                     ? 'bg-brick-red border-brick-red text-black animate-[breathe-mixcheck_2s_ease-in-out_infinite] z-10'
-                                    : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 min-[740px]:hover:scale-105'
+                                    : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 min-[550px]:hover:scale-105'
                             }`}
                     >
                         <span className="truncate">{dropdownDisplayName}</span>
-                        <ChevronDown size={14} className="flex-shrink-0 hidden min-[740px]:block" />
+                        <ChevronDown size={14} className="flex-shrink-0 hidden min-[550px]:block" />
                     </button>
 
                     {/* Dropdown panel */}
@@ -438,7 +435,7 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                 </div>
 
                 {/* Prev/Next source navigation buttons */}
-                <div className="hidden min-[740px]:flex self-stretch">
+                <div className="hidden min-[550px]:flex self-stretch">
                     <button
                         onClick={handlePrev}
                         disabled={isLoading || !currentSourceId || currentSourceId === 'upload'}
