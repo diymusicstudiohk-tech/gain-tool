@@ -47,7 +47,10 @@ export const drawMainWaveform = ({
     }
 
     // ── Cache key ──
-    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}`;
+    const markerKey = markers && markers.length > 0
+        ? markers.map(m => `${m.startFrac.toFixed(6)}_${m.endFrac.toFixed(6)}`).join('|')
+        : '';
+    const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${markerKey}`;
 
     const cache = waveformCacheRef?.current;
     const cacheHit = cache?.key === cacheKey && cache?.imageData;
@@ -55,6 +58,16 @@ export const drawMainWaveform = ({
     // ── PHASE 1: Waveform background (skip when cache hit) ──
     if (!cacheHit) {
         ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
+
+        // Gold fill between marker pairs (behind waveform)
+        if (markers && markers.length > 0) {
+            ctx.fillStyle = 'rgba(194, 164, 117, 0.15)';
+            for (const marker of markers) {
+                const mx1 = marker.startFrac * width * zoomX + panOffset;
+                const mx2 = marker.endFrac * width * zoomX + panOffset;
+                ctx.fillRect(mx1, 0, mx2 - mx1, height);
+            }
+        }
 
         try {
             const srcLength = visualResult.visualInput.length;
