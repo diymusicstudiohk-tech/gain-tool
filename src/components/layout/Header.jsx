@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X,
-    Download, FolderOpen, ChevronDown, ChevronUp, ChevronLeft, ChevronRight
+    Download, FolderOpen, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+    Play, Pause, Power,
 } from 'lucide-react';
 import { AUDIO_SOURCES } from '../../utils/constants';
 import { getVersionDisplay } from '../../utils/version';
@@ -20,7 +21,7 @@ const CUSTOM_ALLOWED_MIME_TYPES = [
     'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
 ];
 
-const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff }) => {
+const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff }) => {
     const {
         fileName, currentSourceId, lastPracticeSourceId,
         handleFileUpload, clearUserUpload, restoreUserUpload, switchToPractice,
@@ -266,6 +267,44 @@ const Header = ({ engine: engineProps, handleFactoryReset, stopAudio, tooltipsOf
                 </h1>
             </div>
             <div className="flex flex-wrap items-center gap-3 min-[740px]:gap-2 relative scale-[0.7] min-[740px]:scale-100 origin-right">
+                {/* Play Button */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); playback.togglePlayback(); }}
+                    disabled={isLoading || !currentSourceId}
+                    className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                        ${!currentSourceId || isLoading
+                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                            : playback.playingType !== 'none'
+                                ? 'breathe-free-mode border-gold text-white opacity-100'
+                                : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                        }`}
+                    data-tooltip={playback.playingType !== 'none' ? '暫停' : '播放'}
+                >
+                    {playback.playingType !== 'none'
+                        ? <Pause size={16} fill="white" className="relative z-10 text-white" />
+                        : <Play size={16} fill="white" className="relative z-10 text-white" />
+                    }
+                </button>
+
+                {/* Bypass Button */}
+                <button
+                    onClick={() => playback.handleModeChange(playback.isDryMode ? 'processed' : 'original')}
+                    disabled={isLoading || !currentSourceId}
+                    className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
+                        ${!currentSourceId || isLoading
+                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
+                            : playback.isDryMode
+                                ? 'breathe-brick-red border-brick-red text-white opacity-100'
+                                : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
+                        }`}
+                    data-tooltip={playback.isDryMode ? "關閉旁通模式(Bypass)" : "旁通(Bypass)：聆聽音訊未經增益處理前的聲音"}
+                >
+                    <Power size={16} className="relative z-10 text-white" strokeWidth={2.5} />
+                </button>
+
+                {/* Divider */}
+                <div className="w-px self-stretch bg-white/20" />
+
                 {/* Custom practice audio dropdown — EqPresetDropdown style */}
                 <div className="relative" ref={customDropdownRef}>
                     {/* Trigger button */}

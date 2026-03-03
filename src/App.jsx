@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { saveAppStateToStorage, saveParamsForSource, softReset, saveTooltipsOff, loadTooltipsOff } from './utils/storage';
 
 import Header from './components/layout/Header';
-import ControlHud from './components/layout/ControlHud';
 import Waveform from './components/visualizer/Waveform';
 import Meters, { InputMeter } from './components/visualizer/Meters';
 import OutputWaveform from './components/visualizer/OutputWaveform';
@@ -276,24 +275,12 @@ const App = () => {
         return () => clearTimeout(timer);
     }, [engine.currentSourceId, comp.getCurrentStateSnapshot, engine.isLoading]);
 
-    // --- Prop Groups for ControlHud ---
-    const compProps = {};
+    // --- Prop Groups for Header ---
     const playbackProps = {
         playingType: playback.playingType, lastPlayedType: playback.lastPlayedType,
         isDryMode: playback.isDryMode,
         handleModeChange: playback.handleModeChange,
         togglePlayback: playback.togglePlayback,
-    };
-    const uiProps = {
-        isDraggingKnobRef,
-        handleKnobEnter: (k) => view.setHoveredKnob(k),
-        handleKnobLeave: () => view.setHoveredKnob(null),
-        resetAllParams: () => {
-            comp.resetAllParams();
-            view.resetView();
-            setRegionStart(0);
-            setRegionEnd(1);
-        },
     };
 
     // --- Render ---
@@ -316,6 +303,7 @@ const App = () => {
                     fileInputRef: engine.fileInputRef,
                     loadCustomAudio: engine.loadCustomAudio,
                 }}
+                playback={playbackProps}
                 handleFactoryReset={softReset}
                 stopAudio={playback.stopAudio}
                 tooltipsOff={tooltipsOff}
@@ -371,12 +359,6 @@ const App = () => {
                 markers={markerHook.markers}
             />
 
-            <ControlHud
-                compressor={compProps}
-                playback={playbackProps}
-                ui={uiProps}
-                tooltipsOff={tooltipsOff}
-            />
 
             {engine.errorMsg && (
                 <div className="fixed top-4 right-4 bg-red-900/90 text-white p-4 rounded shadow-xl border border-red-500 max-w-sm z-50">
