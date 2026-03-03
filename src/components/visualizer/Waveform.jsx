@@ -201,12 +201,22 @@ export const drawMainWaveform = ({
                             if (p.yTop < peakYTop) peakYTop = p.yTop;
                             if (p.yBot > peakYBot) peakYBot = p.yBot;
                         }
+                        const isHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
+                        if (isHovered) {
+                            ctx.shadowColor = GOLD;
+                            ctx.shadowBlur = 10;
+                        }
+                        ctx.globalAlpha = 1.0;
                         ctx.strokeStyle = GOLD;
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         ctx.moveTo(px1, peakYTop); ctx.lineTo(px2, peakYTop);
                         ctx.moveTo(px1, peakYBot); ctx.lineTo(px2, peakYBot);
                         ctx.stroke();
+                        if (isHovered) {
+                            ctx.shadowColor = 'transparent';
+                            ctx.shadowBlur = 0;
+                        }
                     }
                     ctx.restore();
                 }
