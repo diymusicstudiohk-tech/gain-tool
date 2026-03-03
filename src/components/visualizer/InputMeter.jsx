@@ -1,18 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { drawDualMeter } from '../../utils/meterDrawing';
+import { drawInputMeter } from '../../utils/meterDrawing';
 import GainButton from './GainButton';
 import { OVERLAY_BG } from '../../utils/colors';
 
-const getMetersTooltipText = (activeZone, ms) => {
-    if (activeZone === 'out') {
-        const val = ms.holdPeakLevel > 0.01
-            ? (20 * Math.log10(ms.holdPeakLevel)).toFixed(1) : "-inf";
-        return `Out (Output Signal 輸出訊號) : ${val} dB`;
-    }
-    return '';
-};
-
-const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outputGain, onOutputGainChange }) => {
+const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain, onInputGainChange }) => {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false });
     const tooltipTextRef = useRef(null);
     const tooltipDivRef = useRef(null);
@@ -37,14 +28,17 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outpu
         let running = true;
         const loop = () => {
             if (!running) return;
-            if (tooltipTextRef.current && hoveredMeterRef?.current && meterStateRef?.current) {
-                tooltipTextRef.current.textContent = getMetersTooltipText(hoveredMeterRef.current, meterStateRef.current);
+            if (tooltipTextRef.current && meterStateRef?.current) {
+                const ms = meterStateRef.current;
+                const val = ms.dryHoldPeakLevel > 0.01
+                    ? (20 * Math.log10(ms.dryHoldPeakLevel)).toFixed(1) : "-inf";
+                tooltipTextRef.current.textContent = `In (Input Signal 原始訊號) : ${val} dB`;
             }
             rafRef.current = requestAnimationFrame(loop);
         };
         rafRef.current = requestAnimationFrame(loop);
         return () => { running = false; cancelAnimationFrame(rafRef.current); };
-    }, [tooltipPos.visible, hoveredMeterRef, meterStateRef]);
+    }, [tooltipPos.visible, meterStateRef]);
 
     useEffect(() => {
         if (!tooltipDivRef.current) return;
@@ -58,15 +52,15 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outpu
     }, [tooltipPos.x, tooltipPos.y]);
 
     const frozenRedraw = useCallback(() => {
-        if (!outputCanvasRef?.current || !meterStateRef?.current) return;
+        if (!inputCanvasRef?.current || !meterStateRef?.current) return;
         const ms = meterStateRef.current;
-        drawDualMeter(outputCanvasRef.current, 0, 0, ms, hoveredMeterRef?.current, true);
-    }, [outputCanvasRef, meterStateRef, hoveredMeterRef]);
+        drawInputMeter(inputCanvasRef.current, 0, 0, ms, hoveredMeterRef?.current, true);
+    }, [inputCanvasRef, meterStateRef, hoveredMeterRef]);
 
     const handleMouseMove = useCallback((e) => {
         if (!hoveredMeterRef) return;
-        if (hoveredMeterRef.current !== 'out') {
-            hoveredMeterRef.current = 'out';
+        if (hoveredMeterRef.current !== 'in') {
+            hoveredMeterRef.current = 'in';
             frozenRedraw();
         }
         setTooltipPos({ x: e.clientX, y: e.clientY, visible: true });
@@ -86,11 +80,11 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outpu
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
         >
-            <canvas ref={outputCanvasRef} className="w-full h-full" />
-            {onOutputGainChange && containerHeight > 0 && (
+            <canvas ref={inputCanvasRef} className="w-full h-full" />
+            {onInputGainChange && containerHeight > 0 && (
                 <GainButton
-                    gainDb={outputGain ?? 0}
-                    onGainChange={onOutputGainChange}
+                    gainDb={inputGain ?? 0}
+                    onGainChange={onInputGainChange}
                     containerHeight={containerHeight}
                 />
             )}
@@ -113,4 +107,4 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outpu
     );
 };
 
-export default React.memo(Meters);
+export default React.memo(InputMeter);

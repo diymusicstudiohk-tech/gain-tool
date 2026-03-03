@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
-import { drawDualMeter, drawInputMeter } from '../components/visualizer/Meters';
+import { drawDualMeter, drawInputMeter } from '../utils/meterDrawing';
 import useLatestRef from './useLatestRef';
 
 const useVisualizerLoop = ({

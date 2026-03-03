@@ -4,7 +4,8 @@ import { saveAppStateToStorage, saveParamsForSource, softReset, saveTooltipsOff,
 
 import Header from './components/layout/Header';
 import Waveform from './components/visualizer/Waveform';
-import Meters, { InputMeter } from './components/visualizer/Meters';
+import Meters from './components/visualizer/Meters';
+import InputMeter from './components/visualizer/InputMeter';
 import OutputWaveform from './components/visualizer/OutputWaveform';
 
 import useDebug from './hooks/useDebug';
