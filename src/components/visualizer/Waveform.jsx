@@ -1,6 +1,6 @@
 import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
-import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
+import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../utils/displayMath';
 import {
     HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM, GOLD, GOLD_LIGHT,
@@ -8,7 +8,7 @@ import {
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
-import { drawPlacedMarkers, drawMarkerHoverPreview } from '../../utils/canvasMarkers';
+import { drawPlacedMarkers, drawMarkerHoverPreview, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../../utils/canvasMarkers';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
     LEGEND_HEIGHT, LEGEND_PAD_X, LEGEND_TEXT_BASELINE, LEGEND_BG,
@@ -195,25 +195,31 @@ export const drawMainWaveform = ({
                     ctx.clip();
                     drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
                     // Gold horizontal peak lines (draggable)
+                    // 1. Always compute auto-snap from regionPts
+                    let autoDisplayAmp = null;
+                    const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
+                    if (regionPts.length > 0) {
+                        let autoYTop = regionPts[0].yTop;
+                        for (const p of regionPts) {
+                            if (p.yTop < autoYTop) autoYTop = p.yTop;
+                        }
+                        autoDisplayAmp = (centerY - autoYTop) / ampScale;
+                    }
+                    // 2. Determine peakYTop/Bot (from peakAmp or auto-snap)
                     let peakYTop, peakYBot;
                     if (marker.peakAmp != null) {
-                        // User-dragged position: symmetric around centerY
                         peakYTop = centerY - marker.peakAmp * ampScale;
                         peakYBot = centerY + marker.peakAmp * ampScale;
-                    } else {
-                        // Auto-snap to waveform peak
-                        const regionPts = markerPts.filter(p => p.x >= px1 && p.x <= px2);
-                        if (regionPts.length > 0) {
-                            peakYTop = regionPts[0].yTop;
-                            peakYBot = regionPts[0].yBot;
-                            for (const p of regionPts) {
-                                if (p.yTop < peakYTop) peakYTop = p.yTop;
-                                if (p.yBot > peakYBot) peakYBot = p.yBot;
-                            }
+                    } else if (regionPts.length > 0) {
+                        peakYTop = regionPts[0].yTop;
+                        peakYBot = regionPts[0].yBot;
+                        for (const p of regionPts) {
+                            if (p.yTop < peakYTop) peakYTop = p.yTop;
+                            if (p.yBot > peakYBot) peakYBot = p.yBot;
                         }
                     }
+                    // 3. Draw peak lines
                     if (peakYTop != null) {
-                        // Store pixel positions for interaction hit detection
                         if (peakLinesRef) {
                             peakLinesRef.current[marker.id] = { yTop: peakYTop, yBot: peakYBot, px1, px2 };
                         }
@@ -236,6 +242,21 @@ export const drawMainWaveform = ({
                         }
                     }
                     ctx.restore();
+                    // 4. Draw dB readout (outside clip, after restore)
+                    if (peakYTop != null && autoDisplayAmp != null && autoDisplayAmp > 0) {
+                        const currentDisplayAmp = marker.peakAmp != null ? marker.peakAmp : autoDisplayAmp;
+                        const currentLinear = linearFromDisplay(currentDisplayAmp);
+                        const autoLinear = linearFromDisplay(autoDisplayAmp);
+                        const dB = 20 * Math.log10(currentLinear / autoLinear);
+                        const sign = dB >= 0 ? '+' : '';
+                        const label = `${sign}${dB.toFixed(1)}dB`;
+                        const btnX = Math.min(px2, width) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
+                        const btnY = DELETE_BTN_MARGIN;
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.fillStyle = GOLD;
+                        ctx.textAlign = 'right';
+                        ctx.fillText(label, btnX - 4, btnY + 12);
+                    }
                 }
             }
         }
