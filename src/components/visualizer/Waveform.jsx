@@ -8,7 +8,7 @@ import {
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
-import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
+import { drawCrosshair, drawClipGainTooltip } from '../../utils/canvasOverlay';
 import { drawPlacedMarkers, drawMarkerHoverPreview, getSnapBetweenMarkers, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../../utils/canvasMarkers';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
@@ -27,7 +27,7 @@ export const drawMainWaveform = ({
     interactionDPR,
     markers,
     hoveredMarkerInfo,
-    isMarkerDragging,
+    draggingMarker,
     peakLinesRef,
 }) => {
     if (!canvas) return;
@@ -280,7 +280,7 @@ export const drawMainWaveform = ({
     }
 
     // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
-    if (mousePos.x >= 0 && !hoveredMarkerInfo && !isMarkerDragging) {
+    if (mousePos.x >= 0 && !hoveredMarkerInfo && !draggingMarker) {
         const snapInfo = markers && markers.length >= 2
             ? getSnapBetweenMarkers(mousePos.x, markers, zoomX, panOffset, width)
             : null;
@@ -290,7 +290,15 @@ export const drawMainWaveform = ({
     // ── Crosshair + Gain Tooltip ──
     if (mousePos.x >= 0 && mousePos.y >= 0) {
         drawCrosshair(ctx, mousePos, width, height);
-        drawGainTooltip(ctx, mousePos, centerY, ampScale, width);
+        if (draggingMarker?.type === 'peakLine' && markers) {
+            const draggedMarker = markers.find(m => m.id === draggingMarker.id);
+            if (draggedMarker) {
+                const dB = draggedMarker.clipGainDb || 0;
+                const sign = dB >= 0 ? '+' : '';
+                const label = `${sign}${dB.toFixed(1)}dB`;
+                drawClipGainTooltip(ctx, mousePos, label, width);
+            }
+        }
     }
 
     ctx.setLineDash([]);

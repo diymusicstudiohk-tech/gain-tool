@@ -182,7 +182,7 @@ const useVisualizerLoop = ({
                         interactionDPR,
                         markers: markersRef?.current,
                         hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
-                        isMarkerDragging: !!draggingMarkerRef?.current,
+                        draggingMarker: draggingMarkerRef?.current,
                         peakLinesRef,
                     });
                 }

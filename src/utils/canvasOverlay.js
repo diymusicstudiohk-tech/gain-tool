@@ -56,3 +56,21 @@ export const drawGainTooltip = (ctx, mousePos, centerY, ampScale, width) => {
     ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
     ctx.fillText(gainText, gX + TOOLTIP_PAD_X, gY + TOOLTIP_TEXT_BASELINE);
 };
+
+/**
+ * Draw gold clip-gain tooltip at cursor position with a pre-formatted dB label.
+ */
+export const drawClipGainTooltip = (ctx, mousePos, label, width) => {
+    ctx.font = 'bold 12px sans-serif';
+    const gm = ctx.measureText(label);
+    const gW = gm.width + TOOLTIP_PAD_X * 2;
+    let gX = mousePos.x + TOOLTIP_OFFSET_X;
+    let gY = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
+    if (gX + gW > width) gX = mousePos.x - gW - TOOLTIP_OFFSET_X;
+    if (gY < TOOLTIP_EDGE_CLAMP) gY = mousePos.y + TOOLTIP_OFFSET_X;
+
+    ctx.fillStyle = GOLD;
+    ctx.fillRect(gX, gY, gW, TOOLTIP_HEIGHT);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+    ctx.fillText(label, gX + TOOLTIP_PAD_X, gY + TOOLTIP_TEXT_BASELINE);
+};
