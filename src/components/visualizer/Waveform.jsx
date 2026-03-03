@@ -2,10 +2,10 @@ import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
 import {
-    GOLD, BRICK_RED, HOVER_RED, ORIGINAL_RED,
+    BRICK_RED, HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM,
 } from '../../utils/colors';
-import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
+import { drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
@@ -144,37 +144,6 @@ export const drawMainWaveform = ({
         }
 
         // --- Draw hover layers ---
-        if (isHoveringOnOutput) {
-            const outPts = [];
-            const hlStartX = Math.max(0, Math.floor(panOffset) - 1);
-            const hlEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            for (let x = hlStartX; x < hlEndX; x++) {
-                const vx = x - panOffset;
-                const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
-                if (s < 0 || s >= srcLength) continue;
-                const se = Math.min(srcLength, e);
-                let mxOut = 0;
-                const ls = Math.max(s, 0);
-                if (se - ls > 0) {
-                    if (useMipmaps && mmOutput) {
-                        const oL = mmOutput.level; const oB = mmOutput.blockSize;
-                        const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
-                        for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
-                    } else {
-                        for (let i = ls; i < se; i++) {
-                            const aO = Math.abs(srcOutput[i]); if (aO > mxOut) mxOut = aO;
-                        }
-                    }
-                } else {
-                    const idx = Math.min(Math.floor(ls), srcLength - 1);
-                    if (idx >= 0) { mxOut = Math.abs(srcOutput[idx]); }
-                }
-                const hO = displayAmp(mxOut) * ampScale;
-                outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
-            }
-            drawPolygon(ctx, outPts, GOLD, width, centerY);
-        }
-
         if (isHoveringOnBrickRed) {
             const inPts = []; const outPts = [];
             const brStartX = Math.max(0, Math.floor(panOffset) - 1);
@@ -218,23 +187,6 @@ export const drawMainWaveform = ({
 
         // --- Legends ---
         const bgX = mousePos.x + TOOLTIP_OFFSET_X;
-
-        if (isHoveringOnOutput) {
-            const legendText = '金色實色 = 增益後訊號';
-            ctx.font = 'bold 11px sans-serif';
-            const lw = ctx.measureText(legendText).width;
-            const legendW = lw + LEGEND_PAD_X * 2;
-            const goldTooltipBottom = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
-            let legendX = bgX;
-            let legendY = goldTooltipBottom - LEGEND_HEIGHT - 4;
-            if (legendX + legendW > width) legendX = width - legendW - 2;
-            if (legendY < 2) legendY = mousePos.y + TOOLTIP_OFFSET_Y;
-
-            ctx.fillStyle = LEGEND_BG;
-            ctx.fillRect(legendX, legendY, legendW, LEGEND_HEIGHT);
-            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
-        }
 
         if (isHoveringOnBrickRed) {
             const legendText = '紅色 = 增益前後差異的訊號';
