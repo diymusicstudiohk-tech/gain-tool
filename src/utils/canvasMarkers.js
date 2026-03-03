@@ -75,6 +75,14 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snap
     const x1 = snapInfo ? snapInfo.leftPx : mouseX - halfW;
     const x2 = snapInfo ? snapInfo.rightPx : mouseX + halfW;
 
+    // Gold fill between preview lines
+    const fillX1 = Math.max(0, x1);
+    const fillX2 = Math.min(width, x2);
+    if (fillX2 > fillX1) {
+        ctx.fillStyle = 'rgba(194, 164, 117, 0.07)';
+        ctx.fillRect(fillX1, 0, fillX2 - fillX1, height);
+    }
+
     ctx.strokeStyle = GOLD;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -82,9 +90,9 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snap
     if (x2 >= 0 && x2 <= width) { ctx.moveTo(x2, 0); ctx.lineTo(x2, height); }
     ctx.stroke();
 
-    // "+" block at horizontal center, 15% from top of visualizer
+    // "+" block at horizontal center, 8% from top of visualizer
     const btnX = (x1 + x2) / 2 - DELETE_BTN_SIZE / 2;
-    const btnY = height * 0.15 - DELETE_BTN_SIZE / 2;
+    const btnY = height * 0.08 - DELETE_BTN_SIZE / 2;
     if (btnX > -DELETE_BTN_SIZE && btnX < width + DELETE_BTN_SIZE) {
         drawRoundedBtn(ctx, btnX, btnY, GOLD);
         // White "+" sign
