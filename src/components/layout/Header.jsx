@@ -12,14 +12,8 @@ import {
     loadCustomAudioIndexFromDB, saveCustomAudioIndexToDB,
     saveCustomAudioBlobToDB, deleteCustomAudioBlobFromDB,
 } from '../../utils/storage';
-
-const MAX_CUSTOM_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
-const CUSTOM_ALLOWED_MIME_TYPES = [
-    'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac',
-    'audio/ogg', 'audio/flac', 'audio/x-m4a', 'audio/x-wav',
-    'audio/webm', 'audio/mp3',
-    'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
-];
+import { GOLD_LOGO } from '../../utils/colors';
+import { MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from '../../utils/fileConstants';
 
 const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff }) => {
     const {
@@ -115,8 +109,8 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
         if (!files.length) return;
         const newEntries = [];
         for (const file of files) {
-            if (file.size > MAX_CUSTOM_FILE_SIZE) continue;
-            if (file.type && !CUSTOM_ALLOWED_MIME_TYPES.includes(file.type)) continue;
+            if (file.size > MAX_FILE_SIZE) continue;
+            if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) continue;
             const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             await saveCustomAudioBlobToDB(id, file);
             newEntries.push({ id, name: file.name });
@@ -258,7 +252,7 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        style={{ color: '#C0A374' }}
+                        style={{ color: GOLD_LOGO }}
                     >
                         <path d="M6 8c0-3 3-5 6-5s6 2 6 6c0 5-3 8-5 10-1 1-1 3-1 3" />
                         <path d="M9 10c0-1 1-2 2-2s2 2 2 4-1 3-2 4" />

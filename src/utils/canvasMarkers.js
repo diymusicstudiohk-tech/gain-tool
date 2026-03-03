@@ -1,4 +1,4 @@
-import { GOLD, GOLD_LIGHT } from './colors';
+import { GOLD, GOLD_LIGHT, WHITE, GOLD_FILL_07, GOLD_FILL_80 } from './colors';
 
 // --- Shared Constants ---
 export const MARKER_EDGE_HIT_ZONE = 15;
@@ -111,7 +111,7 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snap
     const fillX1 = Math.max(0, x1);
     const fillX2 = Math.min(width, x2);
     if (fillX2 > fillX1) {
-        ctx.fillStyle = 'rgba(194, 164, 117, 0.07)';
+        ctx.fillStyle = GOLD_FILL_07;
         ctx.fillRect(fillX1, 0, fillX2 - fillX1, height);
     }
 
@@ -131,7 +131,7 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snap
         const cx = btnX + DELETE_BTN_SIZE / 2;
         const cy = btnY + DELETE_BTN_SIZE / 2;
         const pOff = 4;
-        ctx.strokeStyle = '#fff';
+        ctx.strokeStyle = WHITE;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(cx - pOff, cy); ctx.lineTo(cx + pOff, cy);
@@ -157,9 +157,9 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
         // Vertical gradient for edge lines: 80% at top/bottom edges, 100% at centerY
         const grad = ctx.createLinearGradient(0, 0, 0, height);
         const centerStop = Math.max(0, Math.min(1, centerY / height));
-        grad.addColorStop(0, 'rgba(194, 164, 117, 0.80)');
-        grad.addColorStop(centerStop, 'rgba(194, 164, 117, 1.0)');
-        grad.addColorStop(1, 'rgba(194, 164, 117, 0.80)');
+        grad.addColorStop(0, GOLD_FILL_80);
+        grad.addColorStop(centerStop, GOLD);
+        grad.addColorStop(1, GOLD_FILL_80);
         ctx.strokeStyle = grad;
 
         // Left edge line
@@ -187,7 +187,7 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
             const cx = btnX + DELETE_BTN_SIZE / 2;
             const cy = btnY + DELETE_BTN_SIZE / 2;
             const xOff = 4;
-            ctx.strokeStyle = '#fff';
+            ctx.strokeStyle = WHITE;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(cx - xOff, cy - xOff); ctx.lineTo(cx + xOff, cy + xOff);
@@ -208,7 +208,7 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
                 const ucx = undoX + DELETE_BTN_SIZE / 2;
                 const ucy = undoY + DELETE_BTN_SIZE / 2;
                 const r = 5;
-                ctx.strokeStyle = '#fff';
+                ctx.strokeStyle = WHITE;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(ucx, ucy, r, -Math.PI * 0.75, Math.PI * 0.55);
@@ -217,7 +217,7 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
                 const tipAngle = Math.PI * 0.55;
                 const tipX = ucx + r * Math.cos(tipAngle);
                 const tipY = ucy + r * Math.sin(tipAngle);
-                ctx.fillStyle = '#fff';
+                ctx.fillStyle = WHITE;
                 ctx.beginPath();
                 ctx.moveTo(tipX - 4, tipY - 2);
                 ctx.lineTo(tipX + 1, tipY + 3);

@@ -26,3 +26,8 @@ export const METER_HOLD_DECAY = 0.98;
 export const METER_BAR_WIDTH = 22;
 export const METER_BAR_RADIUS = 4;
 export const METER_OVERFLOW_CLAMP = 1.4;
+
+// --- Peak Line ---
+export const PEAK_LINE_HIT_ZONE = 12;
+export const PEAK_LINE_HOVER_ZONE = 5;
+export const PEAK_LINE_PADDING_PCT = 0.05;

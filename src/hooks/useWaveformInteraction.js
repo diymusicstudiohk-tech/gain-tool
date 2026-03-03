@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { getMarkerHitZone, getSnapBetweenMarkers, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../utils/canvasMarkers';
 import { computeWaveformGeometry, linearFromDisplay } from '../utils/displayMath';
+import { PEAK_LINE_HIT_ZONE, PEAK_LINE_HOVER_ZONE, PEAK_LINE_PADDING_PCT } from '../utils/canvasConstants';
 
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
@@ -75,7 +76,7 @@ const useWaveformInteraction = ({
             for (const markerId of Object.keys(peakLines)) {
                 const pl = peakLines[markerId];
                 if (relX >= pl.px1 && relX <= pl.px2) {
-                    if (Math.abs(relY - pl.yTop) <= 12 || Math.abs(relY - pl.yBot) <= 12) {
+                    if (Math.abs(relY - pl.yTop) <= PEAK_LINE_HIT_ZONE || Math.abs(relY - pl.yBot) <= PEAK_LINE_HIT_ZONE) {
                         draggingMarkerRef.current = { id: markerId, type: 'peakLine' };
                         return;
                     }
@@ -157,7 +158,7 @@ const useWaveformInteraction = ({
             for (const markerId of Object.keys(peakLines)) {
                 const pl = peakLines[markerId];
                 if (relX >= pl.px1 && relX <= pl.px2) {
-                    if (Math.abs(relY - pl.yTop) <= 12 || Math.abs(relY - pl.yBot) <= 12) {
+                    if (Math.abs(relY - pl.yTop) <= PEAK_LINE_HIT_ZONE || Math.abs(relY - pl.yBot) <= PEAK_LINE_HIT_ZONE) {
                         draggingMarkerRef.current = { id: markerId, type: 'peakLine' };
                         return;
                     }
@@ -251,7 +252,7 @@ const useWaveformInteraction = ({
             for (const markerId of Object.keys(peakLines)) {
                 const pl = peakLines[markerId];
                 if (relX >= pl.px1 && relX <= pl.px2) {
-                    if (Math.abs(relY - pl.yTop) <= 5 || Math.abs(relY - pl.yBot) <= 5) {
+                    if (Math.abs(relY - pl.yTop) <= PEAK_LINE_HOVER_ZONE || Math.abs(relY - pl.yBot) <= PEAK_LINE_HOVER_ZONE) {
                         hoveredMarkerInfoRef.current = { markerId, zone: 'peakLine' };
                         if (containerRef.current) containerRef.current.style.cursor = 'ns-resize';
                         return;
@@ -317,7 +318,7 @@ const useWaveformInteraction = ({
                 const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
                 if (ampScale <= 0) return;
                 // 5% padding from edge, with minimum to clear buttons
-                const padPx = Math.max(height * 0.05, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
+                const padPx = Math.max(height * PEAK_LINE_PADDING_PCT, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
                 const clampedY = Math.max(padPx, Math.min(height - padPx, relY));
                 const distFromCenter = Math.abs(clampedY - centerY);
                 let amp = distFromCenter / ampScale;
@@ -375,7 +376,7 @@ const useWaveformInteraction = ({
                 const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
                 if (ampScale <= 0) return;
                 // 5% padding from edge, with minimum to clear buttons
-                const padPx = Math.max(height * 0.05, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
+                const padPx = Math.max(height * PEAK_LINE_PADDING_PCT, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
                 const clampedY = Math.max(padPx, Math.min(height - padPx, relY));
                 const distFromCenter = Math.abs(clampedY - centerY);
                 let amp = distFromCenter / ampScale;

@@ -10,15 +10,7 @@ import {
 } from '../utils/storage';
 import useStateRef from './useStateRef';
 import useLatestRef from './useLatestRef';
-
-const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
-
-const ALLOWED_MIME_TYPES = [
-    'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/aac',
-    'audio/ogg', 'audio/flac', 'audio/x-m4a', 'audio/x-wav',
-    'audio/webm', 'audio/mp3',
-    'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
-];
+import { MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from '../utils/fileConstants';
 
 /**
  * Receives shared refs from App.jsx and playback setters to coordinate loading.

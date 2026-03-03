@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import useOutputWaveformDrawer from '../../hooks/useOutputWaveformDrawer';
 import useLatestRef from '../../hooks/useLatestRef';
+import { GOLD_REGION } from '../../utils/colors';
 
 const HANDLE_PX = 14;    // hit-zone half-width in px (comfortable for both mouse & touch)
 const MIN_SECONDS = 3;   // gold box can never be narrower than 3 seconds
@@ -252,15 +253,15 @@ const OutputWaveform = ({
                     }}
                 >
                     {/* Top border */}
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#D4A017' }} />
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: GOLD_REGION }} />
                     {/* Bottom border */}
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: '#D4A017' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: GOLD_REGION }} />
 
                     {/* Left handle bar — always thick with grip dots */}
                     <div style={{
                         position: 'absolute', top: 0, bottom: 0, left: 0,
                         width: 7,
-                        background: '#D4A017',
+                        background: GOLD_REGION,
                     }}>
                         <HandleDots />
                     </div>
@@ -269,7 +270,7 @@ const OutputWaveform = ({
                     <div style={{
                         position: 'absolute', top: 0, bottom: 0, right: 0,
                         width: 7,
-                        background: '#D4A017',
+                        background: GOLD_REGION,
                     }}>
                         <HandleDots />
                     </div>

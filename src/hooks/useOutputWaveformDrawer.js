@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { selectMipmapLevel } from '../utils/mipmapCache';
-import { CLIP_BOOST, CLIP_CUT } from '../utils/colors';
+import { CLIP_BOOST, CLIP_CUT, GOLD_OUTPUT, WHITE } from '../utils/colors';
 
 const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStart = 0, regionEnd = 1, markers = []) => {
     const dimsRef = useRef({ width: 0, height: 0 });
@@ -25,8 +25,6 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
         const len = data.length;
         const step = len / width;
 
-        const GOLD = '#9C845E';
-        const WHITE = '#ffffff';
         const GRAY_WHITE = 'rgba(255, 255, 255, 0.55)';
 
         // Precompute region pixel boundaries
@@ -58,7 +56,7 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
                         break;
                     }
                 }
-                color = markerColor || GOLD;
+                color = markerColor || GOLD_OUTPUT;
             } else if (markerRanges.length === 0) {
                 color = GRAY_WHITE;
             } else {

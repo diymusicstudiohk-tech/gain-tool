@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { TOOLTIPS } from '../../utils/constants';
+import { KNOB_COLORS, KNOB_TRACK, KNOB_DISABLED } from '../../utils/colors';
 
 const RotaryKnob = ({
     label,
@@ -51,15 +52,9 @@ const RotaryKnob = ({
         callbacksRef.current = { onChange, onDragStateChange, onLeave, onTouchLegendShow, onTouchLegendHide };
     });
 
-    const colors = {
-        cyan: "#22d3ee", indigo: "#818cf8", yellow: "#facc15", slate: "#94a3b8",
-        red: "#f87171", orange: "#fb923c", blue: "#3b82f6", pink: "#ec4899",
-        emerald: "#10b981", rose: "#f43f5e", purple: "#d8b4fe",
-        gold: "#C2A475"
-    };
-    const strokeColor = disabled ? '#475569' : (colors[color] || colors.slate);
+    const strokeColor = disabled ? KNOB_DISABLED : (KNOB_COLORS[color] || KNOB_COLORS.slate);
     const labelColorClass = disabled ? 'text-slate-600' : 'text-slate-500 hover:text-slate-300';
-    const valueColorStyle = disabled ? { color: '#475569' } : { color: colors[color] || colors.slate };
+    const valueColorStyle = disabled ? { color: KNOB_DISABLED } : { color: KNOB_COLORS[color] || KNOB_COLORS.slate };
 
     const applyMove = useCallback((clientY) => {
         const { min: pMin, max: pMax, step: pStep } = paramsRef.current;
@@ -175,14 +170,14 @@ const RotaryKnob = ({
             <div className={`flex flex-col items-center relative select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }}>
                 <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                     <svg className="w-full h-full transform -rotate-90">
-                        <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
+                        <circle cx="18" cy="18" r={radius} fill="none" stroke={KNOB_TRACK} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                         <circle cx="18" cy="18" r={radius} fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeDashoffset={dashOffset} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                     </svg>
                     <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `rotate(${rotation}deg)` }}><div className={`w-1 h-1 rounded-full mx-auto mt-1 shadow-sm ${disabled ? 'bg-slate-500' : 'bg-white'}`}></div></div>
                 </div>
                 {isHovered && (
                     <div className="absolute top-full mt-1 z-50 bg-black/70 backdrop-blur-md border border-white/10 rounded-lg px-2.5 py-1.5 shadow-xl pointer-events-none whitespace-nowrap flex flex-col items-center">
-                        <div className="text-[11px] font-mono font-bold" style={{ color: colors[color] || colors.slate }}>{displayStr}{unit}</div>
+                        <div className="text-[11px] font-mono font-bold" style={{ color: KNOB_COLORS[color] || KNOB_COLORS.slate }}>{displayStr}{unit}</div>
                         <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</div>
                     </div>
                 )}
@@ -195,7 +190,7 @@ const RotaryKnob = ({
         <div className={`flex flex-col items-center gap-1 group relative w-12 min-[740px]:w-16 select-none ${disabled ? 'opacity-60 pointer-events-none' : ''}`} onMouseEnter={(e) => { setIsHovered(true); onHover && onHover(tooltipKey, e); }} onMouseLeave={() => { if (!isDraggingRef.current) { setIsHovered(false); onLeave && onLeave(); } }} onMouseMove={(e) => { mousePosRef.current = { x: e.clientX, y: e.clientY }; if (tooltipRef.current) { tooltipRef.current.style.left = `${e.clientX + 16}px`; tooltipRef.current.style.top = `${e.clientY - 12}px`; } }}>
             <div className={`relative w-9 h-9 ${disabled ? 'cursor-not-allowed' : 'cursor-ns-resize'}`} onMouseDown={(e) => { e.stopPropagation(); handleStart(e.clientY); }} onTouchStart={(e) => { e.stopPropagation(); if (e.touches[0]) handleStart(e.touches[0].clientY, true); }} onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(); }}>
                 <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="18" cy="18" r={radius} fill="none" stroke="#334155" strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
+                    <circle cx="18" cy="18" r={radius} fill="none" stroke={KNOB_TRACK} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                     <circle cx="18" cy="18" r={radius} fill="none" stroke={strokeColor} strokeWidth="3" strokeDasharray={`${arcLength} ${circumference}`} strokeDashoffset={dashOffset} strokeLinecap="round" transform="rotate(-135, 18, 18)" />
                 </svg>
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ transform: `rotate(${rotation}deg)` }}><div className={`w-1 h-1 rounded-full mx-auto mt-1 shadow-sm ${disabled ? 'bg-slate-500' : 'bg-white'}`}></div></div>
@@ -204,7 +199,7 @@ const RotaryKnob = ({
                 <div className="flex flex-col items-center justify-end pb-2">
                     <div className="flex items-center gap-0.5 mb-1">
                         {isHovered
-                            ? <div className="text-[8px] min-[740px]:text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: colors[color] || colors.slate }}>{displayStr}{breakReadingOnMobile ? <span className="block min-[740px]:inline">{unit}</span> : unit}</div>
+                            ? <div className="text-[8px] min-[740px]:text-[10px] font-mono font-bold whitespace-nowrap transition-colors" style={{ color: KNOB_COLORS[color] || KNOB_COLORS.slate }}>{displayStr}{breakReadingOnMobile ? <span className="block min-[740px]:inline">{unit}</span> : unit}</div>
                             : shortLabel
                                 ? <><div className={`text-[8px] font-bold uppercase tracking-tighter whitespace-pre-line transition-colors min-[740px]:hidden ${labelColorClass}`}>{shortLabel}</div><div className={`text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors hidden min-[740px]:block ${labelColorClass}`}>{label}</div></>
                                 : <div className={`text-[8px] min-[740px]:text-[10px] font-bold uppercase tracking-tighter whitespace-nowrap transition-colors ${labelColorClass}`}>{label}</div>

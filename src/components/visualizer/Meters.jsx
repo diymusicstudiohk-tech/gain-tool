@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { GOLD, GOLD_DARK, GOLD_LIGHT, CLIP_RED } from '../../utils/colors';
+import {
+    GOLD, GOLD_DARK, GOLD_LIGHT, CLIP_RED,
+    WHITE, DARK_RED_GRADIENT, GOLD_FILL_25, CLIP_RED_FILL_25,
+    METER_BG, OVERLAY_BG,
+} from '../../utils/colors';
 import {
     METER_HOLD_FRAMES, METER_PEAK_DECAY, METER_HOLD_DECAY,
     METER_BAR_WIDTH, METER_BAR_RADIUS, METER_OVERFLOW_CLAMP,
@@ -60,8 +64,8 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, hoveredMeter 
 
     // Background bar
     const bgColor = hoveredMeter === 'out'
-        ? (isClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)')
-        : 'rgba(255, 255, 255, 0.06)';
+        ? (isClipping ? CLIP_RED_FILL_25 : GOLD_FILL_25)
+        : METER_BG;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
     ctx.roundRect(x, 0, barWidth, height, bgRadius);
@@ -85,7 +89,7 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, hoveredMeter 
         if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), centerX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
     }
 
-    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = WHITE; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("Out", centerX, 12 * s);
 };
 
@@ -130,8 +134,8 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
 
     // Background bar
     const bgColor = hoveredMeter === 'in'
-        ? (isInClipping ? 'rgba(224, 94, 66, 0.25)' : 'rgba(194, 164, 117, 0.25)')
-        : 'rgba(255, 255, 255, 0.06)';
+        ? (isInClipping ? CLIP_RED_FILL_25 : GOLD_FILL_25)
+        : METER_BG;
     ctx.fillStyle = bgColor;
     ctx.beginPath();
     ctx.roundRect(x, 0, barWidth, height, bgRadius);
@@ -145,7 +149,7 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
             const mph = (h / 2) - p;
             const g = c.createLinearGradient(0, h / 2 + mph, 0, h / 2 - mph);
             if (isInClipping) {
-                g.addColorStop(0, '#8B2500'); g.addColorStop(0.5, CLIP_RED); g.addColorStop(1, '#8B2500');
+                g.addColorStop(0, DARK_RED_GRADIENT); g.addColorStop(0.5, CLIP_RED); g.addColorStop(1, DARK_RED_GRADIENT);
             } else {
                 g.addColorStop(0, GOLD_DARK); g.addColorStop(0.5, GOLD); g.addColorStop(1, GOLD_DARK);
             }
@@ -169,7 +173,7 @@ export const drawInputMeter = (canvas, dryPeak, dryRms, meterState, hoveredMeter
     }
 
     // "In" label
-    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = WHITE; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("In", centerX, 12 * s);
 };
 
@@ -254,7 +258,7 @@ const InputGainButton = ({ inputGain, onInputGainChange, containerHeight }) => {
                 flexDirection: isZero ? 'column' : 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,0.75)',
+                background: OVERLAY_BG,
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
@@ -366,7 +370,7 @@ const InputMeter = ({ inputCanvasRef, hoveredMeterRef, meterStateRef, inputGain,
             {tooltipPos.visible && (
                 <div ref={tooltipDivRef} style={{
                     position: 'fixed',
-                    background: 'rgba(0,0,0,0.75)',
+                    background: OVERLAY_BG,
                     color: '#fff',
                     font: 'bold 11px sans-serif',
                     padding: '6px 10px',
@@ -445,7 +449,7 @@ const OutputGainButton = ({ outputGain, onOutputGainChange, containerHeight }) =
                 flexDirection: isZero ? 'column' : 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0,0,0,0.75)',
+                background: OVERLAY_BG,
                 border: '1.5px solid rgba(255,255,255,0.8)',
                 borderRadius: 6,
                 color: '#fff',
@@ -563,7 +567,7 @@ const Meters = ({ outputCanvasRef, height, hoveredMeterRef, meterStateRef, outpu
             {tooltipPos.visible && (
                 <div ref={tooltipDivRef} style={{
                     position: 'fixed',
-                    background: 'rgba(0,0,0,0.75)',
+                    background: OVERLAY_BG,
                     color: '#fff',
                     font: 'bold 11px sans-serif',
                     padding: '6px 10px',

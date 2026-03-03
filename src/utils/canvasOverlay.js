@@ -1,5 +1,5 @@
 import { linearFromDisplay } from './displayMath';
-import { GOLD } from './colors';
+import { GOLD, CROSSHAIR_COLOR } from './colors';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_OFFSET_Y, TOOLTIP_HEIGHT,
     TOOLTIP_PAD_X, TOOLTIP_TEXT_BASELINE, TOOLTIP_EDGE_CLAMP,
@@ -11,7 +11,7 @@ import {
 export const drawCrosshair = (ctx, mousePos, width, height) => {
     // Vertical crosshair line
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = CROSSHAIR_COLOR; ctx.lineWidth = 1;
     ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(mousePos.x, 0); ctx.lineTo(mousePos.x, height);

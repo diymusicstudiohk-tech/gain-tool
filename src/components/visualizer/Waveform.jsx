@@ -4,7 +4,7 @@ import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../ut
 import {
     HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM, GOLD, GOLD_LIGHT,
-    CLIP_BOOST, CLIP_CUT,
+    CLIP_BOOST, CLIP_CUT, WHITE, GOLD_FILL_07,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
@@ -61,7 +61,7 @@ export const drawMainWaveform = ({
 
         // Gold fill between marker pairs (behind waveform)
         if (markers && markers.length > 0) {
-            ctx.fillStyle = 'rgba(194, 164, 117, 0.07)';
+            ctx.fillStyle = GOLD_FILL_07;
             for (const marker of markers) {
                 const mx1 = marker.startFrac * width * zoomX + panOffset;
                 const mx2 = marker.endFrac * width * zoomX + panOffset;
@@ -85,7 +85,7 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else {
-                drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 0.55, 0.2);
+                drawPolygonWithPeakFade(ctx, outPoints, WHITE, width, centerY, 0.55, 0.2);
             }
 
             // Save background to cache
@@ -209,7 +209,7 @@ export const drawMainWaveform = ({
                     ctx.clip();
                     const clipColor = (marker.clipGainDb || 0) > 0 ? CLIP_BOOST
                                   : (marker.clipGainDb || 0) < 0 ? CLIP_CUT
-                                  : '#ffffff';
+                                  : WHITE;
                     drawPolygon(ctx, markerPts, clipColor, width, centerY, 1.0);
                     // Gold horizontal peak lines (draggable)
                     // 1. Always compute auto-snap from INPUT waveform (inPoints) to avoid feedback loop
