@@ -128,7 +128,6 @@ const useWaveformInteraction = ({
     }, [containerRef]);
 
     const handleLocalMouseMove = useCallback((e) => {
-        if (draggingMarkerRef.current) return; // edge drag handled by window listener
         if (isDraggingRef.current) return;
         if (isDraggingKnobRef.current || !waveformCanvasRef.current) return;
 
@@ -140,6 +139,9 @@ const useWaveformInteraction = ({
         if (!isPlayingRef.current) {
             setMousePos({ x: relX, y: relY });
         }
+
+        // During marker edge drag, just keep mousePos updated (redraw handled by window listener)
+        if (draggingMarkerRef.current) return;
 
         // Marker hit detection for cursor
         const markers = markersRef?.current;
@@ -185,6 +187,14 @@ const useWaveformInteraction = ({
             const totalPx = width * zoomX;
             if (totalPx <= 0) return;
 
+            // Keep mouse position updated so visualizer redraws during drag
+            const relX = e.clientX - rect.left;
+            const relY = e.clientY - rect.top;
+            mousePosRef.current = { x: relX, y: relY };
+            if (!isPlayingRef.current) {
+                setMousePos({ x: relX, y: relY });
+            }
+
             const dx = e.clientX - drag.startClientX;
             const fracDelta = dx / totalPx;
             const newFrac = drag.startFrac + fracDelta;
@@ -202,7 +212,7 @@ const useWaveformInteraction = ({
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
         };
-    }, [waveformCanvasRef, zoomX, updateMarkerEdge]);
+    }, [waveformCanvasRef, zoomX, updateMarkerEdge, isPlayingRef]);
 
     return {
         mousePos, mousePosRef,
