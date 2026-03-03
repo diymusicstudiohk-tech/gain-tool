@@ -6,7 +6,6 @@ import {
     BG_PANEL, TEXT_DIM,
 } from '../../utils/colors';
 import { drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
-import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
 import { drawPlacedMarkers, drawMarkerHoverPreview } from '../../utils/canvasMarkers';
@@ -61,8 +60,6 @@ export const drawMainWaveform = ({
             if (!Number.isFinite(step) || step <= 0) return;
 
             const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
-
-            drawDbGrid(ctx, width, height, centerY, ampScale);
 
             const { inPoints, outPoints } = computeWaveformPoints({
                 visualResult, width, zoomX, panOffset, centerY, ampScale,
