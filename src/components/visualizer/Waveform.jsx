@@ -73,7 +73,7 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else {
-                drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 0.65, 0.2);
+                drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 0.55, 0.2);
             }
 
             // Save background to cache
