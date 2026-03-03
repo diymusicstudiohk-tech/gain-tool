@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createRealTimeCompressor } from '../utils/dsp';
+import useStateRef from './useStateRef';
 
 /**
  * Hook for managing audio playback control
@@ -10,8 +11,8 @@ import { createRealTimeCompressor } from '../utils/dsp';
  * @returns {Object} Playback state and control functions
  */
 export const usePlaybackControl = (audioContext, originalBuffer, params, animate) => {
-    const [playingType, setPlayingType] = useState('none');
-    const [lastPlayedType, setLastPlayedType] = useState('original');
+    const [playingType, setPlayingType, playingTypeRef] = useStateRef('none');
+    const [lastPlayedType, setLastPlayedType, lastPlayedTypeRef] = useStateRef('original');
     const [isDeltaMode, setIsDeltaMode] = useState(false);
 
     const sourceNodeRef = useRef(null);
@@ -20,18 +21,8 @@ export const usePlaybackControl = (audioContext, originalBuffer, params, animate
     const startTimeRef = useRef(0);
     const startOffsetRef = useRef(0);
     const isPlayingRef = useRef(false);
-    const playingTypeRef = useRef(playingType);
-    const lastPlayedTypeRef = useRef(lastPlayedType);
     const playBufferRef = useRef(null);
     const rafIdRef = useRef(null);
-
-    useEffect(() => {
-        playingTypeRef.current = playingType;
-    }, [playingType]);
-
-    useEffect(() => {
-        lastPlayedTypeRef.current = lastPlayedType;
-    }, [lastPlayedType]);
 
     const playBuffer = useCallback((buffer, type, offset, loopStart, loopEnd, paramsRef, fullAudioDataRef, isDeltaMode) => {
         if (!audioContext || !buffer) return;

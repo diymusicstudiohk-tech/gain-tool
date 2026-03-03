@@ -16,6 +16,7 @@ import usePlayback from './hooks/usePlayback';
 import useAudioEngine from './hooks/useAudioEngine';
 import useWaveformInteraction from './hooks/useWaveformInteraction';
 import useMarkers from './hooks/useMarkers';
+import useStateRef from './hooks/useStateRef';
 
 const App = () => {
     // --- Core State (shared between hooks) ---
@@ -85,21 +86,13 @@ const App = () => {
     const view = useViewState({ containerRef });
 
     // --- Region: controls what portion of audio is shown in the main visualizer ---
-    const [regionStart, setRegionStart] = useState(0);
-    const [regionEnd, setRegionEnd] = useState(1);
-
-    const regionStartRef = useRef(0);
-    const regionEndRef = useRef(1);
+    const [regionStart, setRegionStart, regionStartRef] = useStateRef(0);
+    const [regionEnd, setRegionEnd, regionEndRef] = useStateRef(1);
 
     const handleRegionChange = useCallback((s, e) => {
         setRegionStart(s);
         setRegionEnd(e);
-        regionStartRef.current = s;
-        regionEndRef.current = e;
     }, []);
-
-    useEffect(() => { regionStartRef.current = regionStart; }, [regionStart]);
-    useEffect(() => { regionEndRef.current = regionEnd; }, [regionEnd]);
 
     // When a new audio file loads, default region to 5-second window centred at midpoint + clear markers
     useEffect(() => {

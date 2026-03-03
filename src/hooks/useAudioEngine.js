@@ -8,6 +8,8 @@ import {
     loadCustomAudioBlobFromDB,
     saveParamsForSource, loadParamsForSource,
 } from '../utils/storage';
+import useStateRef from './useStateRef';
+import useLatestRef from './useLatestRef';
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1 GB
 
@@ -34,7 +36,7 @@ const useAudioEngine = ({
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
-    const [currentSourceId, setCurrentSourceId] = useState(null);
+    const [currentSourceId, setCurrentSourceId, currentSourceIdRef] = useStateRef(null);
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
     const [fileName, setFileName] = useState('');
 
@@ -55,11 +57,7 @@ const useAudioEngine = ({
     }));
     const hasInitialLoadRun = useRef(false);
     const fileInputRef = useRef(null);
-    const currentSourceIdRef = useRef(null);
-    const getSnapshotRef = useRef(getCurrentStateSnapshot);
-    // Keep refs in sync
-    useEffect(() => { currentSourceIdRef.current = currentSourceId; }, [currentSourceId]);
-    useEffect(() => { getSnapshotRef.current = getCurrentStateSnapshot; }, [getCurrentStateSnapshot]);
+    const getSnapshotRef = useLatestRef(getCurrentStateSnapshot);
 
     const handleDecodedBuffer = useCallback((decodedBuffer) => {
         if (!audioContext) return;

@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import useOutputWaveformDrawer from '../../hooks/useOutputWaveformDrawer';
+import useLatestRef from '../../hooks/useLatestRef';
 
 const HANDLE_PX = 14;    // hit-zone half-width in px (comfortable for both mouse & touch)
 const MIN_SECONDS = 3;   // gold box can never be narrower than 3 seconds
@@ -42,8 +43,7 @@ const OutputWaveform = ({
 
     // Minimum region width as a fraction — at least 3 seconds, capped at full duration
     const minRegion = originalBuffer ? Math.min(1, MIN_SECONDS / originalBuffer.duration) : 0.02;
-    const minRegionRef = useRef(minRegion);
-    useEffect(() => { minRegionRef.current = minRegion; });
+    const minRegionRef = useLatestRef(minRegion);
 
     // Track hover zone for overlay styling — only re-render when zone category changes
     const hoverZoneRef = useRef('outside');
@@ -51,11 +51,8 @@ const OutputWaveform = ({
     useOutputWaveformDrawer(canvasRef, outputData, outputMipmaps, regionStart, regionEnd, markers);
 
     // ── Stable refs so touch effect (registered once) always gets fresh values ──
-    const regionRef = useRef({ start: regionStart, end: regionEnd });
-    useEffect(() => { regionRef.current = { start: regionStart, end: regionEnd }; });
-
-    const onRegionChangeRef = useRef(onRegionChange);
-    useEffect(() => { onRegionChangeRef.current = onRegionChange; });
+    const regionRef = useLatestRef({ start: regionStart, end: regionEnd });
+    const onRegionChangeRef = useLatestRef(onRegionChange);
 
     // ── Seek ──────────────────────────────────────────────────────────────────
     const handleSeek = useCallback((clientX) => {
@@ -78,8 +75,7 @@ const OutputWaveform = ({
         }
     }, [originalBuffer, startOffsetRef, playingTypeRef, playBufferRef, outputPlayheadRef]);
 
-    const handleSeekRef = useRef(handleSeek);
-    useEffect(() => { handleSeekRef.current = handleSeek; });
+    const handleSeekRef = useLatestRef(handleSeek);
 
     // ── Hit zone ──────────────────────────────────────────────────────────────
     const getHitZone = useCallback((clientX) => {
@@ -96,8 +92,7 @@ const OutputWaveform = ({
         return 'outside';
     }, [regionStart, regionEnd]);
 
-    const getHitZoneRef = useRef(getHitZone);
-    useEffect(() => { getHitZoneRef.current = getHitZone; });
+    const getHitZoneRef = useLatestRef(getHitZone);
 
     // ── Shared drag update (used by both mouse and touch move) ────────────────
     const applyDrag = (clientX) => {

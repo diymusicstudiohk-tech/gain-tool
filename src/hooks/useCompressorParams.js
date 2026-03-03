@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { loadParamsFromStorage } from '../utils/storage';
+import useLatestRef from './useLatestRef';
 
 const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, meterStateRef }) => {
     const [inputGain, setInputGain] = useState(0);
@@ -12,10 +13,7 @@ const useCompressorParams = ({ onModeSwitchRef, lastPlayedTypeRef, logAction, me
         inputGain, outputGain,
     }), [inputGain, outputGain]);
 
-    const paramsRef = useRef({ ...currentParams });
-    useEffect(() => {
-        paramsRef.current = { ...currentParams };
-    }, [currentParams]);
+    const paramsRef = useLatestRef(currentParams);
 
     // Load from localStorage on mount
     useEffect(() => {

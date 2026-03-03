@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createRealTimeCompressor } from '../utils/dsp';
+import useStateRef from './useStateRef';
 
 const usePlayback = ({
     audioContext, originalBuffer, currentParams, paramsRef,
@@ -10,14 +11,8 @@ const usePlayback = ({
     workletReady,
     markersRef, markers,
 }) => {
-    const [playingType, setPlayingType] = useState('none');
-    const [lastPlayedType, setLastPlayedType] = useState('processed');
-
-    const playingTypeRef = useRef(playingType);
-    const lastPlayedTypeRef = useRef(lastPlayedType);
-
-    useEffect(() => { playingTypeRef.current = playingType; }, [playingType]);
-    useEffect(() => { lastPlayedTypeRef.current = lastPlayedType; }, [lastPlayedType]);
+    const [playingType, setPlayingType, playingTypeRef] = useStateRef('none');
+    const [lastPlayedType, setLastPlayedType, lastPlayedTypeRef] = useStateRef('processed');
 
     const isDryMode = lastPlayedType === 'original';
 

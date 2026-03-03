@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { drawMainWaveform } from '../components/visualizer/Waveform';
 import { drawDualMeter, drawInputMeter } from '../components/visualizer/Meters';
+import useLatestRef from './useLatestRef';
 
 const useVisualizerLoop = ({
     audioContext,
@@ -43,10 +44,8 @@ const useVisualizerLoop = ({
     const waveformFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
     const lastDrawParamsRef = useRef(null);
-    const visualResultRef = useRef(visualResult);
-    useEffect(() => { visualResultRef.current = visualResult; }, [visualResult]);
-    const mipmapsRef = useRef(mipmaps);
-    useEffect(() => { mipmapsRef.current = mipmaps; }, [mipmaps]);
+    const visualResultRef = useLatestRef(visualResult);
+    const mipmapsRef = useLatestRef(mipmaps);
 
     const interactionDPR = null;
 

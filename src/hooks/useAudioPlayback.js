@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createRealTimeCompressor } from '../utils/dsp';
+import useStateRef from './useStateRef';
 
 export const useAudioPlayback = ({
     audioContext,
@@ -27,14 +28,8 @@ export const useAudioPlayback = ({
     setErrorMsg,
     logAction
 }) => {
-    const [playingType, setPlayingType] = useState('none');
-    const [lastPlayedType, setLastPlayedType] = useState('original');
-
-    // Refs for Event Listeners (Prevent Stale Closures)
-    const playingTypeRef = useRef(playingType);
-    const lastPlayedTypeRef = useRef(lastPlayedType);
-    useEffect(() => { playingTypeRef.current = playingType; }, [playingType]);
-    useEffect(() => { lastPlayedTypeRef.current = lastPlayedType; }, [lastPlayedType]);
+    const [playingType, setPlayingType, playingTypeRef] = useStateRef('none');
+    const [lastPlayedType, setLastPlayedType, lastPlayedTypeRef] = useStateRef('original');
 
     // Sync Delta Mode
     useEffect(() => {
