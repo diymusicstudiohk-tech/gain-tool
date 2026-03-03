@@ -122,22 +122,26 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
             if (undoX > -DELETE_BTN_SIZE && undoX < width + DELETE_BTN_SIZE) {
                 drawRoundedBtn(ctx, undoX, undoY, isUndoHovered ? GOLD_LIGHT : GOLD);
 
-                // White curved undo arrow (↺)
+                // Bold undo arrow with filled arrowhead
                 const ucx = undoX + DELETE_BTN_SIZE / 2;
                 const ucy = undoY + DELETE_BTN_SIZE / 2;
+                const r = 5;
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(ucx, ucy, 4, -Math.PI * 0.8, Math.PI * 0.5);
+                ctx.arc(ucx, ucy, r, -Math.PI * 0.75, Math.PI * 0.55);
                 ctx.stroke();
-                // Arrowhead
-                const tipX = ucx + 4 * Math.cos(Math.PI * 0.5);
-                const tipY = ucy + 4 * Math.sin(Math.PI * 0.5);
+                // Filled arrowhead
+                const tipAngle = Math.PI * 0.55;
+                const tipX = ucx + r * Math.cos(tipAngle);
+                const tipY = ucy + r * Math.sin(tipAngle);
+                ctx.fillStyle = '#fff';
                 ctx.beginPath();
-                ctx.moveTo(tipX - 3, tipY - 1);
-                ctx.lineTo(tipX, tipY);
-                ctx.lineTo(tipX + 3, tipY - 1);
-                ctx.stroke();
+                ctx.moveTo(tipX - 4, tipY - 2);
+                ctx.lineTo(tipX + 1, tipY + 3);
+                ctx.lineTo(tipX + 2, tipY - 3);
+                ctx.closePath();
+                ctx.fill();
             }
         }
     }
