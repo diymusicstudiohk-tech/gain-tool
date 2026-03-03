@@ -16,6 +16,7 @@ import useVisualizerLoop from './hooks/useVisualizerLoop';
 import usePlayback from './hooks/usePlayback';
 import useAudioEngine from './hooks/useAudioEngine';
 import useWaveformInteraction from './hooks/useWaveformInteraction';
+import useMarkers from './hooks/useMarkers';
 
 const App = () => {
     // --- Core State (shared between hooks) ---
@@ -101,9 +102,10 @@ const App = () => {
     useEffect(() => { regionStartRef.current = regionStart; }, [regionStart]);
     useEffect(() => { regionEndRef.current = regionEnd; }, [regionEnd]);
 
-    // When a new audio file loads, default region to 5-second window centred at midpoint
+    // When a new audio file loads, default region to 5-second window centred at midpoint + clear markers
     useEffect(() => {
         if (!originalBuffer) return;
+        markerHook.clearAll();
         const D = originalBuffer.duration;
         if (D <= 5) {
             setRegionStart(0);
@@ -113,7 +115,7 @@ const App = () => {
             setRegionStart(0.5 - half);
             setRegionEnd(0.5 + half);
         }
-    }, [originalBuffer]);
+    }, [originalBuffer]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Sync region fractions → zoomX + panOffset (in pixels)
     useEffect(() => {
@@ -166,7 +168,10 @@ const App = () => {
         logAction,
     });
 
-    // --- 6. Waveform Interaction ---
+    // --- 6a. Markers ---
+    const markerHook = useMarkers();
+
+    // --- 6b. Waveform Interaction ---
     const waveform = useWaveformInteraction({
         waveformCanvasRef, containerRef, originalBuffer,
         isDraggingKnobRef,
@@ -174,6 +179,10 @@ const App = () => {
         playheadRef, outputPlayheadRef,
         zoomX: view.zoomX, panOffset: view.panOffset,
         isPlayingRef,
+        markersRef: markerHook.markersRef,
+        addMarker: markerHook.addMarker,
+        removeMarker: markerHook.removeMarker,
+        updateMarkerEdge: markerHook.updateMarkerEdge,
     });
 
     // --- 7. DSP Processing ---
@@ -210,6 +219,9 @@ const App = () => {
         outputPlayheadRef,
         regionStartRef, regionEndRef,
         hoveredMeterRef,
+        markersRef: markerHook.markersRef,
+        hoveredMarkerInfoRef: waveform.hoveredMarkerInfoRef,
+        draggingMarkerRef: waveform.draggingMarkerRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)

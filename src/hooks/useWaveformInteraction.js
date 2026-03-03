@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { getMarkerHitZone } from '../utils/canvasMarkers';
 
 const useWaveformInteraction = ({
     waveformCanvasRef, containerRef, originalBuffer,
@@ -7,6 +8,7 @@ const useWaveformInteraction = ({
     playheadRef, outputPlayheadRef,
     zoomX, panOffset,
     isPlayingRef,
+    markersRef, addMarker, removeMarker, updateMarkerEdge,
 }) => {
     const [mousePos, setMousePos] = useState({ x: -1, y: -1 });
     const mousePosRef = useRef({ x: -1, y: -1 });
@@ -14,6 +16,10 @@ const useWaveformInteraction = ({
 
     const isDraggingRef = useRef(false);
     const touchStartHandlerRef = useRef(null);
+
+    // Marker interaction refs
+    const draggingMarkerRef = useRef(null); // { id, edge: 'left'|'right', startClientX, startFrac }
+    const hoveredMarkerInfoRef = useRef(null); // { markerId, zone }
 
     const handleSeekOnWaveform = useCallback((clientX) => {
         if (!waveformCanvasRef.current || !originalBuffer) return;
@@ -47,8 +53,53 @@ const useWaveformInteraction = ({
 
     const handleWaveformMouseDown = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
+
+        const rect = waveformCanvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const relX = e.clientX - rect.left;
+        const relY = e.clientY - rect.top;
+        const width = rect.width;
+
+        // Check marker hit zones
+        const markers = markersRef?.current;
+        if (markers && markers.length > 0) {
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            if (hit) {
+                if (hit.zone === 'delete') {
+                    removeMarker?.(hit.markerId);
+                    return;
+                }
+                if (hit.zone === 'left' || hit.zone === 'right') {
+                    // Start edge drag
+                    const marker = markers.find(m => m.id === hit.markerId);
+                    if (marker) {
+                        draggingMarkerRef.current = {
+                            id: hit.markerId,
+                            edge: hit.zone,
+                            startClientX: e.clientX,
+                            startFrac: hit.zone === 'left' ? marker.startFrac : marker.endFrac,
+                        };
+                    }
+                    return;
+                }
+                if (hit.zone === 'body') {
+                    // Inside existing marker — do nothing (no seek, no new marker)
+                    return;
+                }
+            }
+        }
+
+        // Empty space — try to add marker, then seek
+        if (addMarker) {
+            const vX = relX - panOffset;
+            const clickFrac = vX / (width * zoomX);
+            if (clickFrac >= 0 && clickFrac <= 1) {
+                addMarker(clickFrac, zoomX, width);
+            }
+        }
         handleSeekOnWaveform(e.clientX);
-    }, [originalBuffer, isDraggingKnobRef, handleSeekOnWaveform]);
+    }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
+        markersRef, addMarker, removeMarker, handleSeekOnWaveform]);
 
     const handleWaveformTouchStart = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -77,6 +128,7 @@ const useWaveformInteraction = ({
     }, [containerRef]);
 
     const handleLocalMouseMove = useCallback((e) => {
+        if (draggingMarkerRef.current) return; // edge drag handled by window listener
         if (isDraggingRef.current) return;
         if (isDraggingKnobRef.current || !waveformCanvasRef.current) return;
 
@@ -89,19 +141,75 @@ const useWaveformInteraction = ({
             setMousePos({ x: relX, y: relY });
         }
 
+        // Marker hit detection for cursor
+        const markers = markersRef?.current;
+        if (markers && markers.length > 0) {
+            const width = rect.width;
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            hoveredMarkerInfoRef.current = hit;
+            if (hit) {
+                if (containerRef.current) {
+                    if (hit.zone === 'left' || hit.zone === 'right') {
+                        containerRef.current.style.cursor = 'ew-resize';
+                    } else if (hit.zone === 'delete') {
+                        containerRef.current.style.cursor = 'pointer';
+                    } else {
+                        containerRef.current.style.cursor = 'default';
+                    }
+                }
+                return;
+            }
+        } else {
+            hoveredMarkerInfoRef.current = null;
+        }
+
         if (containerRef.current) containerRef.current.style.cursor = 'crosshair';
-    }, [isDraggingKnobRef, waveformCanvasRef, containerRef, isPlayingRef]);
+    }, [isDraggingKnobRef, waveformCanvasRef, containerRef, isPlayingRef, markersRef, zoomX, panOffset]);
 
     const handleMouseLeave = useCallback(() => {
         mousePosRef.current = { x: -1, y: -1 };
         setMousePos({ x: -1, y: -1 });
+        hoveredMarkerInfoRef.current = null;
         if (containerRef.current) containerRef.current.style.cursor = 'crosshair';
     }, [containerRef]);
+
+    // Window-level mousemove/mouseup for edge dragging
+    useEffect(() => {
+        const handleWindowMouseMove = (e) => {
+            const drag = draggingMarkerRef.current;
+            if (!drag) return;
+            if (!waveformCanvasRef.current) return;
+
+            const rect = waveformCanvasRef.current.getBoundingClientRect();
+            const width = rect.width;
+            const totalPx = width * zoomX;
+            if (totalPx <= 0) return;
+
+            const dx = e.clientX - drag.startClientX;
+            const fracDelta = dx / totalPx;
+            const newFrac = drag.startFrac + fracDelta;
+
+            updateMarkerEdge?.(drag.id, drag.edge, newFrac, zoomX, width);
+        };
+
+        const handleWindowMouseUp = () => {
+            draggingMarkerRef.current = null;
+        };
+
+        window.addEventListener('mousemove', handleWindowMouseMove);
+        window.addEventListener('mouseup', handleWindowMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', handleWindowMouseMove);
+            window.removeEventListener('mouseup', handleWindowMouseUp);
+        };
+    }, [waveformCanvasRef, zoomX, updateMarkerEdge]);
 
     return {
         mousePos, mousePosRef,
         isKnobDragging, setIsKnobDragging,
         isDraggingRef,
+        hoveredMarkerInfoRef,
+        draggingMarkerRef,
         handleWaveformMouseDown, handleLocalMouseMove, handleMouseLeave,
     };
 };

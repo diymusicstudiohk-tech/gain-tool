@@ -34,6 +34,9 @@ const useVisualizerLoop = ({
     regionStartRef,
     regionEndRef,
     hoveredMeterRef,
+    markersRef,
+    hoveredMarkerInfoRef,
+    draggingMarkerRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
@@ -149,7 +152,12 @@ const useVisualizerLoop = ({
 
             if (waveformFrameRef.current === 0 || isHovering) {
                 let shouldDraw = true;
-                const cur = [canvasDims.width, canvasDims.height, liveZoomX, zoomY, livePanOffset, panOffsetY, playingType, lastPlayedType, liveMousePos.x, liveMousePos.y];
+                const liveMarkerCount = markersRef?.current?.length ?? 0;
+                const liveHoveredMarker = hoveredMarkerInfoRef?.current;
+                const liveHoveredMId = liveHoveredMarker ? liveHoveredMarker.markerId : '';
+                const liveHoveredMZone = liveHoveredMarker ? liveHoveredMarker.zone : '';
+                const liveDragging = draggingMarkerRef?.current ? 1 : 0;
+                const cur = [canvasDims.width, canvasDims.height, liveZoomX, zoomY, livePanOffset, panOffsetY, playingType, lastPlayedType, liveMousePos.x, liveMousePos.y, liveMarkerCount, liveHoveredMId, liveHoveredMZone, liveDragging];
                 const prev = lastDrawParamsRef.current;
                 if (prev && prev.length === cur.length) {
                     shouldDraw = false;
@@ -171,6 +179,9 @@ const useVisualizerLoop = ({
                         mipmaps: liveMipmaps,
                         waveformCacheRef,
                         interactionDPR,
+                        markers: markersRef?.current,
+                        hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
+                        isMarkerDragging: !!draggingMarkerRef?.current,
                     });
                 }
             }
@@ -211,6 +222,9 @@ const useVisualizerLoop = ({
                 mipmaps,
                 waveformCacheRef,
                 interactionDPR,
+                markers: markersRef?.current,
+                hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
+                isMarkerDragging: !!draggingMarkerRef?.current,
             });
         }
 

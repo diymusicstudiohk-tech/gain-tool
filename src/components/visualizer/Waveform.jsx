@@ -9,6 +9,7 @@ import { drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { drawDbGrid } from '../../utils/canvasGrid';
 import { computeWaveformPoints } from '../../utils/waveformData';
 import { drawCrosshair, drawGainTooltip } from '../../utils/canvasOverlay';
+import { drawPlacedMarkers, drawMarkerHoverPreview } from '../../utils/canvasMarkers';
 import {
     TOOLTIP_OFFSET_X, TOOLTIP_HEIGHT, TOOLTIP_OFFSET_Y,
     LEGEND_HEIGHT, LEGEND_PAD_X, LEGEND_TEXT_BASELINE, LEGEND_BG,
@@ -24,6 +25,9 @@ export const drawMainWaveform = ({
     mipmaps,
     waveformCacheRef,
     interactionDPR,
+    markers,
+    hoveredMarkerInfo,
+    isMarkerDragging,
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -277,6 +281,16 @@ export const drawMainWaveform = ({
             ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
             ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
         }
+    }
+
+    // ── Placed Markers ──
+    if (markers && markers.length > 0) {
+        drawPlacedMarkers(ctx, markers, width, height, centerY, zoomX, panOffset, hoveredMarkerInfo);
+    }
+
+    // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
+    if (mousePos.x >= 0 && !hoveredMarkerInfo && !isMarkerDragging) {
+        drawMarkerHoverPreview(ctx, mousePos.x, width, height, centerY);
     }
 
     // ── Crosshair + Gain Tooltip ──
