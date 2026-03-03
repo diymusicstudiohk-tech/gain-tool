@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { selectMipmapLevel } from '../utils/mipmapCache';
+import { CLIP_BOOST, CLIP_CUT } from '../utils/colors';
 
 const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStart = 0, regionEnd = 1, markers = []) => {
     const dimsRef = useRef({ width: 0, height: 0 });
@@ -40,6 +41,7 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
         const markerRanges = (mkrs || []).map(m => ({
             leftPx: m.startFrac * width,
             rightPx: m.endFrac * width,
+            clipGainDb: m.clipGainDb || 0,
         }));
 
         let currentColor = '';
@@ -47,26 +49,28 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
             const inside = x >= regionLeftPx && x <= regionRightPx;
             let color;
             if (!inside) {
-                // Outside the region: white if covered by a marker, gold otherwise
-                let inMarkerOutside = false;
+                // Outside the region: colored by clip gain if covered by a marker, gold otherwise
+                let markerColor = null;
                 for (let m = 0; m < markerRanges.length; m++) {
                     if (x >= markerRanges[m].leftPx && x <= markerRanges[m].rightPx) {
-                        inMarkerOutside = true;
+                        const db = markerRanges[m].clipGainDb;
+                        markerColor = db > 0 ? CLIP_BOOST : db < 0 ? CLIP_CUT : WHITE;
                         break;
                     }
                 }
-                color = inMarkerOutside ? WHITE : GOLD;
+                color = markerColor || GOLD;
             } else if (markerRanges.length === 0) {
                 color = GRAY_WHITE;
             } else {
-                let inMarker = false;
+                let markerColor = null;
                 for (let m = 0; m < markerRanges.length; m++) {
                     if (x >= markerRanges[m].leftPx && x <= markerRanges[m].rightPx) {
-                        inMarker = true;
+                        const db = markerRanges[m].clipGainDb;
+                        markerColor = db > 0 ? CLIP_BOOST : db < 0 ? CLIP_CUT : WHITE;
                         break;
                     }
                 }
-                color = inMarker ? WHITE : GRAY_WHITE;
+                color = markerColor || GRAY_WHITE;
             }
             if (color !== currentColor) {
                 ctx.fillStyle = color;

@@ -14,3 +14,5 @@ export const INACTIVE = '#555';
 export const TEXT_DIM = '#666';
 export const TEXT_MID = '#888';
 export const CREST_GREEN = '#96CFAD';
+export const CLIP_BOOST = '#B2E2BA';
+export const CLIP_CUT = '#E79C93';

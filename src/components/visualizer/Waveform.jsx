@@ -4,6 +4,7 @@ import { displayAmp, linearFromDisplay, computeWaveformGeometry } from '../../ut
 import {
     HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM, GOLD, GOLD_LIGHT,
+    CLIP_BOOST, CLIP_CUT,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
@@ -193,7 +194,10 @@ export const drawMainWaveform = ({
                     ctx.beginPath();
                     ctx.rect(px1, 0, px2 - px1, height);
                     ctx.clip();
-                    drawPolygon(ctx, markerPts, '#ffffff', width, centerY, 1.0);
+                    const clipColor = (marker.clipGainDb || 0) > 0 ? CLIP_BOOST
+                                  : (marker.clipGainDb || 0) < 0 ? CLIP_CUT
+                                  : '#ffffff';
+                    drawPolygon(ctx, markerPts, clipColor, width, centerY, 1.0);
                     // Gold horizontal peak lines (draggable)
                     // 1. Always compute auto-snap from INPUT waveform (inPoints) to avoid feedback loop
                     let autoDisplayAmp = null;
