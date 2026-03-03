@@ -204,7 +204,7 @@ export const drawMainWaveform = ({
                         const isHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
                         if (isHovered) {
                             ctx.shadowColor = GOLD;
-                            ctx.shadowBlur = 10;
+                            ctx.shadowBlur = 25;
                         }
                         ctx.globalAlpha = 1.0;
                         ctx.strokeStyle = GOLD;
