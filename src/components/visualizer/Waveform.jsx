@@ -3,7 +3,7 @@ import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
 import {
     HOVER_RED, ORIGINAL_RED,
-    BG_PANEL, TEXT_DIM, GOLD,
+    BG_PANEL, TEXT_DIM, GOLD, GOLD_LIGHT,
 } from '../../utils/colors';
 import { drawPolygon, drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
 import { computeWaveformPoints } from '../../utils/waveformData';
@@ -217,20 +217,20 @@ export const drawMainWaveform = ({
                         if (peakLinesRef) {
                             peakLinesRef.current[marker.id] = { yTop: peakYTop, yBot: peakYBot, px1, px2 };
                         }
-                        const isHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
-                        const isPeakLineHovered = isHovered && hoveredMarkerInfo.zone === 'peakLine';
-                        if (isHovered || isPeakLineHovered) {
+                        const isMarkerHovered = hoveredMarkerInfo && hoveredMarkerInfo.markerId === marker.id;
+                        const isPeakLineHovered = isMarkerHovered && hoveredMarkerInfo.zone === 'peakLine';
+                        if (isMarkerHovered) {
                             ctx.shadowColor = GOLD;
-                            ctx.shadowBlur = 25;
+                            ctx.shadowBlur = isPeakLineHovered ? 35 : 25;
                         }
                         ctx.globalAlpha = 1.0;
-                        ctx.strokeStyle = GOLD;
-                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = isPeakLineHovered ? GOLD_LIGHT : GOLD;
+                        ctx.lineWidth = isPeakLineHovered ? 2.5 : 1;
                         ctx.beginPath();
                         ctx.moveTo(px1, peakYTop); ctx.lineTo(px2, peakYTop);
                         ctx.moveTo(px1, peakYBot); ctx.lineTo(px2, peakYBot);
                         ctx.stroke();
-                        if (isHovered || isPeakLineHovered) {
+                        if (isMarkerHovered) {
                             ctx.shadowColor = 'transparent';
                             ctx.shadowBlur = 0;
                         }
