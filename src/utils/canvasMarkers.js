@@ -82,9 +82,9 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY, snap
     if (x2 >= 0 && x2 <= width) { ctx.moveTo(x2, 0); ctx.lineTo(x2, height); }
     ctx.stroke();
 
-    // "+" block at top-right of preview pair (same style/size/position as delete button)
-    const btnX = Math.min(x2, width) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
-    const btnY = DELETE_BTN_MARGIN;
+    // "+" block at horizontal center, near bottom of preview pair
+    const btnX = (x1 + x2) / 2 - DELETE_BTN_SIZE / 2;
+    const btnY = height - DELETE_BTN_MARGIN - DELETE_BTN_SIZE;
     if (btnX > -DELETE_BTN_SIZE && btnX < width + DELETE_BTN_SIZE) {
         drawRoundedBtn(ctx, btnX, btnY, GOLD);
         // White "+" sign
