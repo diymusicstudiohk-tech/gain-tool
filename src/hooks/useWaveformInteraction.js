@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { getMarkerHitZone } from '../utils/canvasMarkers';
+import { getMarkerHitZone, DELETE_BTN_SIZE, DELETE_BTN_MARGIN } from '../utils/canvasMarkers';
 import { computeWaveformGeometry, linearFromDisplay } from '../utils/displayMath';
 
 const useWaveformInteraction = ({
@@ -63,11 +63,24 @@ const useWaveformInteraction = ({
         const relY = e.clientY - rect.top;
         const width = rect.width;
 
-        // Check peak line hit first
+        // Check peak line hit first (direct geometry check, not via hoveredMarkerInfoRef,
+        // so peak lines always win over overlapping buttons)
         const hovered = hoveredMarkerInfoRef.current;
         if (hovered && hovered.zone === 'peakLine') {
             draggingMarkerRef.current = { id: hovered.markerId, type: 'peakLine' };
             return;
+        }
+        const peakLines = peakLinesRef?.current;
+        if (peakLines) {
+            for (const markerId of Object.keys(peakLines)) {
+                const pl = peakLines[markerId];
+                if (relX >= pl.px1 && relX <= pl.px2) {
+                    if (Math.abs(relY - pl.yTop) <= 12 || Math.abs(relY - pl.yBot) <= 12) {
+                        draggingMarkerRef.current = { id: markerId, type: 'peakLine' };
+                        return;
+                    }
+                }
+            }
         }
 
         // Check marker hit zones
@@ -114,7 +127,7 @@ const useWaveformInteraction = ({
         }
         handleSeekOnWaveform(e.clientX);
     }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
-        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform]);
+        markersRef, addMarker, removeMarker, resetMarkerGain, handleSeekOnWaveform, peakLinesRef]);
 
     const handleWaveformTouchStart = useCallback((e) => {
         if (isDraggingKnobRef.current || !originalBuffer) return;
@@ -286,7 +299,10 @@ const useWaveformInteraction = ({
                 // Compute amplitude from mouse Y position
                 const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
                 if (ampScale <= 0) return;
-                const distFromCenter = Math.abs(relY - centerY);
+                // 5% padding from edge, with minimum to clear buttons
+                const padPx = Math.max(height * 0.05, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
+                const clampedY = Math.max(padPx, Math.min(height - padPx, relY));
+                const distFromCenter = Math.abs(clampedY - centerY);
                 let amp = distFromCenter / ampScale;
                 amp = Math.max(0, Math.min(1, amp));
                 updateMarkerPeakAmp?.(drag.id, amp);
@@ -341,7 +357,10 @@ const useWaveformInteraction = ({
             if (drag.type === 'peakLine') {
                 const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
                 if (ampScale <= 0) return;
-                const distFromCenter = Math.abs(relY - centerY);
+                // 5% padding from edge, with minimum to clear buttons
+                const padPx = Math.max(height * 0.05, DELETE_BTN_SIZE + DELETE_BTN_MARGIN * 2);
+                const clampedY = Math.max(padPx, Math.min(height - padPx, relY));
+                const distFromCenter = Math.abs(clampedY - centerY);
                 let amp = distFromCenter / ampScale;
                 amp = Math.max(0, Math.min(1, amp));
                 updateMarkerPeakAmp?.(drag.id, amp);
