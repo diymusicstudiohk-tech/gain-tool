@@ -210,10 +210,10 @@ export const drawMainWaveform = ({
                     if (marker.peakAmp != null) {
                         peakYTop = centerY - marker.peakAmp * ampScale;
                         peakYBot = centerY + marker.peakAmp * ampScale;
-                    } else if (regionPts.length > 0) {
-                        peakYTop = regionPts[0].yTop;
-                        peakYBot = regionPts[0].yBot;
-                        for (const p of regionPts) {
+                    } else if (regionInPts.length > 0) {
+                        peakYTop = regionInPts[0].yTop;
+                        peakYBot = regionInPts[0].yBot;
+                        for (const p of regionInPts) {
                             if (p.yTop < peakYTop) peakYTop = p.yTop;
                             if (p.yBot > peakYBot) peakYBot = p.yBot;
                         }
