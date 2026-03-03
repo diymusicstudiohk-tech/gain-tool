@@ -6,8 +6,23 @@ export const DELETE_BTN_SIZE = 16;
 export const DELETE_BTN_MARGIN = 4;
 export const DEFAULT_HALF_WIDTH_PX = 40;
 
-// Gold RGB for gradient construction
-const GOLD_R = 194, GOLD_G = 164, GOLD_B = 117; // #C2A475
+// Shared rounded button drawing
+const drawRoundedBtn = (ctx, bx, by, fillColor) => {
+    const btnR = 4;
+    ctx.fillStyle = fillColor;
+    ctx.beginPath();
+    ctx.moveTo(bx + btnR, by);
+    ctx.lineTo(bx + DELETE_BTN_SIZE - btnR, by);
+    ctx.quadraticCurveTo(bx + DELETE_BTN_SIZE, by, bx + DELETE_BTN_SIZE, by + btnR);
+    ctx.lineTo(bx + DELETE_BTN_SIZE, by + DELETE_BTN_SIZE - btnR);
+    ctx.quadraticCurveTo(bx + DELETE_BTN_SIZE, by + DELETE_BTN_SIZE, bx + DELETE_BTN_SIZE - btnR, by + DELETE_BTN_SIZE);
+    ctx.lineTo(bx + btnR, by + DELETE_BTN_SIZE);
+    ctx.quadraticCurveTo(bx, by + DELETE_BTN_SIZE, bx, by + DELETE_BTN_SIZE - btnR);
+    ctx.lineTo(bx, by + btnR);
+    ctx.quadraticCurveTo(bx, by, bx + btnR, by);
+    ctx.closePath();
+    ctx.fill();
+};
 
 /**
  * Draw hover preview: two gold vertical gradient lines ±40px from cursor,
@@ -18,38 +33,29 @@ export const drawMarkerHoverPreview = (ctx, mouseX, width, height, centerY) => {
     const x1 = mouseX - halfW;
     const x2 = mouseX + halfW;
 
-    // Vertical gradient: 5% at top/bottom edges, 60% at centerY baseline
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    const centerStop = Math.max(0, Math.min(1, centerY / height));
-    grad.addColorStop(0, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.05)`);
-    grad.addColorStop(centerStop, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.60)`);
-    grad.addColorStop(1, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.05)`);
-
-    ctx.strokeStyle = grad;
+    ctx.strokeStyle = GOLD;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     if (x1 >= 0 && x1 <= width) { ctx.moveTo(x1, 0); ctx.lineTo(x1, height); }
     if (x2 >= 0 && x2 <= width) { ctx.moveTo(x2, 0); ctx.lineTo(x2, height); }
     ctx.stroke();
 
-    // Gold rounded square block on baseline at cursor X
-    const blockSize = 12;
-    const bx = mouseX - blockSize / 2;
-    const by = centerY - blockSize / 2;
-    ctx.fillStyle = `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.7)`;
-    const r = 3;
-    ctx.beginPath();
-    ctx.moveTo(bx + r, by);
-    ctx.lineTo(bx + blockSize - r, by);
-    ctx.quadraticCurveTo(bx + blockSize, by, bx + blockSize, by + r);
-    ctx.lineTo(bx + blockSize, by + blockSize - r);
-    ctx.quadraticCurveTo(bx + blockSize, by + blockSize, bx + blockSize - r, by + blockSize);
-    ctx.lineTo(bx + r, by + blockSize);
-    ctx.quadraticCurveTo(bx, by + blockSize, bx, by + blockSize - r);
-    ctx.lineTo(bx, by + r);
-    ctx.quadraticCurveTo(bx, by, bx + r, by);
-    ctx.closePath();
-    ctx.fill();
+    // "+" block at top-right of preview pair (same style/size/position as delete button)
+    const btnX = Math.min(x2, width) - DELETE_BTN_SIZE - DELETE_BTN_MARGIN;
+    const btnY = DELETE_BTN_MARGIN;
+    if (btnX > -DELETE_BTN_SIZE && btnX < width + DELETE_BTN_SIZE) {
+        drawRoundedBtn(ctx, btnX, btnY, GOLD);
+        // White "+" sign
+        const cx = btnX + DELETE_BTN_SIZE / 2;
+        const cy = btnY + DELETE_BTN_SIZE / 2;
+        const pOff = 4;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx - pOff, cy); ctx.lineTo(cx + pOff, cy);
+        ctx.moveTo(cx, cy - pOff); ctx.lineTo(cx, cy + pOff);
+        ctx.stroke();
+    }
 };
 
 /**
@@ -66,18 +72,12 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
         const isHovered = hoveredInfo && hoveredInfo.markerId === marker.id;
         const hoveredZone = isHovered ? hoveredInfo.zone : null;
 
-        // Subtle gold fill between lines
-        ctx.fillStyle = `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.08)`;
+        // Gold fill between lines
+        ctx.fillStyle = GOLD;
         ctx.fillRect(Math.max(0, x1), 0, Math.min(width, x2) - Math.max(0, x1), height);
 
-        // Vertical gradient for edge lines: 5% edges, 90% at center
-        const grad = ctx.createLinearGradient(0, 0, 0, height);
-        const centerStop = Math.max(0, Math.min(1, centerY / height));
-        grad.addColorStop(0, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.05)`);
-        grad.addColorStop(centerStop, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.90)`);
-        grad.addColorStop(1, `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.05)`);
-
-        ctx.strokeStyle = grad;
+        // Vertical gold edge lines
+        ctx.strokeStyle = GOLD;
 
         // Left edge line
         ctx.lineWidth = hoveredZone === 'left' ? 2.5 : 1.5;
@@ -98,22 +98,7 @@ export const drawPlacedMarkers = (ctx, markers, width, height, centerY, zoomX, p
 
         // Only draw if visible
         if (btnX > -DELETE_BTN_SIZE && btnX < width + DELETE_BTN_SIZE) {
-            const btnR = 4;
-            ctx.fillStyle = isDeleteHovered
-                ? `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.9)`
-                : `rgba(${GOLD_R}, ${GOLD_G}, ${GOLD_B}, 0.5)`;
-            ctx.beginPath();
-            ctx.moveTo(btnX + btnR, btnY);
-            ctx.lineTo(btnX + DELETE_BTN_SIZE - btnR, btnY);
-            ctx.quadraticCurveTo(btnX + DELETE_BTN_SIZE, btnY, btnX + DELETE_BTN_SIZE, btnY + btnR);
-            ctx.lineTo(btnX + DELETE_BTN_SIZE, btnY + DELETE_BTN_SIZE - btnR);
-            ctx.quadraticCurveTo(btnX + DELETE_BTN_SIZE, btnY + DELETE_BTN_SIZE, btnX + DELETE_BTN_SIZE - btnR, btnY + DELETE_BTN_SIZE);
-            ctx.lineTo(btnX + btnR, btnY + DELETE_BTN_SIZE);
-            ctx.quadraticCurveTo(btnX, btnY + DELETE_BTN_SIZE, btnX, btnY + DELETE_BTN_SIZE - btnR);
-            ctx.lineTo(btnX, btnY + btnR);
-            ctx.quadraticCurveTo(btnX, btnY, btnX + btnR, btnY);
-            ctx.closePath();
-            ctx.fill();
+            drawRoundedBtn(ctx, btnX, btnY, isDeleteHovered ? GOLD_LIGHT : GOLD);
 
             // White "x"
             const cx = btnX + DELETE_BTN_SIZE / 2;
