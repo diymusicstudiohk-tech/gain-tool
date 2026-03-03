@@ -85,7 +85,7 @@ export const drawDualMeter = (canvas, outPeak, outRms, meterState, hoveredMeter 
         if (meterState.holdPeakLevel > 0.01) { const dbVal = meterState.holdPeakLevel < 0.999 ? 20 * Math.log10(meterState.holdPeakLevel) : 0; const outLabelY = centerY - outHoldDist - 6 * s; ctx.fillStyle = outColor; ctx.fillText(dbVal.toFixed(1), centerX, outLabelY < 10 * s ? centerY - outHoldDist + 14 * s : outLabelY); }
     }
 
-    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif';
+    ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.max(7, Math.round(10 * s)) + 'px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText("Out", centerX, 12 * s);
 };
 
