@@ -119,13 +119,65 @@ const useWaveformInteraction = ({
         const clientX = e.touches[0].clientX;
         const clientY = e.touches[0].clientY;
 
-        if (waveformCanvasRef.current) {
-            const rect = waveformCanvasRef.current.getBoundingClientRect();
-            setMousePos({ x: clientX - rect.left, y: clientY - rect.top });
+        const rect = waveformCanvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const relX = clientX - rect.left;
+        const relY = clientY - rect.top;
+        const width = rect.width;
+
+        mousePosRef.current = { x: relX, y: relY };
+        setMousePos({ x: relX, y: relY });
+
+        // Check peak line hit first
+        const peakLines = peakLinesRef?.current;
+        if (peakLines) {
+            for (const markerId of Object.keys(peakLines)) {
+                const pl = peakLines[markerId];
+                if (relX >= pl.px1 && relX <= pl.px2) {
+                    if (Math.abs(relY - pl.yTop) <= 12 || Math.abs(relY - pl.yBot) <= 12) {
+                        draggingMarkerRef.current = { id: markerId, type: 'peakLine' };
+                        return;
+                    }
+                }
+            }
         }
 
+        // Check marker hit zones
+        const markers = markersRef?.current;
+        if (markers && markers.length > 0) {
+            const hit = getMarkerHitZone(relX, relY, markers, zoomX, panOffset, width);
+            if (hit) {
+                if (hit.zone === 'delete') {
+                    removeMarker?.(hit.markerId);
+                    return;
+                }
+                if (hit.zone === 'left' || hit.zone === 'right') {
+                    const marker = markers.find(m => m.id === hit.markerId);
+                    if (marker) {
+                        draggingMarkerRef.current = {
+                            id: hit.markerId,
+                            edge: hit.zone,
+                            startClientX: clientX,
+                            startFrac: hit.zone === 'left' ? marker.startFrac : marker.endFrac,
+                        };
+                    }
+                    return;
+                }
+                if (hit.zone === 'body') return;
+            }
+        }
+
+        // Empty space — add marker, then seek
+        if (addMarker) {
+            const vX = relX - panOffset;
+            const clickFrac = vX / (width * zoomX);
+            if (clickFrac >= 0 && clickFrac <= 1) {
+                addMarker(clickFrac, zoomX, width);
+            }
+        }
         handleSeekOnWaveform(clientX);
-    }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, handleSeekOnWaveform]);
+    }, [originalBuffer, isDraggingKnobRef, waveformCanvasRef, zoomX, panOffset,
+        markersRef, addMarker, removeMarker, handleSeekOnWaveform, peakLinesRef]);
 
     touchStartHandlerRef.current = handleWaveformTouchStart;
 
@@ -255,11 +307,69 @@ const useWaveformInteraction = ({
             draggingMarkerRef.current = null;
         };
 
+        const handleWindowTouchMove = (e) => {
+            const drag = draggingMarkerRef.current;
+            if (!drag) return;
+            if (!waveformCanvasRef.current) return;
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+
+            const clientX = e.touches[0].clientX;
+            const clientY = e.touches[0].clientY;
+            const rect = waveformCanvasRef.current.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            const relX = clientX - rect.left;
+            const relY = clientY - rect.top;
+            mousePosRef.current = { x: relX, y: relY };
+            if (!isPlayingRef.current) {
+                setMousePos({ x: relX, y: relY });
+            }
+
+            if (drag.type === 'peakLine') {
+                const { centerY, ampScale } = computeWaveformGeometry(height, zoomY, panOffsetY);
+                if (ampScale <= 0) return;
+                const distFromCenter = Math.abs(relY - centerY);
+                let amp = distFromCenter / ampScale;
+                amp = Math.max(0, Math.min(1, amp));
+                updateMarkerPeakAmp?.(drag.id, amp);
+
+                const peakLine = peakLinesRef?.current?.[drag.id];
+                if (peakLine && peakLine.autoDisplayAmp != null && peakLine.autoDisplayAmp > 0) {
+                    const currentLinear = linearFromDisplay(amp);
+                    const autoLinear = linearFromDisplay(peakLine.autoDisplayAmp);
+                    if (autoLinear > 0) {
+                        const dB = 20 * Math.log10(currentLinear / autoLinear);
+                        updateMarkerClipGain?.(drag.id, dB);
+                    }
+                }
+                return;
+            }
+
+            const totalPx = width * zoomX;
+            if (totalPx <= 0) return;
+
+            const dx = clientX - drag.startClientX;
+            const fracDelta = dx / totalPx;
+            const newFrac = drag.startFrac + fracDelta;
+
+            updateMarkerEdge?.(drag.id, drag.edge, newFrac, zoomX, width);
+        };
+
+        const handleWindowTouchEnd = () => {
+            draggingMarkerRef.current = null;
+        };
+
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
+        window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+        window.addEventListener('touchend', handleWindowTouchEnd);
         return () => {
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
+            window.removeEventListener('touchmove', handleWindowTouchMove);
+            window.removeEventListener('touchend', handleWindowTouchEnd);
         };
     }, [waveformCanvasRef, zoomX, zoomY, panOffsetY, updateMarkerEdge, updateMarkerPeakAmp, updateMarkerClipGain, isPlayingRef, peakLinesRef]);
 
