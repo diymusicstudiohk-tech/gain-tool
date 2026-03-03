@@ -363,6 +363,7 @@ const App = () => {
                 onRegionChange={handleRegionChange}
                 isLoading={engine.isLoading}
                 loadingMessage={engine.loadingMessage}
+                markers={markerHook.markers}
             />
 
             <ControlHud

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { selectMipmapLevel } from '../utils/mipmapCache';
 
-const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStart = 0, regionEnd = 1) => {
+const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStart = 0, regionEnd = 1, markers = []) => {
     const dimsRef = useRef({ width: 0, height: 0 });
 
-    const drawOutputWaveform = useCallback((canvas, data, levels, rStart, rEnd) => {
+    const drawOutputWaveform = useCallback((canvas, data, levels, rStart, rEnd, mkrs) => {
         if (!canvas || !data || data.length === 0) return;
         const ctx = canvas.getContext('2d');
         const { width, height } = dimsRef.current;
@@ -26,6 +26,7 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
 
         const GOLD = '#9C845E';
         const WHITE = '#ffffff';
+        const GRAY_WHITE = 'rgba(255, 255, 255, 0.45)';
 
         // Precompute region pixel boundaries
         const regionLeftPx = (rStart != null ? rStart : 0) * width;
@@ -35,10 +36,30 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
         const useMipmaps = levels && levels.length > 1;
         const mm = useMipmaps ? selectMipmapLevel(levels, step) : null;
 
+        // Precompute marker pixel boundaries for hit testing
+        const markerRanges = (mkrs || []).map(m => ({
+            leftPx: m.startFrac * width,
+            rightPx: m.endFrac * width,
+        }));
+
         let currentColor = '';
         for (let x = 0; x < width; x++) {
             const inside = x >= regionLeftPx && x <= regionRightPx;
-            const color = inside ? WHITE : GOLD;
+            let color;
+            if (!inside) {
+                color = GOLD;
+            } else if (markerRanges.length === 0) {
+                color = GRAY_WHITE;
+            } else {
+                let inMarker = false;
+                for (let m = 0; m < markerRanges.length; m++) {
+                    if (x >= markerRanges[m].leftPx && x <= markerRanges[m].rightPx) {
+                        inMarker = true;
+                        break;
+                    }
+                }
+                color = inMarker ? WHITE : GRAY_WHITE;
+            }
             if (color !== currentColor) {
                 ctx.fillStyle = color;
                 currentColor = color;
@@ -96,13 +117,13 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
                 dimsRef.current = { width, height };
-                drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd);
+                drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd, markers);
             }
         });
 
         observer.observe(container);
         return () => observer.disconnect();
-    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, drawOutputWaveform]);
+    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, markers, drawOutputWaveform]);
 
     // Redraw when data changes
     useEffect(() => {
@@ -118,8 +139,8 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
             }
         }
 
-        drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd);
-    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, drawOutputWaveform]);
+        drawOutputWaveform(canvas, outputData, mipmapLevels, regionStart, regionEnd, markers);
+    }, [canvasRef, outputData, mipmapLevels, regionStart, regionEnd, markers, drawOutputWaveform]);
 
     return { dimsRef };
 };
