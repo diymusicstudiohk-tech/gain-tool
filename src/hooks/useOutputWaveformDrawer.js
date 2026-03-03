@@ -47,7 +47,15 @@ const useOutputWaveformDrawer = (canvasRef, outputData, mipmapLevels, regionStar
             const inside = x >= regionLeftPx && x <= regionRightPx;
             let color;
             if (!inside) {
-                color = WHITE;
+                // Outside the region: white if covered by a marker, gold otherwise
+                let inMarkerOutside = false;
+                for (let m = 0; m < markerRanges.length; m++) {
+                    if (x >= markerRanges[m].leftPx && x <= markerRanges[m].rightPx) {
+                        inMarkerOutside = true;
+                        break;
+                    }
+                }
+                color = inMarkerOutside ? WHITE : GOLD;
             } else if (markerRanges.length === 0) {
                 color = GRAY_WHITE;
             } else {
