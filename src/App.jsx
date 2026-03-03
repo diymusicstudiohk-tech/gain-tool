@@ -171,9 +171,7 @@ const App = () => {
         setLastPlayedType: playback.setLastPlayedType,
         currentParams: comp.currentParams,
         logAction,
-        exportBitDepth: comp.exportBitDepth,
         markersRef: markerHook.markersRef,
-        normalizeOnLoad: comp.normalizeOnLoad,
     });
 
     // --- 6. Waveform Interaction ---
@@ -316,10 +314,6 @@ const App = () => {
                 stopAudio={playback.stopAudio}
                 tooltipsOff={tooltipsOff}
                 setTooltipsOff={handleSetTooltipsOff}
-                exportBitDepth={comp.exportBitDepth}
-                setExportBitDepth={comp.setExportBitDepth}
-                normalizeOnLoad={comp.normalizeOnLoad}
-                setNormalizeOnLoad={comp.setNormalizeOnLoad}
             />
 
             <div className="flex-1 flex min-h-0 relative z-0 gap-2 px-3">

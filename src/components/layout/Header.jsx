@@ -21,7 +21,7 @@ const CUSTOM_ALLOWED_MIME_TYPES = [
     'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
 ];
 
-const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff, exportBitDepth, setExportBitDepth, normalizeOnLoad, setNormalizeOnLoad }) => {
+const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, tooltipsOff, setTooltipsOff }) => {
     const {
         fileName, currentSourceId, lastPracticeSourceId,
         handleFileUpload, clearUserUpload, restoreUserUpload, switchToPractice,
@@ -464,39 +464,6 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
                         <ChevronRight size={16} />
                     </button>
                 </div>
-
-                {/* Normalize toggle */}
-                <button
-                    onClick={() => setNormalizeOnLoad(!normalizeOnLoad)}
-                    disabled={isLoading || !currentSourceId}
-                    className={`tooltip-below w-8 self-stretch flex items-center justify-center rounded-md text-sm font-bold transition-all duration-300 border-2
-                        ${!currentSourceId || isLoading
-                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : normalizeOnLoad
-                                ? 'bg-green border-green text-white opacity-100 hover:brightness-110'
-                                : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100 hover:scale-105'
-                        }`}
-                    data-tooltip={normalizeOnLoad ? "自動正規化已開啟（點擊關閉）" : "自動正規化已關閉（點擊開啟）"}
-                >
-                    <span className="text-xs font-bold relative z-10">N</span>
-                </button>
-
-                {/* Bit-depth selector */}
-                <select
-                    value={exportBitDepth}
-                    onChange={(e) => setExportBitDepth(Number(e.target.value))}
-                    disabled={isLoading || !currentSourceId}
-                    className={`tooltip-below self-stretch rounded-md text-xs font-bold transition-all duration-300 border-2 px-1 appearance-none text-center
-                        ${!currentSourceId || isLoading
-                            ? 'bg-transparent border-transparent text-gray-600 opacity-30 cursor-not-allowed'
-                            : 'bg-panel border-white text-white opacity-80 hover:bg-white/20 hover:border-white hover:text-white hover:opacity-100'
-                        }`}
-                    data-tooltip="匯出位元深度"
-                >
-                    <option value={32} className="bg-black text-white">32f</option>
-                    <option value={24} className="bg-black text-white">24</option>
-                    <option value={16} className="bg-black text-white">16</option>
-                </select>
 
                 {/* Download processed audio button */}
                 <button
