@@ -2,7 +2,7 @@ import React from 'react';
 import { selectMipmapLevel } from '../../utils/mipmapCache';
 import { displayAmp, computeWaveformGeometry } from '../../utils/displayMath';
 import {
-    BRICK_RED, HOVER_RED, ORIGINAL_RED,
+    HOVER_RED, ORIGINAL_RED,
     BG_PANEL, TEXT_DIM,
 } from '../../utils/colors';
 import { drawPolygonWithPeakFade } from '../../utils/canvasPolygons';
@@ -73,7 +73,6 @@ export const drawMainWaveform = ({
             // Draw Polygons
             if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else {
-                drawPolygonWithPeakFade(ctx, inPoints, BRICK_RED, width, centerY, 0.5);
                 drawPolygonWithPeakFade(ctx, outPoints, '#ffffff', width, centerY, 0.65, 0.2);
             }
 
@@ -103,112 +102,6 @@ export const drawMainWaveform = ({
     const useMipmaps = mipmaps && mipmaps.input && mipmaps.output;
     const mipmapBias = interactionDPR ? 1 : 0;
     const mmInput = useMipmaps ? selectMipmapLevel(mipmaps.input, step, mipmapBias) : null;
-    const mmOutput = useMipmaps ? selectMipmapLevel(mipmaps.output, step, mipmapBias) : null;
-
-    // Mouse hover inspection
-    if (mousePos.x >= 0 && lastPlayedType === 'processed') {
-        let isHoveringOnOutput = false;
-        let isHoveringOnBrickRed = false;
-        const srcOutput = visualResult.outputData;
-        const srcInput = visualResult.visualInput;
-
-        const hvX = mousePos.x - panOffset;
-        const hStart = Math.floor(hvX * step);
-        const hEnd = Math.min(Math.floor((hvX + 1) * step), srcLength);
-        if (hStart >= 0 && hStart < srcLength) {
-            let maxOut = 0;
-            let maxIn = 0;
-            if (useMipmaps && mmOutput) {
-                const oLv = mmOutput.level; const oBs = mmOutput.blockSize;
-                const oS = Math.floor(hStart / oBs); const oE = Math.ceil(hEnd / oBs);
-                for (let i = oS; i < oE && i < oLv.length; i++) { const a = Math.abs(oLv[i]); if (a > maxOut) maxOut = a; }
-            } else {
-                for (let i = hStart; i < hEnd; i++) {
-                    const a = Math.abs(srcOutput[i]);
-                    if (a > maxOut) maxOut = a;
-                }
-            }
-            if (useMipmaps && mmInput) {
-                const inLv = mmInput.level; const inBs = mmInput.blockSize;
-                const inS = Math.floor(hStart / inBs); const inE = Math.ceil(hEnd / inBs);
-                for (let i = inS; i < inE && i < inLv.length; i++) { const a = Math.abs(inLv[i]); if (a > maxIn) maxIn = a; }
-            } else {
-                for (let i = hStart; i < hEnd; i++) {
-                    const a = Math.abs(srcInput[i]);
-                    if (a > maxIn) maxIn = a;
-                }
-            }
-            const hOut = displayAmp(maxOut) * ampScale;
-            const hIn = displayAmp(maxIn) * ampScale;
-            if (mousePos.y >= centerY - hOut && mousePos.y <= centerY + hOut) {
-                isHoveringOnOutput = true;
-            } else if (mousePos.y >= centerY - hIn && mousePos.y <= centerY + hIn) {
-                isHoveringOnBrickRed = true;
-            }
-        }
-
-        // --- Draw hover layers ---
-        if (isHoveringOnBrickRed) {
-            const inPts = []; const outPts = [];
-            const brStartX = Math.max(0, Math.floor(panOffset) - 1);
-            const brEndX = Math.min(width, Math.ceil(panOffset + width * zoomX) + 1);
-            for (let x = brStartX; x < brEndX; x++) {
-                const vx = x - panOffset;
-                const s = Math.floor(vx * step); const e = Math.floor((vx + 1) * step);
-                if (s < 0 || s >= srcLength) continue;
-                const se = Math.min(srcLength, e);
-                let mxIn = 0; let mxOut = 0;
-                const ls = Math.max(s, 0);
-                if (se - ls > 0) {
-                    if (useMipmaps) {
-                        const iL = mmInput.level; const iB = mmInput.blockSize;
-                        const is0 = Math.floor(ls / iB); const ie0 = Math.ceil(se / iB);
-                        for (let i = is0; i < ie0 && i < iL.length; i++) { const a = Math.abs(iL[i]); if (a > mxIn) mxIn = a; }
-                        const oL = mmOutput.level; const oB = mmOutput.blockSize;
-                        const os = Math.floor(ls / oB); const oe = Math.ceil(se / oB);
-                        for (let i = os; i < oe && i < oL.length; i++) { const a = Math.abs(oL[i]); if (a > mxOut) mxOut = a; }
-                    } else {
-                        for (let i = ls; i < se; i++) {
-                            const aI = Math.abs(srcInput[i]); if (aI > mxIn) mxIn = aI;
-                            const aO = Math.abs(srcOutput[i]); if (aO > mxOut) mxOut = aO;
-                        }
-                    }
-                } else {
-                    const idx = Math.min(Math.floor(ls), srcLength - 1);
-                    if (idx >= 0) {
-                        mxIn = Math.abs(srcInput[idx]);
-                        mxOut = Math.abs(srcOutput[idx]);
-                    }
-                }
-                const hI = displayAmp(mxIn) * ampScale;
-                const hO = displayAmp(mxOut) * ampScale;
-                inPts.push({ x, yTop: centerY - hI, yBot: centerY + hI });
-                outPts.push({ x, yTop: centerY - hO, yBot: centerY + hO });
-            }
-            drawPolygonWithPeakFade(ctx, inPts, HOVER_RED, width, centerY);
-            drawPolygonWithPeakFade(ctx, outPts, '#ffffff', width, centerY, 0.65, 0.2);
-        }
-
-        // --- Legends ---
-        const bgX = mousePos.x + TOOLTIP_OFFSET_X;
-
-        if (isHoveringOnBrickRed) {
-            const legendText = '紅色 = 增益前後差異的訊號';
-            ctx.font = 'bold 11px sans-serif';
-            const lw = ctx.measureText(legendText).width;
-            const legendW = lw + LEGEND_PAD_X * 2;
-            const goldTooltipBottom = mousePos.y - TOOLTIP_HEIGHT - TOOLTIP_OFFSET_Y;
-            let legendX = bgX;
-            let legendY = goldTooltipBottom - LEGEND_HEIGHT - 4;
-            if (legendX + legendW > width) legendX = width - legendW - 2;
-            if (legendY < 2) legendY = mousePos.y + TOOLTIP_OFFSET_Y;
-
-            ctx.fillStyle = LEGEND_BG;
-            ctx.fillRect(legendX, legendY, legendW, LEGEND_HEIGHT);
-            ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-            ctx.fillText(legendText, legendX + LEGEND_PAD_X, legendY + LEGEND_TEXT_BASELINE);
-        }
-    }
 
     // Bypass (original) mode: hover detection + legend
     if (mousePos.x >= 0 && lastPlayedType === 'original') {
