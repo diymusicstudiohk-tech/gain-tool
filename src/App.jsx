@@ -27,6 +27,7 @@ const App = () => {
     // --- Shared Refs ---
     const containerRef = useRef(null);
     const waveformCanvasRef = useRef(null);
+    const bgWaveformCanvasRef = useRef(null);
     const outputMeterCanvasRef = useRef(null);
     const inputMeterCanvasRef = useRef(null);
     const playheadRef = useRef(null);
@@ -227,6 +228,7 @@ const App = () => {
         hoveredMarkerInfoRef: waveform.hoveredMarkerInfoRef,
         draggingMarkerRef: waveform.draggingMarkerRef,
         peakLinesRef,
+        bgWaveformCanvasRef,
     });
 
     // Wire animate ref (for usePlayback to use latest animate)
@@ -321,6 +323,7 @@ const App = () => {
                 />
                 <Waveform
                     canvasRef={waveformCanvasRef}
+                    bgCanvasRef={bgWaveformCanvasRef}
                     containerRef={containerRef}
                     playheadRef={playheadRef}
                     onMouseDown={waveform.handleWaveformMouseDown}

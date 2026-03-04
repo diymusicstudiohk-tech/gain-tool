@@ -18,7 +18,7 @@ import {
 // --- Main Draw Logic (Exported for App.jsx) ---
 
 export const drawMainWaveform = ({
-    canvas, canvasDims, visualResult, originalBuffer,
+    canvas, bgCanvas, canvasDims, visualResult, originalBuffer,
     zoomX, zoomY, panOffset, panOffsetY,
     playingType, lastPlayedType,
     mousePos,
@@ -40,10 +40,22 @@ export const drawMainWaveform = ({
     if (canvas.height !== physH) canvas.height = physH;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    // Setup background canvas for dual-canvas rendering (eliminates GPU readback)
+    let bgCtx = null;
+    if (bgCanvas) {
+        bgCtx = bgCanvas.getContext('2d');
+        if (bgCanvas.width !== physW) bgCanvas.width = physW;
+        if (bgCanvas.height !== physH) bgCanvas.height = physH;
+        bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    const phase1Ctx = bgCtx || ctx;
+
     if (!visualResult) {
-        ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
-        ctx.fillStyle = TEXT_DIM; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('請載入音訊...', width / 2, height / 2); return;
+        phase1Ctx.setLineDash([]); phase1Ctx.fillStyle = BG_PANEL; phase1Ctx.fillRect(0, 0, width, height);
+        phase1Ctx.fillStyle = TEXT_DIM; phase1Ctx.font = '14px sans-serif'; phase1Ctx.textAlign = 'center';
+        phase1Ctx.fillText('請載入音訊...', width / 2, height / 2);
+        if (bgCtx) ctx.clearRect(0, 0, width, height);
+        return;
     }
 
     // ── Cache key ──
@@ -53,19 +65,19 @@ export const drawMainWaveform = ({
     const cacheKey = `${physW}x${physH}_${zoomX.toFixed(4)}_${Math.round(panOffset)}_${Math.round(panOffsetY)}_${zoomY.toFixed(3)}_${playingType}_${lastPlayedType}_${markerKey}`;
 
     const cache = waveformCacheRef?.current;
-    const cacheHit = cache?.key === cacheKey && cache?.imageData;
+    const cacheHit = cache?.key === cacheKey;
 
     // ── PHASE 1: Waveform background (skip when cache hit) ──
     if (!cacheHit) {
-        ctx.setLineDash([]); ctx.fillStyle = BG_PANEL; ctx.fillRect(0, 0, width, height);
+        phase1Ctx.setLineDash([]); phase1Ctx.fillStyle = BG_PANEL; phase1Ctx.fillRect(0, 0, width, height);
 
         // Gold fill between marker pairs (behind waveform)
         if (markers && markers.length > 0) {
-            ctx.fillStyle = GOLD_FILL_07;
+            phase1Ctx.fillStyle = GOLD_FILL_07;
             for (const marker of markers) {
                 const mx1 = marker.startFrac * width * zoomX + panOffset;
                 const mx2 = marker.endFrac * width * zoomX + panOffset;
-                ctx.fillRect(mx1, 0, mx2 - mx1, height);
+                phase1Ctx.fillRect(mx1, 0, mx2 - mx1, height);
             }
         }
 
@@ -83,27 +95,24 @@ export const drawMainWaveform = ({
             });
 
             // Draw Polygons
-            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(ctx, inPoints, ORIGINAL_RED, width, centerY); }
+            if (lastPlayedType === 'original') { drawPolygonWithPeakFade(phase1Ctx, inPoints, ORIGINAL_RED, width, centerY); }
             else {
-                drawPolygonWithPeakFade(ctx, outPoints, WHITE, width, centerY, 0.55, 0.2);
+                drawPolygonWithPeakFade(phase1Ctx, outPoints, WHITE, width, centerY, 0.55, 0.2);
             }
 
-            // Save background to cache
+            // Save cache key (no imageData — bgCanvas retains the content)
             if (waveformCacheRef) {
-                try {
-                    waveformCacheRef.current = { key: cacheKey, imageData: ctx.getImageData(0, 0, physW, physH) };
-                } catch (_) { /* cross-origin or memory guard — skip caching */ }
+                waveformCacheRef.current = { key: cacheKey };
             }
 
         } catch (e) {
             console.error("Waveform draw error:", e);
             return;
         }
-    } else {
-        ctx.putImageData(cache.imageData, 0, 0);
     }
 
-    // ── PHASE 2: Overlay — mouse inspection ──
+    // ── PHASE 2: Overlay — mouse inspection (foreground canvas, cleared each frame) ──
+    if (bgCtx) ctx.clearRect(0, 0, width, height);
 
     const srcLength = visualResult.visualInput.length;
     const step = srcLength / (width * zoomX);
@@ -312,6 +321,7 @@ export const drawMainWaveform = ({
 
 const Waveform = ({
     canvasRef,
+    bgCanvasRef,
     containerRef,
     playheadRef,
     onMouseDown,
@@ -329,7 +339,8 @@ const Waveform = ({
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
         >
-            <canvas ref={canvasRef} className="w-full h-full block" />
+            <canvas ref={bgCanvasRef} className="w-full h-full block" />
+            <canvas ref={canvasRef} className="w-full h-full block absolute inset-0" />
 
             {/* Playheads */}
             <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20" style={{ left: 0, willChange: 'transform', visibility: 'hidden' }}></div>

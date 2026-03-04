@@ -39,11 +39,12 @@ const useVisualizerLoop = ({
     hoveredMarkerInfoRef,
     draggingMarkerRef,
     peakLinesRef,
+    bgWaveformCanvasRef,
 }) => {
 
     const waveformFrameRef = useRef(0);
     const meterFrameRef = useRef(0);
-    const waveformCacheRef = useRef({ key: null, imageData: null });
+    const waveformCacheRef = useRef({ key: null });
     const lastDrawParamsRef = useRef(null);
     const visualResultRef = useLatestRef(visualResult);
     const mipmapsRef = useLatestRef(mipmaps);
@@ -58,7 +59,7 @@ const useVisualizerLoop = ({
     // Invalidate draw key + waveform cache when DSP data changes
     useEffect(() => {
         lastDrawParamsRef.current = null;
-        if (waveformCacheRef.current) waveformCacheRef.current = { key: null, imageData: null };
+        if (waveformCacheRef.current) waveformCacheRef.current = { key: null };
     }, [visualResult, mipmaps]);
 
     const animate = useCallback(() => {
@@ -182,6 +183,7 @@ const useVisualizerLoop = ({
                 if (shouldDraw) {
                     drawMainWaveform({
                         canvas: waveformCanvasRef.current,
+                        bgCanvas: bgWaveformCanvasRef?.current,
                         canvasDims,
                         visualResult: liveVisualResult,
                         originalBuffer,
@@ -226,6 +228,7 @@ const useVisualizerLoop = ({
         if (waveformCanvasRef.current && originalBuffer && visualResult) {
             drawMainWaveform({
                 canvas: waveformCanvasRef.current,
+                bgCanvas: bgWaveformCanvasRef?.current,
                 canvasDims,
                 visualResult,
                 originalBuffer,
