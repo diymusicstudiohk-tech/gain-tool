@@ -42,6 +42,7 @@ const useVisualizerLoop = ({
 }) => {
 
     const waveformFrameRef = useRef(0);
+    const meterFrameRef = useRef(0);
     const waveformCacheRef = useRef({ key: null, imageData: null });
     const lastDrawParamsRef = useRef(null);
     const visualResultRef = useLatestRef(visualResult);
@@ -145,12 +146,15 @@ const useVisualizerLoop = ({
             if (!Number.isFinite(meterStateRef.current.dryRmsLevel)) meterStateRef.current.dryRmsLevel = 0;
             if (!Number.isFinite(meterStateRef.current.outRmsLevel)) meterStateRef.current.outRmsLevel = 0;
 
-            // Draw Meters
-            drawInputMeter(inputMeterCanvasRef?.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
-            if (isProcessed) {
-                drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
-            } else {
-                drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
+            // Draw Meters at 30fps (skip every other frame)
+            meterFrameRef.current = (meterFrameRef.current + 1) % 2;
+            if (meterFrameRef.current === 0) {
+                drawInputMeter(inputMeterCanvasRef?.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
+                if (isProcessed) {
+                    drawDualMeter(outputMeterCanvasRef.current, maxMix, meterStateRef.current.outRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
+                } else {
+                    drawDualMeter(outputMeterCanvasRef.current, maxInput, meterStateRef.current.dryRmsLevel, meterStateRef.current, hoveredMeterRef?.current);
+                }
             }
 
             // Draw Main Waveform at 30fps; always draw when hovering
