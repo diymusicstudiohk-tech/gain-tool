@@ -75,21 +75,24 @@ const useVisualizerLoop = ({
         const liveZoomX = liveRegionWidth >= 0.01 ? 1 / liveRegionWidth : zoomX;
         const livePanOffset = liveRegionWidth >= 0.01 ? -liveRegionStart * canvasDims.width / liveRegionWidth : panOffset;
 
-        // Update Playhead Position
+        // Update Playhead Position (GPU-accelerated via translateX)
         if (waveformCanvasRef.current && playheadRef.current) {
             const width = canvasDims.width;
             const totalWidth = width * liveZoomX;
             const pct = currentPosition / duration;
             const screenPct = (((pct * totalWidth) + livePanOffset) / width) * 100;
-            playheadRef.current.style.left = `${screenPct}%`;
-            playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
+            const px = screenPct * width / 100;
+            playheadRef.current.style.transform = `translateX(${px}px)`;
+            playheadRef.current.style.visibility = (screenPct < 0 || screenPct > 100) ? 'hidden' : 'visible';
         }
 
-        // Update Output Waveform Playhead
+        // Update Output Waveform Playhead (GPU-accelerated via translateX)
         if (outputPlayheadRef?.current) {
             const pct = (currentPosition / duration) * 100;
-            outputPlayheadRef.current.style.left = `${pct}%`;
-            outputPlayheadRef.current.style.opacity = (pct < 0 || pct > 100) ? 0 : 1;
+            const parentWidth = outputPlayheadRef.current.parentElement?.clientWidth || 0;
+            const px = pct * parentWidth / 100;
+            outputPlayheadRef.current.style.transform = `translateX(${px}px)`;
+            outputPlayheadRef.current.style.visibility = (pct < 0 || pct > 100) ? 'hidden' : 'visible';
         }
 
         // Read latest visual data from refs

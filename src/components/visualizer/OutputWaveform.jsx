@@ -70,8 +70,10 @@ const OutputWaveform = ({
             playBufferRef.current?.(originalBuffer, currentPlayingType, seekTime);
         } else {
             if (outputPlayheadRef?.current) {
-                outputPlayheadRef.current.style.left = `${ratio * 100}%`;
-                outputPlayheadRef.current.style.opacity = 1;
+                const parentWidth = outputPlayheadRef.current.parentElement?.clientWidth || 0;
+                const px = ratio * parentWidth;
+                outputPlayheadRef.current.style.transform = `translateX(${px}px)`;
+                outputPlayheadRef.current.style.visibility = 'visible';
             }
         }
     }, [originalBuffer, startOffsetRef, playingTypeRef, playBufferRef, outputPlayheadRef]);
@@ -281,7 +283,7 @@ const OutputWaveform = ({
             <div
                 ref={outputPlayheadRef}
                 className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20"
-                style={{ left: '0%', opacity: 0 }}
+                style={{ left: 0, willChange: 'transform', visibility: 'hidden' }}
             />
         </div>
     );

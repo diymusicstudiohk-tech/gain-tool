@@ -332,7 +332,7 @@ const Waveform = ({
             <canvas ref={canvasRef} className="w-full h-full block" />
 
             {/* Playheads */}
-            <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20" style={{ left: '0%', opacity: 0 }}></div>
+            <div ref={playheadRef} className="absolute top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] pointer-events-none z-20" style={{ left: 0, willChange: 'transform', visibility: 'hidden' }}></div>
 
             {/* Loading overlay */}
             {isLoading && (

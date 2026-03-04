@@ -25,12 +25,15 @@ const useWaveformSeek = ({
             if (playheadRef?.current) {
                 const totalWidth = width * zoomX;
                 const screenPct = (((ratio * totalWidth) + panOffset) / width) * 100;
-                playheadRef.current.style.left = `${screenPct}%`;
-                playheadRef.current.style.opacity = (screenPct < 0 || screenPct > 100) ? 0 : 1;
+                const px = screenPct * width / 100;
+                playheadRef.current.style.transform = `translateX(${px}px)`;
+                playheadRef.current.style.visibility = (screenPct < 0 || screenPct > 100) ? 'hidden' : 'visible';
             }
             if (outputPlayheadRef?.current) {
-                outputPlayheadRef.current.style.left = `${ratio * 100}%`;
-                outputPlayheadRef.current.style.opacity = 1;
+                const parentWidth = outputPlayheadRef.current.parentElement?.clientWidth || 0;
+                const px = (ratio * 100) * parentWidth / 100;
+                outputPlayheadRef.current.style.transform = `translateX(${px}px)`;
+                outputPlayheadRef.current.style.visibility = 'visible';
             }
         }
     }, [originalBuffer, waveformCanvasRef, zoomX, panOffset,
