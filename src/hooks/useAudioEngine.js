@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AUDIO_SOURCES } from '../utils/constants';
 import { processCompressor } from '../utils/dsp';
-import { writeWavFile, stopCurrentSource } from '../utils/audioHelper';
-import { fetchAudioBuffer } from '../utils/audioLoader';
+import { writeWavFile } from '../utils/audioHelper';
 import {
-    loadAppStateFromStorage, saveAudioFileToDB, loadAudioFileFromDB,
-    loadCustomAudioBlobFromDB,
-    saveParamsForSource, loadParamsForSource,
+    loadAppStateFromStorage, loadAudioFileFromDB,
+    loadCustomAudioBlobFromDB, loadParamsForSource,
 } from '../utils/storage';
 import useStateRef from './useStateRef';
 import useLatestRef from './useLatestRef';
-import { MAX_FILE_SIZE, ALLOWED_MIME_TYPES } from '../utils/fileConstants';
+import useAudioFileLoader from './useAudioFileLoader';
+import useSessionManager from './useSessionManager';
 
 /**
  * Receives shared refs from App.jsx and playback setters to coordinate loading.
@@ -32,195 +31,36 @@ const useAudioEngine = ({
     const [lastPracticeSourceId, setLastPracticeSourceId] = useState('Bass-01');
     const [fileName, setFileName] = useState('');
 
-    // Consolidated session state: user upload, practice session, upload session
-    const sessionRef = useRef({
-        user: { buffer: null, fileName: '' },
-        practice: null,
-        upload: null,
-    });
-    // Stable ref-like proxies for backward-compatible public API
-    const [userBufferRef] = useState(() => ({
-        get current() { return sessionRef.current.user.buffer; },
-        set current(v) { sessionRef.current.user.buffer = v; },
-    }));
-    const [userFileNameRef] = useState(() => ({
-        get current() { return sessionRef.current.user.fileName; },
-        set current(v) { sessionRef.current.user.fileName = v; },
-    }));
     const hasInitialLoadRun = useRef(false);
     const fileInputRef = useRef(null);
     const getSnapshotRef = useLatestRef(getCurrentStateSnapshot);
 
-    const handleDecodedBuffer = useCallback((decodedBuffer) => {
-        if (!audioContext) return;
-        setOriginalBuffer(decodedBuffer);
-    }, [audioContext, setOriginalBuffer]);
+    // --- File Loading ---
+    const { handleDecodedBuffer, loadAudio, handleFileUpload, loadCustomAudio } = useAudioFileLoader({
+        audioContext, setOriginalBuffer,
+        applyStateSnapshot, resetAllParams,
+        sourceNodeRef, isPlayingRef, startOffsetRef, setPlayingType,
+        currentSourceIdRef, getSnapshotRef,
+        setIsLoading, setErrorMsg, setLoadingMessage,
+        setCurrentSourceId, setLastPracticeSourceId, setFileName,
+        // userBufferRef/userFileNameRef are forwarded after session manager creates them
+        get userBufferRef() { return session.userBufferRef; },
+        get userFileNameRef() { return session.userFileNameRef; },
+    });
 
-    const loadAudio = useCallback(async (preset, options) => {
-        if (!audioContext) return;
-        const { paramsSnapshot, skipSavePrev } = options || {};
-        try {
-            // Save current source params before switching
-            if (!skipSavePrev && currentSourceIdRef.current && currentSourceIdRef.current !== preset.id) {
-                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
-            }
+    // --- Session Management ---
+    const session = useSessionManager({
+        audioContext,
+        handleDecodedBuffer, loadAudio,
+        applyStateSnapshot, getCurrentStateSnapshot,
+        sourceNodeRef, isPlayingRef, startOffsetRef, setPlayingType,
+        currentSourceId, currentSourceIdRef, getSnapshotRef,
+        setCurrentSourceId, setFileName,
+    });
 
-            setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef);
-            setPlayingType('none'); isPlayingRef.current = false;
-            setOriginalBuffer(null);
-            startOffsetRef.current = 0;
-            setCurrentSourceId(preset.id); setLastPracticeSourceId(preset.id);
-            setFileName(preset.name);
+    const { userBufferRef, userFileNameRef, restoreUserUpload, switchToPractice, switchToUpload, clearUserUpload } = session;
 
-            const arrayBuffer = await fetchAudioBuffer(preset.trackName, setLoadingMessage);
-            const decoded = await audioContext.decodeAudioData(arrayBuffer);
-            handleDecodedBuffer(decoded);
-
-            // Restore params: priority is paramsSnapshot > per-source localStorage > defaults
-            if (paramsSnapshot) {
-                applyStateSnapshot(paramsSnapshot);
-            } else {
-                const saved = loadParamsForSource(preset.id);
-                if (saved) {
-                    applyStateSnapshot(saved);
-                } else {
-                    resetAllParams();
-                }
-            }
-            setIsLoading(false); setLoadingMessage('');
-        } catch (err) {
-            console.error(err);
-            setErrorMsg(`載入失敗: ${err.message}`);
-            setIsLoading(false); setLoadingMessage('');
-        }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef,
-        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
-
-    const handleFileUpload = useCallback(async (e) => {
-        const file = e.target.files[0];
-        if (!file || !audioContext) return;
-
-        // File size validation
-        if (file.size > MAX_FILE_SIZE) {
-            setErrorMsg(`檔案超過 1GB 上限：${file.name}`);
-            if (e.target) e.target.value = '';
-            return;
-        }
-
-        // MIME type validation (allow empty type as some browsers omit it)
-        if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
-            setErrorMsg(`不支援的格式：${file.type || '未知格式'}。支援：MP3, WAV, M4A, AAC, OGG, FLAC`);
-            if (e.target) e.target.value = '';
-            return;
-        }
-
-        try {
-            // Save current source params before switching
-            if (currentSourceIdRef.current) {
-                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
-            }
-
-            setIsLoading(true); setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef);
-            setPlayingType('none'); isPlayingRef.current = false;
-
-            startOffsetRef.current = 0;
-            setCurrentSourceId('upload'); setFileName(file.name);
-            setOriginalBuffer(null);
-
-            await saveAudioFileToDB(file, file.name);
-            const ab = await file.arrayBuffer();
-            const decoded = await audioContext.decodeAudioData(ab);
-            userBufferRef.current = decoded;
-            userFileNameRef.current = file.name;
-            handleDecodedBuffer(decoded);
-            // Always reset for new uploads (fresh start)
-            resetAllParams();
-            setIsLoading(false); setLoadingMessage('');
-        } catch (err) {
-            setErrorMsg('無法解析音檔，請確認格式 (MP3/WAV/M4A/AAC/FLAC)。');
-            setIsLoading(false); setLoadingMessage('');
-        }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, sourceNodeRef,
-        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
-
-    const saveSessionState = useCallback((mode) => {
-        const snapshot = getCurrentStateSnapshot();
-        if (mode === 'practice') sessionRef.current.practice = { ...snapshot, sourceId: currentSourceId, fileName };
-        else if (mode === 'upload') sessionRef.current.upload = { ...snapshot, fileName: userFileNameRef.current };
-    }, [getCurrentStateSnapshot, currentSourceId, fileName]);
-
-    const restoreUserUpload = useCallback(() => {
-        if (!userBufferRef.current || !audioContext) return;
-        stopCurrentSource(sourceNodeRef);
-        setPlayingType('none'); isPlayingRef.current = false;
-        startOffsetRef.current = 0;
-        setCurrentSourceId('upload');
-        setFileName(userFileNameRef.current);
-        handleDecodedBuffer(userBufferRef.current);
-    }, [audioContext, handleDecodedBuffer, sourceNodeRef, isPlayingRef,
-        startOffsetRef, setPlayingType]);
-
-    const switchToPractice = useCallback(() => {
-        stopCurrentSource(sourceNodeRef);
-        setPlayingType('none'); isPlayingRef.current = false;
-
-        // Save current source params to localStorage
-        if (currentSourceIdRef.current) {
-            saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
-        }
-
-        if (currentSourceId === 'upload') saveSessionState('upload');
-
-        if (sessionRef.current.practice) {
-            const snap = sessionRef.current.practice;
-            setCurrentSourceId(snap.sourceId);
-            setFileName(snap.fileName);
-            const source = AUDIO_SOURCES.find(s => s.id === snap.sourceId);
-            if (source) loadAudio(source, { paramsSnapshot: snap, skipSavePrev: true });
-        } else {
-            const defaultSource = AUDIO_SOURCES[0];
-            loadAudio(defaultSource, { skipSavePrev: true });
-        }
-    }, [sourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
-        loadAudio, setPlayingType]);
-
-    const switchToUpload = useCallback(() => {
-        stopCurrentSource(sourceNodeRef);
-        setPlayingType('none'); isPlayingRef.current = false;
-
-        // Save current source params to localStorage
-        if (currentSourceIdRef.current) {
-            saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
-        }
-
-        if (currentSourceId !== 'upload') saveSessionState('practice');
-
-        if (sessionRef.current.upload) {
-            const snap = sessionRef.current.upload;
-            applyStateSnapshot(snap);
-            setCurrentSourceId('upload');
-            setFileName(snap.fileName);
-            if (userBufferRef.current) handleDecodedBuffer(userBufferRef.current);
-        } else {
-            // No session ref — try per-source localStorage for 'upload'
-            const savedUploadParams = loadParamsForSource('upload');
-            if (savedUploadParams) {
-                applyStateSnapshot(savedUploadParams);
-            }
-            restoreUserUpload();
-        }
-    }, [sourceNodeRef, isPlayingRef, currentSourceId, saveSessionState,
-        applyStateSnapshot, handleDecodedBuffer, restoreUserUpload, setPlayingType]);
-
-    const clearUserUpload = useCallback(() => {
-        userBufferRef.current = null;
-        userFileNameRef.current = "";
-        sessionRef.current.upload = null;
-        if (currentSourceId === 'upload') switchToPractice();
-    }, [currentSourceId, switchToPractice]);
-
+    // --- Download ---
     const handleDownload = useCallback(() => {
         if (!originalBuffer || !audioContext) return;
         setIsLoading(true);
@@ -247,7 +87,7 @@ const useAudioEngine = ({
         }, 50);
     }, [originalBuffer, audioContext, currentParams, fileName, markersRef]);
 
-    // Load initial state from storage
+    // --- Load initial state from storage ---
     useEffect(() => {
         const savedState = loadAppStateFromStorage();
         if (savedState) {
@@ -262,7 +102,7 @@ const useAudioEngine = ({
         }
     }, [setLastPlayedType]);
 
-    // Audio Restoration on Mount
+    // --- Audio Restoration on Mount ---
     useEffect(() => {
         if (!audioContext || hasInitialLoadRun.current) return;
 
@@ -327,53 +167,13 @@ const useAudioEngine = ({
         }
     }, [audioContext, currentSourceId]);
 
-    // Random initial load if no source
+    // --- Random initial load if no source ---
     useEffect(() => {
         if (audioContext && !originalBuffer && !currentSourceId && !isLoading) {
             const randomSource = AUDIO_SOURCES[Math.floor(Math.random() * AUDIO_SOURCES.length)];
             loadAudio(randomSource);
         }
     }, [audioContext, originalBuffer, currentSourceId, isLoading, loadAudio]);
-
-    const loadCustomAudio = useCallback(async (id, name) => {
-        if (!audioContext) return;
-        const newSourceId = `custom_${id}`;
-        try {
-            // Save current source params before switching
-            if (currentSourceIdRef.current && currentSourceIdRef.current !== newSourceId) {
-                saveParamsForSource(currentSourceIdRef.current, getSnapshotRef.current());
-            }
-
-            setIsLoading(true);
-            setErrorMsg(''); setLoadingMessage('載入音檔中...');
-            stopCurrentSource(sourceNodeRef);
-            setPlayingType('none');
-            isPlayingRef.current = false;
-            startOffsetRef.current = 0;
-            setCurrentSourceId(newSourceId);
-            setFileName(name);
-            setOriginalBuffer(null);
-
-            const blob = await loadCustomAudioBlobFromDB(id);
-            if (!blob) throw new Error('找不到音檔');
-            const ab = await blob.arrayBuffer();
-            const decoded = await audioContext.decodeAudioData(ab);
-            handleDecodedBuffer(decoded);
-
-            // Load per-source params or defaults
-            const saved = loadParamsForSource(newSourceId);
-            if (saved) {
-                applyStateSnapshot(saved);
-            } else {
-                resetAllParams();
-            }
-            setIsLoading(false); setLoadingMessage('');
-        } catch (_) {
-            setErrorMsg('無法載入自訂音檔，請重新上載。');
-            setIsLoading(false); setLoadingMessage('');
-        }
-    }, [audioContext, handleDecodedBuffer, resetAllParams, applyStateSnapshot, sourceNodeRef,
-        isPlayingRef, startOffsetRef, setPlayingType, setOriginalBuffer]);
 
     return {
         isLoading, loadingMessage, errorMsg,
