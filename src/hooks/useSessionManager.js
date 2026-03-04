@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import { AUDIO_SOURCES } from '../utils/constants';
 import { stopCurrentSource } from '../utils/audioHelper';
 import { saveParamsForSource, loadParamsForSource } from '../utils/storage';
@@ -10,22 +10,13 @@ const useSessionManager = ({
     sourceNodeRef, isPlayingRef, startOffsetRef, setPlayingType,
     currentSourceId, currentSourceIdRef, getSnapshotRef,
     setCurrentSourceId, setFileName,
+    userBufferRef, userFileNameRef,
 }) => {
-    // Consolidated session state: user upload, practice session, upload session
+    // Session state for practice/upload switching
     const sessionRef = useRef({
-        user: { buffer: null, fileName: '' },
         practice: null,
         upload: null,
     });
-    // Stable ref-like proxies for backward-compatible public API
-    const [userBufferRef] = useState(() => ({
-        get current() { return sessionRef.current.user.buffer; },
-        set current(v) { sessionRef.current.user.buffer = v; },
-    }));
-    const [userFileNameRef] = useState(() => ({
-        get current() { return sessionRef.current.user.fileName; },
-        set current(v) { sessionRef.current.user.fileName = v; },
-    }));
 
     const saveSessionState = useCallback((mode) => {
         const snapshot = getCurrentStateSnapshot();
@@ -104,7 +95,6 @@ const useSessionManager = ({
     }, [currentSourceId, switchToPractice]);
 
     return {
-        userBufferRef, userFileNameRef,
         restoreUserUpload, switchToPractice, switchToUpload, clearUserUpload,
     };
 };

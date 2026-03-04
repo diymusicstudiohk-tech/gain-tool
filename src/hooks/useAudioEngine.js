@@ -34,6 +34,8 @@ const useAudioEngine = ({
     const hasInitialLoadRun = useRef(false);
     const fileInputRef = useRef(null);
     const getSnapshotRef = useLatestRef(getCurrentStateSnapshot);
+    const userBufferRef = useRef(null);
+    const userFileNameRef = useRef('');
 
     // --- File Loading ---
     const { handleDecodedBuffer, loadAudio, handleFileUpload, loadCustomAudio } = useAudioFileLoader({
@@ -43,9 +45,7 @@ const useAudioEngine = ({
         currentSourceIdRef, getSnapshotRef,
         setIsLoading, setErrorMsg, setLoadingMessage,
         setCurrentSourceId, setLastPracticeSourceId, setFileName,
-        // userBufferRef/userFileNameRef are forwarded after session manager creates them
-        get userBufferRef() { return session.userBufferRef; },
-        get userFileNameRef() { return session.userFileNameRef; },
+        userBufferRef, userFileNameRef,
     });
 
     // --- Session Management ---
@@ -56,9 +56,10 @@ const useAudioEngine = ({
         sourceNodeRef, isPlayingRef, startOffsetRef, setPlayingType,
         currentSourceId, currentSourceIdRef, getSnapshotRef,
         setCurrentSourceId, setFileName,
+        userBufferRef, userFileNameRef,
     });
 
-    const { userBufferRef, userFileNameRef, restoreUserUpload, switchToPractice, switchToUpload, clearUserUpload } = session;
+    const { restoreUserUpload, switchToPractice, switchToUpload, clearUserUpload } = session;
 
     // --- Download ---
     const handleDownload = useCallback(() => {
