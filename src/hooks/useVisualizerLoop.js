@@ -47,7 +47,12 @@ const useVisualizerLoop = ({
     const visualResultRef = useLatestRef(visualResult);
     const mipmapsRef = useLatestRef(mipmaps);
 
-    const interactionDPR = null;
+    const interactionDPR = (() => {
+        const dpr = window.devicePixelRatio || 1;
+        if (dpr <= 2) return null;
+        const isCoarse = window.matchMedia?.('(pointer: coarse)')?.matches;
+        return isCoarse ? 2 : null;
+    })();
 
     // Invalidate draw key + waveform cache when DSP data changes
     useEffect(() => {
