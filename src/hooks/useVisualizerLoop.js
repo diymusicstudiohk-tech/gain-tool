@@ -197,6 +197,7 @@ const useVisualizerLoop = ({
                         hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
                         draggingMarker: draggingMarkerRef?.current,
                         peakLinesRef,
+                        isPlaying: true,
                     });
                 }
             }
@@ -242,6 +243,7 @@ const useVisualizerLoop = ({
                 hoveredMarkerInfo: hoveredMarkerInfoRef?.current,
                 draggingMarker: draggingMarkerRef?.current || null,
                 peakLinesRef,
+                isPlaying: false,
             });
         }
 

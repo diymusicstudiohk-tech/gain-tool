@@ -29,6 +29,7 @@ export const drawMainWaveform = ({
     hoveredMarkerInfo,
     draggingMarker,
     peakLinesRef,
+    isPlaying,
 }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -292,16 +293,16 @@ export const drawMainWaveform = ({
         }
     }
 
-    // ── Marker Hover Preview (only when not over existing marker and not dragging) ──
-    if (mousePos.x >= 0 && !hoveredMarkerInfo && !draggingMarker) {
+    // ── Marker Hover Preview (only when not over existing marker and not dragging, hide during playback) ──
+    if (!isPlaying && mousePos.x >= 0 && !hoveredMarkerInfo && !draggingMarker) {
         const snapInfo = markers && markers.length >= 1
             ? getSnapBetweenMarkers(mousePos.x, markers, zoomX, panOffset, width)
             : null;
         drawMarkerHoverPreview(ctx, mousePos.x, width, height, centerY, snapInfo);
     }
 
-    // ── Crosshair + Gain Tooltip ──
-    if (mousePos.x >= 0 && mousePos.y >= 0) {
+    // ── Crosshair + Gain Tooltip (hide during playback) ──
+    if (!isPlaying && mousePos.x >= 0 && mousePos.y >= 0) {
         drawCrosshair(ctx, mousePos, width, height);
         if (draggingMarker?.type === 'peakLine' && markers) {
             const draggedMarker = markers.find(m => m.id === draggingMarker.id);
