@@ -10,6 +10,7 @@ const usePlayback = ({
     regionStartRef, regionEndRef,
     workletReady,
     markersRef, markers,
+    forceResumeAudioContext,
 }) => {
     const [playingType, setPlayingType, playingTypeRef] = useStateRef('none');
     const [lastPlayedType, setLastPlayedType, lastPlayedTypeRef] = useStateRef('processed');
@@ -58,7 +59,13 @@ const usePlayback = ({
 
         const runPlayback = async () => {
             try {
-                if (audioContext.state !== 'running') await audioContext.resume();
+                if (audioContext.state !== 'running') {
+                    if (forceResumeAudioContext) {
+                        await forceResumeAudioContext();
+                    } else {
+                        await audioContext.resume();
+                    }
+                }
                 startSource();
             } catch (err) {
                 console.error("Playback failed:", err);

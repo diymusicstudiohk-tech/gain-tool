@@ -128,15 +128,32 @@ const useMarkerDrag = ({
             draggingMarkerRef.current = null;
         };
 
+        // Force-end drag on tab switch or window blur (mobile app switching)
+        const forceEndDrag = () => {
+            if (draggingMarkerRef.current) {
+                mousePosRef.current = { x: -1, y: -1 };
+                setMousePos({ x: -1, y: -1 });
+                draggingMarkerRef.current = null;
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) forceEndDrag();
+        };
+
         window.addEventListener('mousemove', handleWindowMouseMove);
         window.addEventListener('mouseup', handleWindowMouseUp);
         window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
         window.addEventListener('touchend', handleWindowTouchEnd);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('blur', forceEndDrag);
         return () => {
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
             window.removeEventListener('touchmove', handleWindowTouchMove);
             window.removeEventListener('touchend', handleWindowTouchEnd);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('blur', forceEndDrag);
         };
     }, [draggingMarkerRef, mousePosRef, setMousePos,
         waveformCanvasRef, zoomX, zoomY, panOffsetY,

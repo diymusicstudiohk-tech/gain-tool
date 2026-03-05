@@ -18,6 +18,7 @@ import useAudioEngine from './hooks/useAudioEngine';
 import useWaveformInteraction from './hooks/useWaveformInteraction';
 import useMarkers from './hooks/useMarkers';
 import useStateRef from './hooks/useStateRef';
+import useVisibilityRecovery from './hooks/useVisibilityRecovery';
 
 const App = () => {
     // --- Core State (shared between hooks) ---
@@ -129,6 +130,9 @@ const App = () => {
         meterStateRef,
     });
 
+    // --- Visibility recovery (mobile tab-switching) ---
+    const { forceResumeAudioContext } = useVisibilityRecovery({ audioContext });
+
     // --- 4a. Markers (before playback, which needs markersRef) ---
     const markerHook = useMarkers();
     const peakLinesRef = useRef({});
@@ -148,6 +152,7 @@ const App = () => {
         workletReady,
         markersRef: markerHook.markersRef,
         markers: markerHook.markers,
+        forceResumeAudioContext,
     });
 
     // Wire ref-based callbacks
