@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X, Download,
@@ -18,6 +18,21 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
         loadPreset, fileInputRef, loadCustomAudio,
     } = engineProps;
     const [showAbout, setShowAbout] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    };
 
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -88,6 +103,21 @@ const Header = ({ engine: engineProps, playback, handleFactoryReset, stopAudio, 
 
                             {/* Actions */}
                             <div className="flex flex-col items-center gap-3">
+                                {document.fullscreenEnabled && (
+                                    <button
+                                        onClick={() => {
+                                            toggleFullscreen();
+                                            setShowAbout(false);
+                                        }}
+                                        className={`w-full max-w-[240px] px-6 py-2.5 rounded-lg text-white transition-colors font-medium text-sm shadow-lg ${
+                                            isFullscreen
+                                                ? 'bg-brick-red hover:brightness-110 shadow-brick-red/30'
+                                                : 'bg-green hover:brightness-110 shadow-green/30'
+                                        }`}
+                                    >
+                                        {isFullscreen ? '關閉全螢幕' : '開啟全螢幕'}
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         setTooltipsOff(!tooltipsOff);
